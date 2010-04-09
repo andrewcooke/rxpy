@@ -10,7 +10,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(repr(parse('abc')), 
 """strict digraph {
  0 [label="abc"]
- 1 [label="None"]
+ 1 [label="Match"]
  0 -> 1
 }""")
     
@@ -22,7 +22,7 @@ class ParserTest(GraphTest):
  2 [label="b"]
  3 [label=")"]
  4 [label="c"]
- 5 [label="None"]
+ 5 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -42,7 +42,7 @@ class ParserTest(GraphTest):
  6 [label="d"]
  7 [label=")"]
  8 [label="e"]
- 9 [label="None"]
+ 9 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -64,7 +64,7 @@ class ParserTest(GraphTest):
  4 [label=")"]
  5 [label=")"]
  6 [label="c"]
- 7 [label="None"]
+ 7 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -81,7 +81,7 @@ class ParserTest(GraphTest):
  1 [label="("]
  2 [label="b"]
  3 [label=")"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -95,7 +95,7 @@ class ParserTest(GraphTest):
  1 [label="a"]
  2 [label=")"]
  3 [label="b"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -109,7 +109,7 @@ class ParserTest(GraphTest):
  1 [label="("]
  2 [label=")"]
  3 [label="b"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -120,7 +120,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(repr(parse('a(?b)c')), 
 """strict digraph {
  0 [label="abc"]
- 1 [label="None"]
+ 1 [label="Match"]
  0 -> 1
 }""")
 
@@ -131,7 +131,7 @@ class ParserTest(GraphTest):
  1 [label="b"]
  2 [label="(?b)+"]
  3 [label="c"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -146,7 +146,7 @@ class ParserTest(GraphTest):
  1 [label="(?b)*"]
  2 [label="c"]
  3 [label="b"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3
@@ -161,7 +161,7 @@ class ParserTest(GraphTest):
  1 [label="(?b)?"]
  2 [label="c"]
  3 [label="b"]
- 4 [label="None"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3
@@ -178,7 +178,7 @@ class ParserTest(GraphTest):
  3 [label=")"]
  4 [label="(?(bc))+"]
  5 [label="d"]
- 6 [label="None"]
+ 6 [label="Match"]
  0 -> 1
  1 -> 2
  2 -> 3
@@ -197,7 +197,7 @@ class ParserTest(GraphTest):
  3 [label="("]
  4 [label="bc"]
  5 [label=")"]
- 6 [label="None"]
+ 6 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3
@@ -216,7 +216,7 @@ class ParserTest(GraphTest):
  3 [label="("]
  4 [label="bc"]
  5 [label=")"]
- 6 [label="None"]
+ 6 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3

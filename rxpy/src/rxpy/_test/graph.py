@@ -11,7 +11,5 @@ class ReprTest(GraphTest):
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
- 2 [label="None"]
  0 -> 1
- 1 -> 2
 }""")

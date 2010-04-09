@@ -19,14 +19,15 @@ def edge_iterator(node):
         if edge not in visited:
             if node.next:
                 stack.append(node.next)
-            yield edge
+                yield edge
             visited.add(edge)
         try:
             for other in node.others:
                 edge = (node, other)
                 if edge not in visited:
-                    stack.append(other)
-                    yield edge
+                    if other:
+                        stack.append(other)
+                        yield edge
                     visited.add(edge)
         except AttributeError:
             pass
@@ -109,4 +110,7 @@ class Split(BaseNode):
         return self.__label
 
 
-   
+class Match(BaseNode):
+    
+    def __str__(self):
+        return 'Match'

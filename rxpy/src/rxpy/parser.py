@@ -1,5 +1,5 @@
 
-from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode
+from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match
 
 
 class ParseException(Exception):
@@ -165,5 +165,5 @@ def parse(string):
     for character in string:
         builder = builder.append_character(character)
     if root != builder:
-        raise ParseException('Incomplete explression')
-    return builder.build_dag().concatenate(None)
+        raise ParseException('Incomplete expression')
+    return builder.build_dag().concatenate(Match())
