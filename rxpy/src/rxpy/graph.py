@@ -114,3 +114,9 @@ class Match(BaseNode):
     
     def __str__(self):
         return 'Match'
+
+
+class Dot(BaseNode):
+    
+    def __str__(self):
+        return '.'

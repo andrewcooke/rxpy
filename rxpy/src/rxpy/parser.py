@@ -1,4 +1,6 @@
 
+from rxpy.alphabet.base import CharSet
+from rxpy.alphabet.unicode import Unicode
 from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match
 
 
@@ -74,37 +76,47 @@ class Merge(object):
         for node in self._rest:
             node.concatenate(next)
         return self._split.concatenate(next)
-
-
+    
+    
 class ParserState(object):
     
-    def __init__(self):
+    def __init__(self, alphabet=None):
         self.__group_count = 0
+        if alphabet is None:
+            alphabet = Unicode()
+        self.alphabet = alphabet
         
     def next_group_count(self):
         self.__group_count += 1
         return self.__group_count
     
     
-class StatefulNode(object):
+class StatefulBuilder(object):
     
     def __init__(self, state):
-        super(StatefulNode, self).__init__()
+        super(StatefulBuilder, self).__init__()
         self._state = state
         
 
-class SequenceBuilder(StatefulNode):
+class SequenceBuilder(StatefulBuilder):
     
     def __init__(self, state):
         super(SequenceBuilder, self).__init__(state)
         self._nodes = []
+        self._escape = False
     
     def append_character(self, character):
-        if character == '(':
+        if not self._escape and character == '\\':
+            self._escape = True
+        elif not self._escape and character == '(':
             return GroupBuilder(self._state, self)
-        elif character == ')':
+        elif not self._escape and character == ')':
             raise ParseException('Unexpected )')
-        elif character in '+?*':
+        elif not self._escape and character == '[':
+            return CharSetBuilder(self._state, self)
+        elif not self._escape and character == ']':
+            raise ParseException('Unexpected ]')
+        elif not self._escape and character in '+?*':
             latest = self._nodes.pop()
             split = Split('(?' + str(latest) + ')' + character)
             if character == '+':
@@ -158,6 +170,63 @@ class GroupBuilder(SequenceBuilder):
             # this allows further child groups to be opened
             return super(GroupBuilder, self).append_character(character)
         
+
+class CharSetBuilder(StatefulBuilder):
+    
+    def __init__(self, state, sequence):
+        super(CharSetBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        self._charset = CharSet([], alphabet=state.alphabet)
+        self._invert = None
+        self._escape = False
+        self._queue = None
+        self._range = False
+    
+    def append_character(self, character):
+        
+        def append():
+            if self._range:
+                if self._queue is None:
+                    raise ParseException('Incomplete range')
+                else:
+                    self._charset.append((self._queue, character))
+                    self._queue = None
+                    self._range = False
+            else:
+                if self._queue:
+                    self._charset.append((self._queue, self._queue))
+                self._queue = character
+
+        if self._invert is None and character == '^':
+            self._invert = True 
+        elif not self._escape and character == '\\':
+            self._escape = True
+        elif self._escape or character not in "-]":
+            append()
+        elif character == '-':
+            if self._range:
+                # repeated - is range to -?
+                append()
+            else:
+                self._range = True
+        elif character == ']':
+            if self._queue:
+                if self._range:
+                    raise ParseException('Open range')
+                else:
+                    self._charset.append((self._queue, self._queue))
+            if self._invert:
+                self._charset.invert()
+            self._parent_sequence._nodes.append(self._charset.simplify())
+            return self._parent_sequence
+        else:
+            raise ParseException('Syntax error in character set')
+        
+        # after first character this must be known
+        if self._invert is None:
+            self._invert = False
+            
+        return self
         
 def parse(string):
     root = SequenceBuilder(ParserState())

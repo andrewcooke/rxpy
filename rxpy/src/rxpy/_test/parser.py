@@ -138,7 +138,8 @@ class ParserTest(GraphTest):
  2 -> 1
  3 -> 4
 }""")
-        
+
+
     def test_character_star(self):
         self.assert_graphs(repr(parse('ab*c')), 
 """strict digraph {
@@ -226,4 +227,37 @@ class ParserTest(GraphTest):
  2 -> 6
 }""")
         
+    def test_simple_range(self):
+        self.assert_graphs(repr(parse('[a-z]')), 
+"""strict digraph {
+ 0 [label="[a-z]"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
         
+    def test_double_range(self):
+        self.assert_graphs(repr(parse('[a-c][p-q]')), 
+"""strict digraph {
+ 0 [label="[a-c]"]
+ 1 [label="[pq]"]
+ 2 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+}""")    
+
+    def test_single_range(self):
+        self.assert_graphs(repr(parse('[a]')), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+
+    def test_inverted_range(self):
+        self.assert_graphs(repr(parse('[^apz]')), 
+"""strict digraph {
+ 0 [label="[\\x00-`b-oq-y{-\\U0010ffff]"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+
