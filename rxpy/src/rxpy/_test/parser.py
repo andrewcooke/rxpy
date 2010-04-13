@@ -394,3 +394,60 @@ r"""strict digraph {
  2 -> 6
 }""")
         
+    def test_alternatives(self):
+        self.assert_graphs(repr(parse('a|b|cd')), 
+"""strict digraph {
+ 0 [label="a|b|cd"]
+ 1 [label="a"]
+ 2 [label="b"]
+ 3 [label="cd"]
+ 4 [label="Match"]
+ 0 -> 1
+ 0 -> 2
+ 0 -> 3
+ 3 -> 4
+ 2 -> 4
+ 1 -> 4
+}""")
+
+    def test_group_alternatives(self):
+        self.assert_graphs(repr(parse('(a|b|cd)')),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a|b|cd"]
+ 2 [label="a"]
+ 3 [label="b"]
+ 4 [label="cd"]
+ 5 [label=")"]
+ 6 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 1 -> 4
+ 4 -> 5
+ 5 -> 6
+ 3 -> 5
+ 2 -> 5
+}""")
+        
+    def test_nested_groups(self):
+        self.assert_graphs(repr(parse('a|(b|cd)')),
+"""strict digraph {
+ 0 [label="a|(b|cd)"]
+ 1 [label="a"]
+ 2 [label="("]
+ 3 [label="b|cd"]
+ 4 [label="b"]
+ 5 [label="cd"]
+ 6 [label=")"]
+ 7 [label="Match"]
+ 0 -> 1
+ 0 -> 2
+ 2 -> 3
+ 3 -> 4
+ 3 -> 5
+ 5 -> 6
+ 6 -> 7
+ 4 -> 6
+ 1 -> 7
+}""")

@@ -62,6 +62,22 @@ class Sequence(BaseNode):
             self.__freeze()
             return self._nodes[0].start
         return None
+    
+    
+class Alternatives(BaseNode):
+    
+    def __init__(self, sequences):
+        self._sequences = sequences
+        
+    def concatenate(self, next):
+        split = Split(str(self))
+        split.next = list(map(lambda s: s.start, self._sequences))
+        merge = Merge(*self._sequences)
+        merge.concatenate(next)
+        return split
+    
+    def __str__(self):
+        return '|'.join(map(str, self._sequences))
 
 
 class Merge(object):
@@ -111,6 +127,7 @@ class SequenceBuilder(StatefulBuilder):
     
     def __init__(self, state):
         super(SequenceBuilder, self).__init__(state)
+        self._alternatives = []
         self._nodes = []
     
     def append_character(self, character, escaped=False):
@@ -130,14 +147,25 @@ class SequenceBuilder(StatefulBuilder):
             self._nodes.append(StartOfLine(self._state.alphabet))
         elif not escaped and character == '$':
             self._nodes.append(EndOfLine(self._state.alphabet))
+        elif not escaped and character == '|':
+            self._start_new_alternative()
         elif not escaped and character in '+?*':
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         else:
             self._nodes.append(String(character, self._state.alphabet))
         return self
     
+    def _start_new_alternative(self):
+        self._alternatives.append(self._nodes)
+        self._nodes = []
+        
     def build_dag(self):
-        return Sequence(self._nodes)
+        self._start_new_alternative()
+        sequences = map(Sequence, self._alternatives)
+        if len(sequences) > 1:
+            return Alternatives(sequences)
+        else:
+            return sequences[0]
 
     def __bool__(self):
         return bool(self._nodes)
@@ -178,6 +206,7 @@ class RepeatBuilder(StatefulBuilder):
 
 
 class GroupBuilder(SequenceBuilder):
+    
     # This must subclass SequenceBuilder rather than contain an instance
     # because that may itself return child builders.
     
@@ -195,12 +224,13 @@ class GroupBuilder(SequenceBuilder):
                 return self
             else:
                 self._start = StartGroup(self._state.next_group_count())
-                self._nodes.append(self._start)
                 
         if not escaped and character == ')':
+            contents = super(GroupBuilder, self).build_dag()
             if self._start:
-                self._nodes.append(EndGroup(self._start))
-            self._parent_sequence._nodes.append(self.build_dag())
+                contents = \
+                    Sequence([self._start, contents, EndGroup(self._start)])
+            self._parent_sequence._nodes.append(contents)
             return self._parent_sequence
         else:
             # this allows further child groups to be opened
