@@ -45,6 +45,11 @@ class Alphabet(object):
         be unique, repeatable, etc.
         '''
         
+    def unescape(self, text):
+        '''
+        Parse "escaped" text, of the form \x00, \u0000, \U00000000.
+        '''
+        
     def after(self, char):
         '''
         The character "before" the given one, or None
@@ -228,7 +233,7 @@ class CharSet(BaseNode):
             raise ParseException('Empty range')
         elif len(self.__intervals) == 1:
             if self.__intervals[0][0] == self.__intervals[0][1]:
-                return String(self.__intervals[0][0])
+                return String(self.__intervals[0][0], self.__alphabet)
             elif self.__intervals[0][0] == self.__alphabet.min and \
                     self.__intervals[0][1] == self.__alphabet.max:
                 return Dot()
