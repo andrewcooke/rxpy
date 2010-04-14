@@ -117,7 +117,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_non_matching_group(self):
-        self.assert_graphs(repr(parse('a(?b)c')), 
+        self.assert_graphs(repr(parse('a(?:b)c')), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -129,7 +129,7 @@ class ParserTest(GraphTest):
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
- 2 [label="(?b)+"]
+ 2 [label="(?:b)+"]
  3 [label="c"]
  4 [label="Match"]
  0 -> 1
@@ -139,12 +139,11 @@ class ParserTest(GraphTest):
  3 -> 4
 }""")
 
-
     def test_character_star(self):
         self.assert_graphs(repr(parse('ab*c')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?b)*"]
+ 1 [label="(?:b)*"]
  2 [label="b"]
  3 [label="c"]
  4 [label="Match"]
@@ -159,7 +158,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(repr(parse('ab?c')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?b)?"]
+ 1 [label="(?:b)?"]
  2 [label="b"]
  3 [label="c"]
  4 [label="Match"]
@@ -177,7 +176,7 @@ class ParserTest(GraphTest):
  1 [label="("]
  2 [label="bc"]
  3 [label=")"]
- 4 [label="(?(bc))+"]
+ 4 [label="(?:(bc))+"]
  5 [label="d"]
  6 [label="Match"]
  0 -> 1
@@ -193,7 +192,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(repr(parse('a(bc)*d')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?(bc))*"]
+ 1 [label="(?:(bc))*"]
  2 [label="("]
  3 [label="d"]
  4 [label="Match"]
@@ -212,7 +211,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(repr(parse('a(bc)?d')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?(bc))?"]
+ 1 [label="(?:(bc))?"]
  2 [label="("]
  3 [label="d"]
  4 [label="Match"]
@@ -315,7 +314,7 @@ r"""strict digraph {
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
- 2 [label="(?b)+?"]
+ 2 [label="(?:b)+?"]
  3 [label="c"]
  4 [label="Match"]
  0 -> 1
@@ -330,7 +329,7 @@ r"""strict digraph {
         self.assert_graphs(repr(parse('ab*?c')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?b)*?"]
+ 1 [label="(?:b)*?"]
  2 [label="c"]
  3 [label="b"]
  4 [label="Match"]
@@ -345,7 +344,7 @@ r"""strict digraph {
         self.assert_graphs(repr(parse('ab??c')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?b)??"]
+ 1 [label="(?:b)??"]
  2 [label="c"]
  3 [label="b"]
  4 [label="Match"]
@@ -363,7 +362,7 @@ r"""strict digraph {
  1 [label="("]
  2 [label="bc"]
  3 [label=")"]
- 4 [label="(?(bc))+?"]
+ 4 [label="(?:(bc))+?"]
  5 [label="d"]
  6 [label="Match"]
  0 -> 1
@@ -379,7 +378,7 @@ r"""strict digraph {
         self.assert_graphs(repr(parse('a(bc)*?d')), 
 """strict digraph {
  0 [label="a"]
- 1 [label="(?(bc))*?"]
+ 1 [label="(?:(bc))*?"]
  2 [label="d"]
  3 [label="("]
  4 [label="bc"]

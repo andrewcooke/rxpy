@@ -65,6 +65,10 @@ class Sequence(BaseNode):
     
     
 class Alternatives(BaseNode):
+    '''
+    A temporary node, similar to Sequence, but supporting several alternatives.
+    Construction includes the addition of `Split` and `Merge` instances.
+    '''
     
     def __init__(self, sequences):
         self._sequences = sequences
@@ -134,7 +138,7 @@ class SequenceBuilder(StatefulBuilder):
         if not escaped and character == '\\':
             return SimpleEscapeBuilder(self._state, self)
         elif not escaped and character == '(':
-            return GroupBuilder(self._state, self)
+            return GroupEscapeBuilder(self._state, self)
         elif not escaped and character == ')':
             raise ParseException('Unexpected )')
         elif not escaped and character == '[':
@@ -182,7 +186,7 @@ class RepeatBuilder(StatefulBuilder):
     def append_character(self, character):
         
         lazy = character == '?'
-        split = Split('(?' + str(self._latest) + ')' + self._initial_character,
+        split = Split('(?:' + str(self._latest) + ')' + self._initial_character,
                       lazy)
         
         if self._initial_character == '+':
@@ -203,6 +207,30 @@ class RepeatBuilder(StatefulBuilder):
             return self._parent_sequence
         else:
             return self._parent_sequence.append_character(character)
+        
+        
+class GroupEscapeBuilder(StatefulBuilder):
+    
+    def __init__(self, state, sequence):
+        super(GroupEscapeBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        self._count = 0
+        
+    def append_character(self, character, escaped=False):
+        self._count += 1
+        if self._count == 1:
+            if character == '?':
+                return self
+            else:
+                builder = GroupBuilder(self._state, self._parent_sequence)
+                return builder.append_character(character, escaped)
+        else:
+            if character == ':':
+                return GroupBuilder(self._state, self._parent_sequence, 
+                                    binding=False)
+            else:
+                raise ParseException('Unexpected qualifier after (? - ' 
+                                     + character)
 
 
 class GroupBuilder(SequenceBuilder):
@@ -210,21 +238,13 @@ class GroupBuilder(SequenceBuilder):
     # This must subclass SequenceBuilder rather than contain an instance
     # because that may itself return child builders.
     
-    def __init__(self, state, sequence):
+    def __init__(self, state, sequence, binding=True):
         super(GroupBuilder, self).__init__(state)
         self._parent_sequence = sequence
-        self._start = None 
+        self._start = \
+            StartGroup(self._state.next_group_count()) if binding else None
  
     def append_character(self, character, escaped=False):
-        
-        if self._start is None:
-            # is this a non-binding group?
-            if not escaped and character == '?':
-                self._start = False
-                return self
-            else:
-                self._start = StartGroup(self._state.next_group_count())
-                
         if not escaped and character == ')':
             contents = super(GroupBuilder, self).build_dag()
             if self._start:
@@ -233,7 +253,7 @@ class GroupBuilder(SequenceBuilder):
             self._parent_sequence._nodes.append(contents)
             return self._parent_sequence
         else:
-            # this allows further child groups to be opened
+            # this allows further child groups to be opened, etc
             return super(GroupBuilder, self).append_character(character, escaped)
         
 
