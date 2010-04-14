@@ -119,7 +119,6 @@ class Split(BaseNode):
                 self.next.append(next)
             self.__connected = True
         return self
-    
 
 
 class Match(BaseNode):
@@ -145,3 +144,12 @@ class EndOfLine(AlphabetNode):
     def __str__(self):
         return '$'
     
+
+class GroupReference(BaseNode):
+    
+    def __init__(self, number):
+        super(GroupReference, self).__init__()
+        self.number = number
+        
+    def __str__(self):
+        return '\\\\' + str(self.number)

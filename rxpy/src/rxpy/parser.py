@@ -2,7 +2,7 @@
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
 from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match, Dot,\
-    StartOfLine, EndOfLine
+    StartOfLine, EndOfLine, GroupReference
 
 
 class ParseException(Exception):
@@ -108,24 +108,42 @@ class ParserState(object):
         if alphabet is None:
             alphabet = Unicode()
         self.alphabet = alphabet
+        self.__name_to_count = {}
+        self.__count_to_name = {}
         
-    def next_group_count(self):
+    def next_group_count(self, name=None):
         self.__group_count += 1
+        if name:
+            self.__name_to_count[name] = self.__group_count
+            self.__count_to_name[self.__group_count] = name
         return self.__group_count
     
-    
-class StatefulBuilder(object):
-    
-    def __init__(self, state):
-        super(StatefulBuilder, self).__init__()
-        self._state = state
+    def count_for_name(self, name):
+        if name in self.__name_to_count:
+            return self.__name_to_count[name]
+        else:
+            raise ParseException('Unknown name: ' + name)
         
+        
+class Builder(object):
+    
+    def __init__(self):
+        super(Builder, self).__init__()
+    
     def append_character(self, character, escaped=False):
         '''
         Accept the given character, returning a new builder.
         
         If escaped is true then the value is always treated as a literal.
         '''
+
+    
+class StatefulBuilder(Builder):
+    
+    def __init__(self, state):
+        super(StatefulBuilder, self).__init__()
+        self._state = state
+        
 
 class SequenceBuilder(StatefulBuilder):
     
@@ -228,9 +246,73 @@ class GroupEscapeBuilder(StatefulBuilder):
             if character == ':':
                 return GroupBuilder(self._state, self._parent_sequence, 
                                     binding=False)
+            elif character in 'aiLmsux':
+                raise ParseException(
+                    'Options must be read and removed by pre-processing')
+            elif character == 'P':
+                return NamedGroupBuilder(self._state, self._parent_sequence)
+            elif character == '#':
+                return CommentGroupBuilder(self._state, self._parent_sequence)
             else:
-                raise ParseException('Unexpected qualifier after (? - ' 
-                                     + character)
+                raise ParseException(
+                    'Unexpected qualifier after (? - ' + character)
+                
+
+class NamedGroupBuilder(StatefulBuilder):
+    '''
+    Handle '(?P<name>pattern)' and '(?P=name)' by creating either creating a 
+    matching group (and associating the name with the group number) or a
+    group reference (for the group number).
+    '''
+    
+    def __init__(self, state, sequence):
+        super(NamedGroupBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        self._create = None
+        self._name = ''
+        
+    def append_character(self, character, escaped=False):
+        
+        if self._create is None:
+            if character == '<':
+                self._create = True
+            elif character == '=':
+                self._create = False
+            else:
+                raise ParseException(
+                    'Unexpected qualifier after (?P - ' + character)
+                
+        else:
+            if self._create and not escaped and character == '>':
+                if not self._name:
+                    raise ParseException('Empty name for group')
+                return GroupBuilder(self._state, self._parent_sequence, 
+                                    True, self._name)
+            elif not self._create and not escaped and character == ')':
+                self._parent_sequence._nodes.append(
+                    GroupReference(self._state.count_for_name(self._name)))
+                return self._parent_sequence
+            elif not escaped and character == '\\':
+                return SimpleEscapeBuilder(self._state, self)
+            else:
+                self._name += character
+
+        return self
+    
+    
+class CommentGroupBuilder(StatefulBuilder):
+    
+    def __init__(self, state, sequence):
+        super(CommentGroupBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        
+    def append_character(self, character, escaped=False):
+        if not escaped and character == ')':
+            return self._parent_sequence
+        elif not escaped and character == '\\':
+            return SimpleEscapeBuilder(self._state, self)
+        else:
+            return self
 
 
 class GroupBuilder(SequenceBuilder):
@@ -238,11 +320,11 @@ class GroupBuilder(SequenceBuilder):
     # This must subclass SequenceBuilder rather than contain an instance
     # because that may itself return child builders.
     
-    def __init__(self, state, sequence, binding=True):
+    def __init__(self, state, sequence, binding=True, name=None):
         super(GroupBuilder, self).__init__(state)
         self._parent_sequence = sequence
         self._start = \
-            StartGroup(self._state.next_group_count()) if binding else None
+            StartGroup(self._state.next_group_count(name)) if binding else None
  
     def append_character(self, character, escaped=False):
         if not escaped and character == ')':

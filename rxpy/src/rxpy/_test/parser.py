@@ -450,3 +450,32 @@ r"""strict digraph {
  4 -> 6
  1 -> 7
 }""")
+
+    def test_named_groups(self):
+        self.assert_graphs(repr(parse('a(?P<foo>b)c(?P=foo)d')), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="("]
+ 2 [label="b"]
+ 3 [label=")"]
+ 4 [label="c"]
+ 5 [label="\\\\1"]
+ 6 [label="d"]
+ 7 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+ 6 -> 7
+}""")
+        
+    def test_comment(self):
+        self.assert_graphs(repr(parse('a(?#hello world)b')), 
+"""strict digraph {
+ 0 [label="ab"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        
