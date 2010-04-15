@@ -98,17 +98,13 @@ class EndGroup(BaseNode):
         return ")"
     
 
-class Split(BaseNode):
+class BaseSplit(BaseNode):
     
-    def __init__(self, label, lazy=False):
-        super(Split, self).__init__()
-        self.__label = label + ('?' if lazy else '')
+    def __init__(self, lazy=False):
+        super(BaseSplit, self).__init__()
         self.__lazy = lazy
         self.__connected = False
         
-    def __str__(self):
-        return self.__label
-    
     def concatenate(self, next):
         if next:
             if self.__connected:
@@ -119,6 +115,16 @@ class Split(BaseNode):
                 self.next.append(next)
             self.__connected = True
         return self
+
+
+class Split(BaseSplit):
+    
+    def __init__(self, label, lazy=False):
+        super(Split, self).__init__(lazy=lazy)
+        self.__label = label + ('?' if lazy else '')
+        
+    def __str__(self):
+        return self.__label
 
 
 class Match(BaseNode):
@@ -153,3 +159,17 @@ class GroupReference(BaseNode):
         
     def __str__(self):
         return '\\\\' + str(self.number)
+
+
+class Lookahead(BaseSplit):
+    
+    def __init__(self, sense, forwards):
+        super(Lookahead, self).__init__(lazy=True)
+        self.sense = sense
+        self.forwards = forwards
+        
+    def __str__(self):
+        return '(?' + \
+            ('' if self.forwards else '<') + \
+            ('=' if self.sense else '!') + '...)'
+

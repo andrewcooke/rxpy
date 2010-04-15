@@ -2,7 +2,7 @@
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
 from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match, Dot,\
-    StartOfLine, EndOfLine, GroupReference
+    StartOfLine, EndOfLine, GroupReference, Lookahead
 
 
 class ParseException(Exception):
@@ -81,7 +81,7 @@ class Alternatives(BaseNode):
         return split
     
     def __str__(self):
-        return '|'.join(map(str, self._sequences))
+        return '...|...'
 
 
 class Merge(object):
@@ -204,8 +204,7 @@ class RepeatBuilder(StatefulBuilder):
     def append_character(self, character):
         
         lazy = character == '?'
-        split = Split('(?:' + str(self._latest) + ')' + self._initial_character,
-                      lazy)
+        split = Split('...' + self._initial_character, lazy)
         
         if self._initial_character == '+':
             # this (frozen) sequence protects "latest" from coallescing 
@@ -253,10 +252,86 @@ class GroupEscapeBuilder(StatefulBuilder):
                 return NamedGroupBuilder(self._state, self._parent_sequence)
             elif character == '#':
                 return CommentGroupBuilder(self._state, self._parent_sequence)
+            elif character == '=':
+                return LookaheadBuilder(
+                            self._state, self._parent_sequence, True, True)
+            elif character == '!':
+                return LookaheadBuilder(
+                            self._state, self._parent_sequence, False, True)
+            elif character == '<':
+                return LookbackBuilder(self._state, self._parent_sequence)
             else:
                 raise ParseException(
                     'Unexpected qualifier after (? - ' + character)
                 
+                
+class BaseGroupBuilder(SequenceBuilder):
+    
+    # This must subclass SequenceBuilder rather than contain an instance
+    # because that may itself return child builders.
+    
+    def __init__(self, state, sequence):
+        super(BaseGroupBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+ 
+    def append_character(self, character, escaped=False):
+        if not escaped and character == ')':
+            return self._build_group()
+        else:
+            # this allows further child groups to be opened, etc
+            return super(BaseGroupBuilder, self).append_character(character, escaped)
+        
+    def _build_group(self):
+        pass
+        
+
+class GroupBuilder(BaseGroupBuilder):
+    
+    # This must subclass SequenceBuilder rather than contain an instance
+    # because that may itself return child builders.
+    
+    def __init__(self, state, sequence, binding=True, name=None):
+        super(GroupBuilder, self).__init__(state, sequence)
+        self._start = \
+            StartGroup(self._state.next_group_count(name)) if binding else None
+ 
+    def _build_group(self):
+        contents = self.build_dag()
+        if self._start:
+            contents = Sequence([self._start, contents, EndGroup(self._start)])
+        self._parent_sequence._nodes.append(contents)
+        return self._parent_sequence
+        
+
+class LookbackBuilder(StatefulBuilder):
+    
+    def __init__(self, state, sequence):
+        super(LookbackBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        
+    def append_character(self, character, escaped=False):
+        if character == '=':
+            return LookaheadBuilder(self._state, self._parent_sequence, True, False)
+        elif character == '!':
+            return LookaheadBuilder(self._state, self._parent_sequence, False, False)
+        else:
+            raise ParseException(
+                'Unexpected qualifier after (?< - ' + character)
+            
+
+class LookaheadBuilder(BaseGroupBuilder):
+    
+    def __init__(self, state, sequence, sense, forwards):
+        super(LookaheadBuilder, self).__init__(state, sequence)
+        self._sense = sense
+        self._forwards = forwards
+        
+    def _build_group(self):
+        lookahead = Lookahead(self._sense, self._forwards)
+        lookahead.next = [self.build_dag().concatenate(Match())]
+        self._parent_sequence._nodes.append(lookahead)
+        return self._parent_sequence
+        
 
 class NamedGroupBuilder(StatefulBuilder):
     '''
@@ -314,30 +389,6 @@ class CommentGroupBuilder(StatefulBuilder):
         else:
             return self
 
-
-class GroupBuilder(SequenceBuilder):
-    
-    # This must subclass SequenceBuilder rather than contain an instance
-    # because that may itself return child builders.
-    
-    def __init__(self, state, sequence, binding=True, name=None):
-        super(GroupBuilder, self).__init__(state)
-        self._parent_sequence = sequence
-        self._start = \
-            StartGroup(self._state.next_group_count(name)) if binding else None
- 
-    def append_character(self, character, escaped=False):
-        if not escaped and character == ')':
-            contents = super(GroupBuilder, self).build_dag()
-            if self._start:
-                contents = \
-                    Sequence([self._start, contents, EndGroup(self._start)])
-            self._parent_sequence._nodes.append(contents)
-            return self._parent_sequence
-        else:
-            # this allows further child groups to be opened, etc
-            return super(GroupBuilder, self).append_character(character, escaped)
-        
 
 class CharSetBuilder(StatefulBuilder):
     
