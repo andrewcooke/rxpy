@@ -1,7 +1,7 @@
 
 from rxpy._test.lib import GraphTest
 
-from rxpy.parser import parse
+from rxpy.parser import parse, ParserState
 
 
 class ParserTest(GraphTest):
@@ -188,6 +188,31 @@ class ParserTest(GraphTest):
  1 -> 2
  1 -> 3
  3 -> 4
+ 2 -> 3
+}""")
+        
+    def test_multiple_character_question(self):
+        self.assert_graphs(repr(parse('ab?c?de?')), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="...?"]
+ 2 [label="b"]
+ 3 [label="...?"]
+ 4 [label="c"]
+ 5 [label="d"]
+ 6 [label="...?"]
+ 7 [label="e"]
+ 8 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 3 -> 5
+ 5 -> 6
+ 6 -> 7
+ 6 -> 8
+ 7 -> 8
+ 4 -> 5
  2 -> 3
 }""")
         
@@ -520,4 +545,168 @@ r"""strict digraph {
  2 -> 6
 }""")
         
+    def test_stateful_count(self):
+        self.assert_graphs(repr(parse('ab{1,2}c', ParserState(stateful=True))), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="{1,2}"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
         
+    def test_stateful_open_count(self):
+        self.assert_graphs(repr(parse('ab{1,}c', ParserState(stateful=True))), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="{1,}"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
+        
+    def test_stateful_fixed_count(self):
+        self.assert_graphs(repr(parse('ab{2}c', ParserState(stateful=True))), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="{2}"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
+        
+    def test_stateful_group_count(self):
+        self.assert_graphs(repr(parse('a(?:bc){1,2}d', ParserState(stateful=True))), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="{1,2}"]
+ 2 [label="d"]
+ 3 [label="bc"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
+        
+    def test_stateless_count(self):
+        self.assert_graphs(repr(parse('ab{1,2}c')), 
+"""strict digraph {
+ 0 [label="ab"]
+ 1 [label="...?"]
+ 2 [label="b"]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 3
+}""")
+        
+    def test_stateless_open_count(self):
+        self.assert_graphs(repr(parse('ab{3,}c')), 
+"""strict digraph {
+ 0 [label="abbb"]
+ 1 [label="...*"]
+ 2 [label="b"]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 1
+}""")
+        
+    def test_stateless_fixed_count(self):
+        self.assert_graphs(repr(parse('ab{2}c')), 
+"""strict digraph {
+ 0 [label="abbc"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        
+    def test_stateless_group_count(self):
+        self.assert_graphs(repr(parse('a(?:bc){1,2}d')), 
+"""strict digraph {
+ 0 [label="abc"]
+ 1 [label="...?"]
+ 2 [label="bc"]
+ 3 [label="d"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 3
+}""")
+        
+    def test_lazy_stateless_count(self):
+        self.assert_graphs(repr(parse('ab{1,2}?c')), 
+"""strict digraph {
+ 0 [label="ab"]
+ 1 [label="...??"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 2
+ 2 -> 4
+}""")
+        
+    def test_lazy_stateless_open_count(self):
+        self.assert_graphs(repr(parse('ab{3,}?c')), 
+"""strict digraph {
+ 0 [label="abbb"]
+ 1 [label="...*?"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
+        
+    def test_lazy_stateless_fixed_count(self):
+        self.assert_graphs(repr(parse('ab{2}?c')), 
+"""strict digraph {
+ 0 [label="abbc"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        
+    def test_lazy_stateless_group_count(self):
+        self.assert_graphs(repr(parse('a(?:bc){1,2}?d')), 
+"""strict digraph {
+ 0 [label="abc"]
+ 1 [label="...??"]
+ 2 [label="d"]
+ 3 [label="bc"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 2
+ 2 -> 4
+}""")

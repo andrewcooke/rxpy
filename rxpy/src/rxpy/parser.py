@@ -1,14 +1,39 @@
 
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
-from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match, Dot,\
-    StartOfLine, EndOfLine, GroupReference, Lookahead
+from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match, \
+    Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount
 
 
 class ParseException(Exception):
     pass
 
 
+class ParserState(object):
+    
+    def __init__(self, alphabet=None, stateful=False):
+        if alphabet is None:
+            alphabet = Unicode()
+        self.alphabet = alphabet
+        self.stateful = stateful
+        self.__group_count = 0
+        self.__name_to_count = {}
+        self.__count_to_name = {}
+        
+    def next_group_count(self, name=None):
+        self.__group_count += 1
+        if name:
+            self.__name_to_count[name] = self.__group_count
+            self.__count_to_name[self.__group_count] = name
+        return self.__group_count
+    
+    def count_for_name(self, name):
+        if name in self.__name_to_count:
+            return self.__name_to_count[name]
+        else:
+            raise ParseException('Unknown name: ' + name)
+        
+        
 class Sequence(BaseNode):
     '''
     A temporary node, used only during construction, that contains a sequence 
@@ -63,6 +88,11 @@ class Sequence(BaseNode):
             return self._nodes[0].start
         return None
     
+    def clone(self, cache=None):
+        if cache is None:
+            cache = {}
+        return Sequence([node.clone(cache) for node in self._nodes])
+    
     
 class Alternatives(BaseNode):
     '''
@@ -82,6 +112,12 @@ class Alternatives(BaseNode):
     
     def __str__(self):
         return '...|...'
+    
+    def clone(self, cache=None):
+        if cache is None:
+            cache = {}
+        return Alternatives([sequence.clone(cache) 
+                             for sequence in self._sequences])
 
 
 class Merge(object):
@@ -101,30 +137,6 @@ class Merge(object):
         return last
     
     
-class ParserState(object):
-    
-    def __init__(self, alphabet=None):
-        self.__group_count = 0
-        if alphabet is None:
-            alphabet = Unicode()
-        self.alphabet = alphabet
-        self.__name_to_count = {}
-        self.__count_to_name = {}
-        
-    def next_group_count(self, name=None):
-        self.__group_count += 1
-        if name:
-            self.__name_to_count[name] = self.__group_count
-            self.__count_to_name[self.__group_count] = name
-        return self.__group_count
-    
-    def count_for_name(self, name):
-        if name in self.__name_to_count:
-            return self.__name_to_count[name]
-        else:
-            raise ParseException('Unknown name: ' + name)
-        
-        
 class Builder(object):
     
     def __init__(self):
@@ -132,7 +144,8 @@ class Builder(object):
     
     def append_character(self, character, escaped=False):
         '''
-        Accept the given character, returning a new builder.
+        Accept the given character, returning a new builder.  A value of
+        None is passed at the end of the input, allowing cleanup.
         
         If escaped is true then the value is always treated as a literal.
         '''
@@ -163,6 +176,10 @@ class SequenceBuilder(StatefulBuilder):
             return CharSetBuilder(self._state, self)
         elif not escaped and character == ']':
             raise ParseException('Unexpected ]')
+        elif not escaped and character == '{':
+            return CountBuilder(self._state, self)
+        elif not escaped and character == '}':
+            raise ParseException('Unexpected }')
         elif not escaped and character == '.':
             self._nodes.append(Dot(self._state.alphabet))
         elif not escaped and character == '^':
@@ -171,9 +188,9 @@ class SequenceBuilder(StatefulBuilder):
             self._nodes.append(EndOfLine(self._state.alphabet))
         elif not escaped and character == '|':
             self._start_new_alternative()
-        elif not escaped and character in '+?*':
+        elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
-        else:
+        elif character:
             self._nodes.append(String(character, self._state.alphabet))
         return self
     
@@ -204,19 +221,13 @@ class RepeatBuilder(StatefulBuilder):
     def append_character(self, character):
         
         lazy = character == '?'
-        split = Split('...' + self._initial_character, lazy)
         
         if self._initial_character == '+':
-            # this (frozen) sequence protects "latest" from coallescing 
-            seq = Sequence([self._latest, split])
-            split.next = [seq.start]
-            self._parent_sequence._nodes.append(seq)
+            self.build_plus(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '?':
-            split.next = [self._latest.start]
-            self._parent_sequence._nodes.append(Merge(self._latest, split))
+            self.build_optional(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '*':
-            split.next = [self._latest.concatenate(split)]
-            self._parent_sequence._nodes.append(split)
+            self.build_star(self._parent_sequence, self._latest, lazy)
         else:
             raise ParseException('Bad initial character for RepeatBuilder')
         
@@ -224,6 +235,27 @@ class RepeatBuilder(StatefulBuilder):
             return self._parent_sequence
         else:
             return self._parent_sequence.append_character(character)
+        
+    @staticmethod
+    def build_optional(parent_sequence, latest, lazy):
+        split = Split('...?', lazy)
+        split.next = [latest.start]
+        parent_sequence._nodes.append(Merge(latest, split))
+    
+    @staticmethod
+    def build_plus(parent_sequence, latest, lazy):
+        split = Split('...+', lazy)
+        # this (frozen) sequence protects "latest" from coallescing 
+        seq = Sequence([latest, split])
+        split.next = [seq.start]
+        parent_sequence._nodes.append(seq)
+        
+    @staticmethod
+    def build_star(parent_sequence, latest, lazy):
+        split = Split('...*', lazy)
+        split.next = [latest.concatenate(split)]
+        parent_sequence._nodes.append(split)
+        
         
         
 class GroupEscapeBuilder(StatefulBuilder):
@@ -233,14 +265,14 @@ class GroupEscapeBuilder(StatefulBuilder):
         self._parent_sequence = sequence
         self._count = 0
         
-    def append_character(self, character, escaped=False):
+    def append_character(self, character):
         self._count += 1
         if self._count == 1:
             if character == '?':
                 return self
             else:
                 builder = GroupBuilder(self._state, self._parent_sequence)
-                return builder.append_character(character, escaped)
+                return builder.append_character(character)
         else:
             if character == ':':
                 return GroupBuilder(self._state, self._parent_sequence, 
@@ -309,7 +341,7 @@ class LookbackBuilder(StatefulBuilder):
         super(LookbackBuilder, self).__init__(state)
         self._parent_sequence = sequence
         
-    def append_character(self, character, escaped=False):
+    def append_character(self, character):
         if character == '=':
             return LookaheadBuilder(self._state, self._parent_sequence, True, False)
         elif character == '!':
@@ -369,8 +401,10 @@ class NamedGroupBuilder(StatefulBuilder):
                 return self._parent_sequence
             elif not escaped and character == '\\':
                 return SimpleEscapeBuilder(self._state, self)
-            else:
+            elif character:
                 self._name += character
+            else:
+                raise ParseException('Incomplete named group')
 
         return self
     
@@ -386,8 +420,10 @@ class CommentGroupBuilder(StatefulBuilder):
             return self._parent_sequence
         elif not escaped and character == '\\':
             return SimpleEscapeBuilder(self._state, self)
-        else:
+        elif character:
             return self
+        else:
+            raise ParseException('Incomplete comment')
 
 
 class CharSetBuilder(StatefulBuilder):
@@ -419,7 +455,7 @@ class CharSetBuilder(StatefulBuilder):
             self._invert = True 
         elif not escaped and character == '\\':
             return SimpleEscapeBuilder(self._state, self)
-        elif escaped or character not in "-]":
+        elif character and (escaped or character not in "-]"):
             append()
         elif character == '-':
             if self._range:
@@ -462,6 +498,8 @@ class SimpleEscapeBuilder(StatefulBuilder):
         return self._parent_builder.append_character(char, escaped=True)
         
     def append_character(self, character):
+        if not character:
+            raise ParseException('Incomplete character escape')
         if self._buffer:
             self._buffer += character
             self._remaining -= 1
@@ -474,13 +512,94 @@ class SimpleEscapeBuilder(StatefulBuilder):
             except KeyError:
                 return self._parent_builder.append_character(character, escaped=True)
         return self
-            
+    
+
+class CountBuilder(StatefulBuilder):
+    
+    def __init__(self, state, sequence):
+        super(CountBuilder, self).__init__(state)
+        self._parent_sequence = sequence
+        self._begin = None
+        self._end = None
+        self._acc = ''
+        self._range = False
+        self._closed = False
+        self._lazy = False
         
-def parse(string):
-    root = SequenceBuilder(ParserState())
+    def append_character(self, character):
+        
+        if self._closed:
+            if not self._lazy and character == '?':
+                self._lazy = True
+                return self
+            else:
+                self.__build()
+                return self._parent_sequence.append_character(character)
+            
+        if character == '}':
+            self.__store_value()
+            self._closed = True
+        elif character == ',':
+            self.__store_value()
+        elif character:
+            self._acc += character
+        else:
+            raise ParseException('Incomplete count specification')
+        return self
+            
+    def __store_value(self):
+        if self._begin is None:
+            if not self._acc:
+                raise ParseException('Missing lower limit for repeat')
+            else:
+                try:
+                    self._begin = int(self._acc)
+                except ValueError:
+                    raise ParseException(
+                            'Bad lower limit for repeat: ' + self._acc)
+        else:
+            if self._range:
+                raise ParseException('Too many values in repeat')
+            self._range = True
+            if self._acc:
+                try:
+                    self._end = int(self._acc)
+                except ValueError:
+                    raise ParseException(
+                            'Bad upper limit for repeat: ' + self._acc)
+                if self._begin > self._end:
+                    raise ParseException('Inconsistent repeat range')
+        self._acc = ''
+        
+    def __build(self):
+        if not self._parent_sequence._nodes:
+            raise ParseException('Nothing to repeat')
+        latest = self._parent_sequence._nodes.pop()
+        if self._state.stateful:
+            count = StatefulCount(self._begin, self._end, self._range)
+            count.next = [latest.concatenate(count)]
+            self._parent_sequence._nodes.append(count)
+        else:
+            for _i in range(self._begin):
+                self._parent_sequence._nodes.append(latest.clone())
+            if self._range:
+                if self._end is None:
+                    RepeatBuilder.build_star(
+                            self._parent_sequence, latest.clone(), self._lazy)
+                else:
+                    for _i in range(self._end - self._begin):
+                        RepeatBuilder.build_optional(
+                                self._parent_sequence, latest.clone(), self._lazy)
+                        
+        
+def parse(string, state=None):
+    if not state:
+        state = ParserState()
+    root = SequenceBuilder(state)
     builder = root
     for character in string:
         builder = builder.append_character(character)
+    builder = builder.append_character(None)
     if root != builder:
         raise ParseException('Incomplete expression')
-    return builder.build_dag().concatenate(Match())
+    return root.build_dag().concatenate(Match())

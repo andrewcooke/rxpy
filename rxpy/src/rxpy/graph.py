@@ -60,6 +60,24 @@ class BaseNode(object):
         return 'strict digraph {{\n{0!s}\n{1!s}\n}}'.format(
                         '\n'.join(nodes), '\n'.join(edges))
         
+    def clone(self, cache=None):
+        if cache is None:
+            cache = {}
+        copy = self.__class__(**self.__kargs())
+        copy.next = list(self.__clone_next(cache))
+        return copy
+        
+    def __clone_next(self, cache):
+        for next in self.next:
+            if next not in cache:
+                cache[next] = next.clone(cache=cache)
+            yield cache[next]
+        
+    def __kargs(self):
+        return dict((name, getattr(self, name))
+                     for name in self.__dict__ 
+                     if not name.startswith('_') and name != 'next')
+        
 
 class AlphabetNode(BaseNode):
     
@@ -102,14 +120,14 @@ class BaseSplit(BaseNode):
     
     def __init__(self, lazy=False):
         super(BaseSplit, self).__init__()
-        self.__lazy = lazy
+        self.lazy = lazy
         self.__connected = False
         
     def concatenate(self, next):
         if next:
             if self.__connected:
                 raise GraphException('Node already connected')
-            if self.__lazy:
+            if self.lazy:
                 self.next.insert(0, next)
             else:
                 self.next.append(next)
@@ -173,3 +191,19 @@ class Lookahead(BaseSplit):
             ('' if self.forwards else '<') + \
             ('=' if self.sense else '!') + '...)'
 
+
+class StatefulCount(BaseSplit):
+    
+    def __init__(self, begin, end, range):
+        super(StatefulCount, self).__init__(lazy=True)
+        self.begin = begin
+        self.end = end if range else begin
+    
+    def __str__(self):
+        text = '{' + str(self.begin)
+        if self.end != self.begin:
+            text += ','
+            if self.end is not None:
+                text += str(self.end)
+        text += '}'
+        return text 
