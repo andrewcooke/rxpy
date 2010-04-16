@@ -24,7 +24,7 @@ def edge_iterator(node):
                 visited.add(edge)
         
 
-class BaseNode(object):
+class _BaseNode(object):
     
     def __init__(self):
         self.next = []
@@ -79,14 +79,14 @@ class BaseNode(object):
                      if not name.startswith('_') and name != 'next')
         
 
-class AlphabetNode(BaseNode):
+class _AlphabetNode(_BaseNode):
     
     def __init__(self, alphabet):
-        super(AlphabetNode, self).__init__()
+        super(_AlphabetNode, self).__init__()
         self.alphabet = alphabet
     
 
-class String(AlphabetNode):
+class String(_AlphabetNode):
     
     def __init__(self, text, alphabet):
         super(String, self).__init__(alphabet)
@@ -96,7 +96,7 @@ class String(AlphabetNode):
         return self.alphabet.to_str(self.text)
 
 
-class StartGroup(BaseNode):
+class StartGroup(_BaseNode):
     
     def __init__(self, number):
         super(StartGroup, self).__init__()
@@ -106,7 +106,7 @@ class StartGroup(BaseNode):
         return "("
         
 
-class EndGroup(BaseNode):
+class EndGroup(_BaseNode):
     
     def __init__(self, start_group):
         super(EndGroup, self).__init__()
@@ -116,7 +116,7 @@ class EndGroup(BaseNode):
         return ")"
     
 
-class BaseSplit(BaseNode):
+class BaseSplit(_BaseNode):
     
     def __init__(self, lazy=False):
         super(BaseSplit, self).__init__()
@@ -145,31 +145,38 @@ class Split(BaseSplit):
         return self.__label
 
 
-class Match(BaseNode):
+class Match(_BaseNode):
     
     def __str__(self):
         return 'Match'
 
 
-class Dot(AlphabetNode):
+class _AlphabetLineNode(_AlphabetNode):
+
+    def __init__(self, alphabet, multiline):
+        super(_AlphabetLineNode, self).__init__(alphabet)
+        self.multiline = multiline
+    
+
+class Dot(_AlphabetLineNode):
     
     def __str__(self):
         return '.'
 
 
-class StartOfLine(AlphabetNode):
+class StartOfLine(_AlphabetLineNode):
     
     def __str__(self):
         return '^'
     
     
-class EndOfLine(AlphabetNode):
+class EndOfLine(_AlphabetLineNode):
     
     def __str__(self):
         return '$'
     
 
-class GroupReference(BaseNode):
+class GroupReference(_BaseNode):
     
     def __init__(self, number):
         super(GroupReference, self).__init__()

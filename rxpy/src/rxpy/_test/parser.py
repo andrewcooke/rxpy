@@ -299,6 +299,14 @@ class ParserTest(GraphTest):
  0 -> 1
 }""")
 
+    def test_autoescaped_range(self):
+        self.assert_graphs(repr(parse('[]]')), 
+"""strict digraph {
+ 0 [label="]"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        
     def test_inverted_range(self):
         self.assert_graphs(repr(parse('[^apz]')), 
 r"""strict digraph {

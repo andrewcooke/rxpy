@@ -1,7 +1,7 @@
 
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
-from rxpy.graph import String, StartGroup, EndGroup, Split, BaseNode, Match, \
+from rxpy.graph import String, StartGroup, EndGroup, Split, _BaseNode, Match, \
     Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount
 
 
@@ -11,11 +11,12 @@ class ParseException(Exception):
 
 class ParserState(object):
     
-    def __init__(self, alphabet=None, stateful=False):
+    def __init__(self, alphabet=None, stateful=False, multiline=False):
         if alphabet is None:
             alphabet = Unicode()
         self.alphabet = alphabet
         self.stateful = stateful
+        self.multiline = multiline
         self.__group_count = 0
         self.__name_to_count = {}
         self.__count_to_name = {}
@@ -34,7 +35,7 @@ class ParserState(object):
             raise ParseException('Unknown name: ' + name)
         
         
-class Sequence(BaseNode):
+class Sequence(_BaseNode):
     '''
     A temporary node, used only during construction, that contains a sequence 
     of nodes.  When the contents are first referenced any consecutive strings
@@ -94,7 +95,7 @@ class Sequence(BaseNode):
         return Sequence([node.clone(cache) for node in self._nodes])
     
     
-class Alternatives(BaseNode):
+class Alternatives(_BaseNode):
     '''
     A temporary node, similar to Sequence, but supporting several alternatives.
     Construction includes the addition of `Split` and `Merge` instances.
@@ -181,11 +182,11 @@ class SequenceBuilder(StatefulBuilder):
         elif not escaped and character == '}':
             raise ParseException('Unexpected }')
         elif not escaped and character == '.':
-            self._nodes.append(Dot(self._state.alphabet))
+            self._nodes.append(Dot(self._state.alphabet, self._state.multiline))
         elif not escaped and character == '^':
-            self._nodes.append(StartOfLine(self._state.alphabet))
+            self._nodes.append(StartOfLine(self._state.alphabet, self._state.multiline))
         elif not escaped and character == '$':
-            self._nodes.append(EndOfLine(self._state.alphabet))
+            self._nodes.append(EndOfLine(self._state.alphabet, self._state.multiline))
         elif not escaped and character == '|':
             self._start_new_alternative()
         elif character and (not escaped and character in '+?*'):
@@ -455,7 +456,10 @@ class CharSetBuilder(StatefulBuilder):
             self._invert = True 
         elif not escaped and character == '\\':
             return SimpleEscapeBuilder(self._state, self)
-        elif character and (escaped or character not in "-]"):
+        # not charset allows first character to be unescaped - or ]
+        elif character and \
+                ((not self._charset and not self._queue)
+                 or escaped or character not in "-]"):
             append()
         elif character == '-':
             if self._range:

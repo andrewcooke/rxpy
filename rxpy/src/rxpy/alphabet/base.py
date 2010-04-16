@@ -2,7 +2,7 @@
 from bisect import bisect_left
 from collections import deque
 
-from rxpy.graph import String, Dot, BaseNode
+from rxpy.graph import String, Dot, _BaseNode
 
 
 class Alphabet(object):
@@ -71,7 +71,7 @@ class Alphabet(object):
             return None
         
         
-class CharSet(BaseNode):
+class CharSet(_BaseNode):
     '''
     A set of possible values for a character, described as a collection of 
     intervals.  Each interval is [a, b] (ie a <= x <= b, where x is a character 
@@ -156,7 +156,7 @@ class CharSet(BaseNode):
         intervals.extend(self.__intervals) # slurp remaining
         self.__intervals = intervals
         
-    def len(self):
+    def __len__(self):
         '''
         The number of intervals in the range.
         '''
