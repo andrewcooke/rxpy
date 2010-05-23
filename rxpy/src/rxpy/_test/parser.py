@@ -718,3 +718,81 @@ r"""strict digraph {
  3 -> 2
  2 -> 4
 }""")
+
+    def test_octal_escape(self):
+        self.assert_graphs(repr(parse('a\\075c')), 
+"""strict digraph {
+ 0 [label="a=c"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        self.assert_graphs(repr(parse('a\\142c')), 
+"""strict digraph {
+ 0 [label="abc"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+
+    def test_numbered_groups(self):
+        self.assert_graphs(repr(parse('a(b)c\\1d')), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="("]
+ 2 [label="b"]
+ 3 [label=")"]
+ 4 [label="c"]
+ 5 [label="\\\\1"]
+ 6 [label="d"]
+ 7 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+ 6 -> 7
+}""")
+        
+    def test_simple_escape(self):
+        self.assert_graphs(repr(parse('a\\nc')), 
+"""strict digraph {
+ 0 [label="a\\\\nc"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+
+    def test_conditional(self):
+        # in both cases, "no" is the first alternative
+        self.assert_graphs(repr(parse('(a)(?(1)b)')),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a"]
+ 2 [label=")"]
+ 3 [label="(?(1)...)"]
+ 4 [label="Match"]
+ 5 [label="b"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 3 -> 5
+ 5 -> 4
+}""")
+        self.assert_graphs(repr(parse('(a)(?(1)b|cd)')),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a"]
+ 2 [label=")"]
+ 3 [label="(?(1)...)"]
+ 4 [label="cd"]
+ 5 [label="b"]
+ 6 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 3 -> 5
+ 5 -> 6
+ 4 -> 6
+}""")
+        

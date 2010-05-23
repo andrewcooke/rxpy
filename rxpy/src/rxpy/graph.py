@@ -5,12 +5,19 @@ class GraphException(Exception):
 
 
 def linear_iterator(node):
+    '''
+    Generate a sequence of nodes, taking the first child at each.
+    '''
     while node:
         yield node
         node = node.next[0]
         
 
 def edge_iterator(node):
+    '''
+    Generate a sequence of all the edges (as ordered node pairs) reachable
+    in the graph starting from the given node.
+    '''
     stack = [node]
     visited = set()
     while stack:
@@ -25,18 +32,49 @@ def edge_iterator(node):
         
 
 class _BaseNode(object):
+    '''
+    Subclasses describe ordered actions (typically, matches) to be made.
+    
+    This base class provides support for constructing and connecting nodes,
+    cloning them, and displaying them in GraphViz.
+    
+    Nodes accessible from this instance are visible in `.next`.
+    
+    This class is designed to support both simple nodes (an instance is a
+    graph node) and complex nodes (an instance describes some subset of
+    the graph with a single entry node, and which will be given a single exit 
+    node).  Complex nodes are used during construction of the graph (eg for 
+    sequences and alternatives), but final connection of nodes connects the 
+    individual sub-nodes.
+    '''
     
     def __init__(self):
+        '''
+        Subclasses should pay attention to the relationship between 
+        constructor kargs and attributes assumed in `.clone`.
+        '''
         self.next = []
         
-    def __iter__(self):
-        return linear_iterator(self)
-    
     @property
     def start(self):
+        '''
+        The node to connect to when connecting to "this" node.  For a simple
+        node, this is simply 'self', but for a complex node (one that contains
+        sub-nodes) this method must return the "entry node".
+        
+        This method is only called on complex nodes after "initial node
+        assembly" is complete (complex nodes are assembled, then connected).
+        '''
         return self
     
     def concatenate(self, next):
+        '''
+        The given node is the next node in the sequence.
+        
+        This method is only called on complex nodes after "initial node
+        assembly" is complete (complex nodes are assembled, then connected).
+        It is also only called once.
+        '''
         if next:
             if self.next:
                 raise GraphException('Node already connected')
@@ -44,6 +82,10 @@ class _BaseNode(object):
         return self
     
     def __repr__(self):
+        '''
+        Generate a description of this node and accessible children which can 
+        be used to plot the graph in GraphViz. 
+        '''
         indices = {}
         reverse = {}
         def index(node):
@@ -60,7 +102,16 @@ class _BaseNode(object):
         return 'strict digraph {{\n{0!s}\n{1!s}\n}}'.format(
                         '\n'.join(nodes), '\n'.join(edges))
         
+    def __str__(self):
+        return '#'
+        
     def clone(self, cache=None):
+        '''
+        Duplicate this node (necessary when replacing a numbered repeat with
+        explicit, repeated, instances, for example).
+        
+        This copies all "public" attributes as constructor kargs.
+        '''
         if cache is None:
             cache = {}
         copy = self.__class__(**self.__kargs())
@@ -80,6 +131,9 @@ class _BaseNode(object):
         
 
 class _AlphabetNode(_BaseNode):
+    '''
+    Base class for any node that includs an alphabet.
+    '''
     
     def __init__(self, alphabet):
         super(_AlphabetNode, self).__init__()
@@ -87,6 +141,9 @@ class _AlphabetNode(_BaseNode):
     
 
 class String(_AlphabetNode):
+    '''
+    Match a series of literal characters.
+    '''
     
     def __init__(self, text, alphabet):
         super(String, self).__init__(alphabet)
@@ -97,6 +154,9 @@ class String(_AlphabetNode):
 
 
 class StartGroup(_BaseNode):
+    '''
+    Mark the start of a group (to be saved).
+    '''
     
     def __init__(self, number):
         super(StartGroup, self).__init__()
@@ -107,6 +167,9 @@ class StartGroup(_BaseNode):
         
 
 class EndGroup(_BaseNode):
+    '''
+    Mark the end of a group (to be saved).
+    '''
     
     def __init__(self, start_group):
         super(EndGroup, self).__init__()
@@ -117,6 +180,21 @@ class EndGroup(_BaseNode):
     
 
 class BaseSplit(_BaseNode):
+    '''
+    Base class for any node that includes a "tee".
+    
+    Note that a continuation node is added via concatenate.  In other words,
+    when used within a Sequence, this node will, in addition to providing
+    a branch, also connect directly to the following node.  So only "extra"
+    branches need to be provided directly by subclasses.
+    
+    To rejoin the branch, use `Merge()`.
+    
+    The lazy flag controls the position of the following node; if False the
+    node is appended to the list of child nodes, otherwise it is inserted
+    into the first position.  This implies that evaluation should prefer
+    children in the order given. 
+    '''
     
     def __init__(self, lazy=False):
         super(BaseSplit, self).__init__()
@@ -214,3 +292,22 @@ class StatefulCount(BaseSplit):
                 text += str(self.end)
         text += '}'
         return text 
+    
+    
+class Conditional(BaseSplit):
+    '''
+    If the group exists, the second child should be followed, otherwise the
+    first.
+    '''
+    
+    def __init__(self, groupid):
+        super(Conditional, self).__init__(lazy=True)
+        self.groupid = groupid
+        
+    def __str__(self):
+        text = '(?(' + str(self.groupid) + ')...'
+        if len(self.next) == 3:
+            text += '|...'
+        text += ')'
+        return text 
+        

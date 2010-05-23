@@ -18,9 +18,6 @@ class Unicode(Alphabet):
     def coerce(self, char):
         return unicode(char)
     
-    def unescape(self, text):
-        return self.code_to_char(int(text[2:], 16))
-        
     def join(self, *strings):
         return self.coerce('').join(strings)
         

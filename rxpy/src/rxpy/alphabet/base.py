@@ -45,11 +45,6 @@ class Alphabet(object):
         be unique, repeatable, etc.
         '''
         
-    def unescape(self, text):
-        '''
-        Parse "escaped" text, of the form \x00, \u0000, \U00000000.
-        '''
-        
     def after(self, char):
         '''
         The character "before" the given one, or None

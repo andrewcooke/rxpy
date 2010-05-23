@@ -1,8 +1,15 @@
 
+from string import digits
+
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
 from rxpy.graph import String, StartGroup, EndGroup, Split, _BaseNode, Match, \
-    Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount
+    Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount,\
+    Conditional
+from reportlab.graphics.widgets.signsandsymbols import YesNo
+
+
+OCTAL = '01234567'
 
 
 class ParseException(Exception):
@@ -11,12 +18,14 @@ class ParseException(Exception):
 
 class ParserState(object):
     
-    def __init__(self, alphabet=None, stateful=False, multiline=False):
+    def __init__(self, alphabet=None, stateful=False, multiline=False,
+                 ascii=False):
         if alphabet is None:
             alphabet = Unicode()
         self.alphabet = alphabet
         self.stateful = stateful
         self.multiline = multiline
+        self.ascii = ascii
         self.__group_count = 0
         self.__name_to_count = {}
         self.__count_to_name = {}
@@ -33,6 +42,12 @@ class ParserState(object):
             return self.__name_to_count[name]
         else:
             raise ParseException('Unknown name: ' + name)
+        
+    def count_for_name_or_count(self, name):
+        try:
+            return int(name)
+        except:
+            return self.count_for_name(name)
         
         
 class Sequence(_BaseNode):
@@ -87,7 +102,8 @@ class Sequence(_BaseNode):
         if self._nodes:
             self.__freeze()
             return self._nodes[0].start
-        return None
+        else:
+            return None
     
     def clone(self, cache=None):
         if cache is None:
@@ -101,15 +117,17 @@ class Alternatives(_BaseNode):
     Construction includes the addition of `Split` and `Merge` instances.
     '''
     
-    def __init__(self, sequences):
+    def __init__(self, sequences, split=None):
         self._sequences = sequences
+        self.__split = split
         
     def concatenate(self, next):
-        split = Split(str(self))
-        split.next = list(map(lambda s: s.start, self._sequences))
+        if self.__split is None:
+            self.__split = Split(str(self))
+        self.__split.next = list(map(lambda s: s.start, self._sequences))
         merge = Merge(*self._sequences)
         merge.concatenate(next)
-        return split
+        return self.__split
     
     def __str__(self):
         return '...|...'
@@ -167,20 +185,16 @@ class SequenceBuilder(StatefulBuilder):
         self._nodes = []
     
     def append_character(self, character, escaped=False):
-        if not escaped and character == '\\':
-            return SimpleEscapeBuilder(self._state, self)
-        elif not escaped and character == '(':
-            return GroupEscapeBuilder(self._state, self)
-        elif not escaped and character == ')':
-            raise ParseException('Unexpected )')
-        elif not escaped and character == '[':
-            return CharSetBuilder(self._state, self)
-        elif not escaped and character == ']':
-            raise ParseException('Unexpected ]')
+        if not escaped and character and character in ')]}':
+            raise ParseException('Unexpected ' + character)
+        elif not escaped and character == '\\':
+            return ComplexEscapeBuilder(self._state, self)
         elif not escaped and character == '{':
             return CountBuilder(self._state, self)
-        elif not escaped and character == '}':
-            raise ParseException('Unexpected }')
+        elif not escaped and character == '(':
+            return GroupEscapeBuilder(self._state, self)
+        elif not escaped and character == '[':
+            return CharSetBuilder(self._state, self)
         elif not escaped and character == '.':
             self._nodes.append(Dot(self._state.alphabet, self._state.multiline))
         elif not escaped and character == '^':
@@ -293,6 +307,8 @@ class GroupEscapeBuilder(StatefulBuilder):
                             self._state, self._parent_sequence, False, True)
             elif character == '<':
                 return LookbackBuilder(self._state, self._parent_sequence)
+            elif character == '(':
+                return ConditionalBuilder(self._state, self._parent_sequence)
             else:
                 raise ParseException(
                     'Unexpected qualifier after (? - ' + character)
@@ -319,9 +335,6 @@ class BaseGroupBuilder(SequenceBuilder):
         
 
 class GroupBuilder(BaseGroupBuilder):
-    
-    # This must subclass SequenceBuilder rather than contain an instance
-    # because that may itself return child builders.
     
     def __init__(self, state, sequence, binding=True, name=None):
         super(GroupBuilder, self).__init__(state, sequence)
@@ -366,6 +379,62 @@ class LookaheadBuilder(BaseGroupBuilder):
         return self._parent_sequence
         
 
+class ConditionalBuilder(StatefulBuilder):
+    '''
+    Handle (?(id/name)yes-pattern|optional-no-pattern)
+    '''
+    
+    def __init__(self, state, sequence):
+        super(ConditionalBuilder, self).__init__(state)
+        self.__parent_sequence = sequence
+        self.__name = ''
+        self.__yes = None
+        
+    def append_character(self, character, escaped=False):
+        if not escaped and character == ')':
+            return YesNoBuilder(self, self._state, self.__parent_sequence, '|)')
+        elif not escaped and character == '\\':
+            return SimpleEscapeBuilder(self._state, self)
+        else:
+            self.__name += character
+            return self
+        
+    def callback(self, yesno, terminal):
+        if self.__yes is None:
+            (self.__yes, yesno) = (yesno, None)
+            if terminal == '|':
+                return YesNoBuilder(self, self._state, self.__parent_sequence, ')')
+        group = self._state.count_for_name_or_count(self.__name)
+        conditional = Conditional(group)
+        yes = self.__yes.build_dag()
+        yes = yes.start
+        if yesno:
+            no = yesno.build_dag()
+            no = no.start
+            alternatives = Alternatives([no, yes], conditional)
+            self.__parent_sequence._nodes.append(alternatives)
+        else:
+            conditional.next = [yes]
+            self.__parent_sequence._nodes.append(Merge(yes, conditional))
+        return self.__parent_sequence
+    
+        
+class YesNoBuilder(BaseGroupBuilder):
+    
+    def __init__(self, conditional, state, sequence, terminals):
+        super(YesNoBuilder, self).__init__(state, sequence)
+        self.__conditional = conditional
+        self.__terminals = terminals
+        
+    def append_character(self, character, escaped=False):
+        if character is None:
+            raise ParseException('Incomplete conditional match')
+        elif not escaped and character in self.__terminals:
+            return self.__conditional.callback(self, character)
+        else:
+            return super(YesNoBuilder, self).append_character(character, escaped)
+
+
 class NamedGroupBuilder(StatefulBuilder):
     '''
     Handle '(?P<name>pattern)' and '(?P=name)' by creating either creating a 
@@ -401,6 +470,7 @@ class NamedGroupBuilder(StatefulBuilder):
                     GroupReference(self._state.count_for_name(self._name)))
                 return self._parent_sequence
             elif not escaped and character == '\\':
+                # this is just for the name
                 return SimpleEscapeBuilder(self._state, self)
             elif character:
                 self._name += character
@@ -488,34 +558,130 @@ class CharSetBuilder(StatefulBuilder):
     
 
 class SimpleEscapeBuilder(StatefulBuilder):
+    '''
+    Escaped characters only.
+    '''
     
-    LENGTH = {'x': 2, 'u': 4, 'U': 8}
-    
-    def __init__(self, state, builder):
+    def __init__(self, state, parent):
         super(SimpleEscapeBuilder, self).__init__(state)
-        self._parent_builder = builder
-        self._buffer = ''
-        self._remaining = 1
-        
-    def __exit(self):
-        char = self._state.alphabet.unescape('\\' + self._buffer)
-        return self._parent_builder.append_character(char, escaped=True)
+        self._parent_builder = parent
+        self.__std_escapes = {'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n',
+                              'r': '\r', 't': '\t', 'v': '\v', '\\': '\\'}
         
     def append_character(self, character):
         if not character:
             raise ParseException('Incomplete character escape')
-        if self._buffer:
-            self._buffer += character
-            self._remaining -= 1
-            if not self._remaining:
-                return self.__exit()
+        elif character in 'xuU':
+            return UnicodeEscapeBuilder(self._parent_builder, character)
+        elif character in digits:
+            return OctalEscapeBuilder(self._parent_builder, character)
+        elif character in self.__std_escapes:
+            return self._parent_builder.append_character(
+                        self.__std_escapes[character], escaped=True)
         else:
-            self._buffer += character
-            try:
-                self._remaining = self.LENGTH[character]
-            except KeyError:
-                return self._parent_builder.append_character(character, escaped=True)
-        return self
+            raise ParseException('Unexpected escape: ' + character)
+    
+
+class ComplexEscapeBuilder(SimpleEscapeBuilder):
+    '''
+    Extend SimpleEscapeBuilder to also handle group references.
+    '''
+    
+    def __init__(self, state, parent):
+        super(ComplexEscapeBuilder, self).__init__(state, parent)
+        
+    def append_character(self, character):
+        if character and character in digits and character != '0':
+            return GroupReferenceBuilder(self._parent_builder, character)
+        else:
+            return super(ComplexEscapeBuilder, self).append_character(character)
+        
+
+class UnicodeEscapeBuilder(Builder):
+    
+    LENGTH = {'x': 2, 'u': 4, 'U': 8}
+    
+    def __init__(self, parent, initial):
+        super(UnicodeEscapeBuilder, self).__init__()
+        self.__parent_builder = parent
+        self.__buffer = ''
+        self.__remaining = self.LENGTH[initial]
+        
+    def append_character(self, character):
+        if not character:
+            raise ParseException('Incomplete unicode escape')
+        self.__buffer += character
+        self.__remaining -= 1
+        if self.__remaining:
+            return self
+        try:
+            return self.__parent_builder.append_character(
+                        unichr(int(self.__buffer, 16)), escaped=True)
+        except:
+            raise ParseException('Bad unicode escape: ' + self.__buffer)
+    
+
+class OctalEscapeBuilder(Builder):
+    
+    def __init__(self, parent, initial=0):
+        super(OctalEscapeBuilder, self).__init__()
+        self.__parent_builder = parent
+        self.__buffer = initial
+        
+    @staticmethod
+    def decode(buffer):
+        try:
+            return unichr(int(buffer, 8))
+        except:
+            raise ParseException('Bad octal escape: ' + buffer)
+        
+    def append_character(self, character):
+        if character and character in '01234567':
+            self.__buffer += character
+            if len(self.__buffer) == 3:
+                return self.__parent_builder.append_character(
+                            self.decode(self.__buffer), escaped=True)
+            else:
+                return self
+        else:
+            chain = self.__parent_builder.append_character(
+                            self.decode(self.__buffer), escaped=True)
+            return chain.append_character(character)
+    
+
+class GroupReferenceBuilder(Builder):
+    
+    def __init__(self, parent, initial):
+        super(GroupReferenceBuilder, self).__init__()
+        self.__parent_sequence = parent
+        self.__buffer = initial
+        
+    def __octal(self):
+        if len(self.__buffer) != 3:
+            return False
+        for c in self.__buffer:
+            if c not in OCTAL:
+                return False
+        return True
+    
+    def __decode(self):
+        try:
+            return GroupReference(int(self.__buffer))
+        except:
+            raise ParseException('Bad group reference: ' + self.__buffer)
+        
+    def append_character(self, character):
+        if character and character in digits:
+            self.__buffer += character
+            if self.__octal():
+                return self.__parent_sequence.append_character(
+                            OctalEscapeBuilder.decode(self.__buffer), 
+                            escaped=True)
+            else:
+                return self
+        else:
+            self.__parent_sequence._nodes.append(self.__decode())
+            return self.__parent_sequence.append_character(character)
     
 
 class CountBuilder(StatefulBuilder):
