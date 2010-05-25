@@ -310,4 +310,41 @@ class Conditional(BaseSplit):
             text += '|...'
         text += ')'
         return text 
+
+
+class _EscapedNode(_AlphabetNode):
+    
+    def __init__(self, alphabet, character, inverted=False):
+        super(_EscapedNode, self).__init__(alphabet)
+        self.character = character
+        self.inverted = inverted
         
+    def __str__(self):
+        return '\\\\' + (self.character.upper() 
+                         if self.inverted else self.character.lower())
+    
+    
+class WordBoundary(_EscapedNode):
+    
+    def __init__(self, alphabet, inverted=False):
+        super(WordBoundary, self).__init__(alphabet, 'b', inverted)
+
+
+class Digit(_EscapedNode):
+    
+    def __init__(self, alphabet, inverted=False):
+        super(Digit, self).__init__(alphabet, 'd', inverted)
+
+
+class Space(_EscapedNode):
+    
+    def __init__(self, alphabet, inverted=False):
+        super(Space, self).__init__(alphabet, 's', inverted)
+
+
+class Word(_EscapedNode):
+    
+    def __init__(self, alphabet, inverted=False):
+        super(Word, self).__init__(alphabet, 'w', inverted)
+
+

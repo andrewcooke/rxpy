@@ -796,3 +796,28 @@ r"""strict digraph {
  4 -> 6
 }""")
         
+    def test_character_escape(self):
+        self.assert_graphs(repr(parse(r'\A\b\B\d\D\s\S\w\W\Z')), 
+"""strict digraph {
+ 0 [label="^"]
+ 1 [label="\\b"]
+ 2 [label="\\B"]
+ 3 [label="\\d"]
+ 4 [label="\\D"]
+ 5 [label="\\s"]
+ 6 [label="\\S"]
+ 7 [label="\\w"]
+ 8 [label="\\W"]
+ 9 [label="$"]
+ 10 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+ 6 -> 7
+ 7 -> 8
+ 8 -> 9
+ 9 -> 10
+}""")

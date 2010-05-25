@@ -5,8 +5,7 @@ from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
 from rxpy.graph import String, StartGroup, EndGroup, Split, _BaseNode, Match, \
     Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount,\
-    Conditional
-from reportlab.graphics.widgets.signsandsymbols import YesNo
+    Conditional, WordBoundary, Word, Space, Digit
 
 
 OCTAL = '01234567'
@@ -157,6 +156,23 @@ class Merge(object):
     
     
 class Builder(object):
+    '''
+    Base class for states in the parser (called Builder rather than State
+    to avoid confusion with the parser state).
+    
+    The parser is a simple state machine, implemented via a separate loop
+    (`parse()`) that repeatedly calls `.append_character()` on the current
+    state, using whatever is returned as the next state.
+    
+    The graph is assembled within the states, which either assemble locally 
+    or extend the state in a "parent" state (so states may reference parent
+    states, but the evaluation process remains just a single level deep).
+    
+    It is also possible for one state to delegate to the append_character
+    method of another state (escapes are handled in this way, for example).
+    
+    After all characters have been parsed, `None` is used as a final marker.
+    '''
     
     def __init__(self):
         super(Builder, self).__init__()
@@ -591,8 +607,28 @@ class ComplexEscapeBuilder(SimpleEscapeBuilder):
         super(ComplexEscapeBuilder, self).__init__(state, parent)
         
     def append_character(self, character):
-        if character and character in digits and character != '0':
+        if not character:
+            raise ParseException('Incomplete character escape')
+        elif character in digits and character != '0':
             return GroupReferenceBuilder(self._parent_builder, character)
+        elif character == 'A':
+            self._parent_builder._nodes.append(StartOfLine(self._state.alphabet, False))
+            return self._parent_builder
+        elif character in 'bB':
+            self._parent_builder._nodes.append(WordBoundary(self._state.alphabet, character=='B'))
+            return self._parent_builder
+        elif character in 'dD':
+            self._parent_builder._nodes.append(Digit(self._state.alphabet, character=='D'))
+            return self._parent_builder
+        elif character in 'wW':
+            self._parent_builder._nodes.append(Word(self._state.alphabet, character=='W'))
+            return self._parent_builder
+        elif character in 'sS':
+            self._parent_builder._nodes.append(Space(self._state.alphabet, character=='S'))
+            return self._parent_builder
+        elif character == 'Z':
+            self._parent_builder._nodes.append(EndOfLine(self._state.alphabet, False))
+            return self._parent_builder
         else:
             return super(ComplexEscapeBuilder, self).append_character(character)
         
