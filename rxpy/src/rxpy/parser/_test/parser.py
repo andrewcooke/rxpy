@@ -1,7 +1,6 @@
 
-from rxpy._test.lib import GraphTest
-
-from rxpy.parser import parse, ParserState
+from rxpy.parser._test.lib import GraphTest
+from rxpy.parser.parser import parse, ParserState
 
 
 class ParserTest(GraphTest):
@@ -351,7 +350,7 @@ r"""strict digraph {
         self.assert_graphs(repr(parse('\\\\')), 
 # unsure about this...
 """strict digraph {
- 0 [label="\\\\\\\\"]
+ 0 [label="\\\\"]
  1 [label="Match"]
  0 -> 1
 }""")
@@ -800,14 +799,14 @@ r"""strict digraph {
         self.assert_graphs(repr(parse(r'\A\b\B\d\D\s\S\w\W\Z')), 
 """strict digraph {
  0 [label="^"]
- 1 [label="\\b"]
- 2 [label="\\B"]
- 3 [label="\\d"]
- 4 [label="\\D"]
- 5 [label="\\s"]
- 6 [label="\\S"]
- 7 [label="\\w"]
- 8 [label="\\W"]
+ 1 [label="\\\\b"]
+ 2 [label="\\\\B"]
+ 3 [label="\\\\d"]
+ 4 [label="\\\\D"]
+ 5 [label="\\\\s"]
+ 6 [label="\\\\S"]
+ 7 [label="\\\\w"]
+ 8 [label="\\\\W"]
  9 [label="$"]
  10 [label="Match"]
  0 -> 1

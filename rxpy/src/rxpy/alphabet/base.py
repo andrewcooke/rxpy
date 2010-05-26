@@ -2,7 +2,7 @@
 from bisect import bisect_left
 from collections import deque
 
-from rxpy.graph import String, Dot, _BaseNode
+from rxpy.parser.graph import String, Dot, _BaseNode
 
 
 class Alphabet(object):
@@ -222,13 +222,13 @@ class CharSet(_BaseNode):
         self.__str = None
     
     def simplify(self):
-        from rxpy.parser import ParseException
+        from rxpy.parser.parser import ParseException
 
         if len(self.__intervals) == 0:
             raise ParseException('Empty range')
         elif len(self.__intervals) == 1:
             if self.__intervals[0][0] == self.__intervals[0][1]:
-                return String(self.__intervals[0][0], self.__alphabet)
+                return String(self.__intervals[0][0])
             elif self.__intervals[0][0] == self.__alphabet.min and \
                     self.__intervals[0][1] == self.__alphabet.max:
                 return Dot()

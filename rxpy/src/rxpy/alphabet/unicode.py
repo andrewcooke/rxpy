@@ -31,5 +31,5 @@ class Unicode(Alphabet):
         text = repr(unicode(char))
         if text[0] == 'u':
             text = text[1:]
-        return text[1:-1].replace('\\', '\\\\')
+        return text[1:-1]
 

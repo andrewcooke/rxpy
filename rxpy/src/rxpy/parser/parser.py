@@ -3,9 +3,9 @@ from string import digits
 
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.unicode import Unicode
-from rxpy.graph import String, StartGroup, EndGroup, Split, _BaseNode, Match, \
-    Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, StatefulCount,\
-    Conditional, WordBoundary, Word, Space, Digit
+from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
+    Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
+    Repeat, Conditional, WordBoundary, Word, Space, Digit
 
 
 OCTAL = '01234567'
@@ -212,17 +212,17 @@ class SequenceBuilder(StatefulBuilder):
         elif not escaped and character == '[':
             return CharSetBuilder(self._state, self)
         elif not escaped and character == '.':
-            self._nodes.append(Dot(self._state.alphabet, self._state.multiline))
+            self._nodes.append(Dot(self._state.multiline))
         elif not escaped and character == '^':
-            self._nodes.append(StartOfLine(self._state.alphabet, self._state.multiline))
+            self._nodes.append(StartOfLine(self._state.multiline))
         elif not escaped and character == '$':
-            self._nodes.append(EndOfLine(self._state.alphabet, self._state.multiline))
+            self._nodes.append(EndOfLine(self._state.multiline))
         elif not escaped and character == '|':
             self._start_new_alternative()
         elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         elif character:
-            self._nodes.append(String(character, self._state.alphabet))
+            self._nodes.append(String(character))
         return self
     
     def _start_new_alternative(self):
@@ -360,7 +360,8 @@ class GroupBuilder(BaseGroupBuilder):
     def _build_group(self):
         contents = self.build_dag()
         if self._start:
-            contents = Sequence([self._start, contents, EndGroup(self._start)])
+            contents = Sequence([self._start, contents, 
+                                 EndGroup(self._start.number)])
         self._parent_sequence._nodes.append(contents)
         return self._parent_sequence
         
@@ -612,22 +613,22 @@ class ComplexEscapeBuilder(SimpleEscapeBuilder):
         elif character in digits and character != '0':
             return GroupReferenceBuilder(self._parent_builder, character)
         elif character == 'A':
-            self._parent_builder._nodes.append(StartOfLine(self._state.alphabet, False))
+            self._parent_builder._nodes.append(StartOfLine(False))
             return self._parent_builder
         elif character in 'bB':
-            self._parent_builder._nodes.append(WordBoundary(self._state.alphabet, character=='B'))
+            self._parent_builder._nodes.append(WordBoundary(character=='B'))
             return self._parent_builder
         elif character in 'dD':
-            self._parent_builder._nodes.append(Digit(self._state.alphabet, character=='D'))
+            self._parent_builder._nodes.append(Digit(character=='D'))
             return self._parent_builder
         elif character in 'wW':
-            self._parent_builder._nodes.append(Word(self._state.alphabet, character=='W'))
+            self._parent_builder._nodes.append(Word(character=='W'))
             return self._parent_builder
         elif character in 'sS':
-            self._parent_builder._nodes.append(Space(self._state.alphabet, character=='S'))
+            self._parent_builder._nodes.append(Space(character=='S'))
             return self._parent_builder
         elif character == 'Z':
-            self._parent_builder._nodes.append(EndOfLine(self._state.alphabet, False))
+            self._parent_builder._nodes.append(EndOfLine(False))
             return self._parent_builder
         else:
             return super(ComplexEscapeBuilder, self).append_character(character)
@@ -782,7 +783,7 @@ class CountBuilder(StatefulBuilder):
             raise ParseException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
         if self._state.stateful:
-            count = StatefulCount(self._begin, self._end, self._range)
+            count = Repeat(self._begin, self._end if self._range else self._begin)
             count.next = [latest.concatenate(count)]
             self._parent_sequence._nodes.append(count)
         else:

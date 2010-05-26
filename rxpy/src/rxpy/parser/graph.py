@@ -94,16 +94,21 @@ class _BaseNode(object):
                 indices[node] = n
                 reverse[n] = node
             return str(indices[node])
+        def escape(node):
+            text = str(node)
+            text = text.replace('\n','\\n')
+            return text.replace('\\', '\\\\')
         edge_indices = [(index(start), index(end)) 
                         for (start, end) in edge_iterator(self)]
         edges = [' ' + start + ' -> ' + end for (start, end) in edge_indices]
-        nodes = [' ' + str(index) + ' [label="{0!s}"]'.format(reverse[index])
+        nodes = [' ' + str(index) + ' [label="{0!s}"]'.format(escape(reverse[index]))
                  for index in sorted(reverse)]
         return 'strict digraph {{\n{0!s}\n{1!s}\n}}'.format(
                         '\n'.join(nodes), '\n'.join(edges))
         
     def __str__(self):
-        return '#'
+        raise Exception(format('Missing __str__ in {0}', 
+                               self.__class__.__name__))
         
     def clone(self, cache=None):
         '''
@@ -130,27 +135,20 @@ class _BaseNode(object):
                      if not name.startswith('_') and name != 'next')
         
 
-class _AlphabetNode(_BaseNode):
-    '''
-    Base class for any node that includs an alphabet.
-    '''
-    
-    def __init__(self, alphabet):
-        super(_AlphabetNode, self).__init__()
-        self.alphabet = alphabet
-    
-
-class String(_AlphabetNode):
+class String(_BaseNode):
     '''
     Match a series of literal characters.
     '''
     
-    def __init__(self, text, alphabet):
-        super(String, self).__init__(alphabet)
+    def __init__(self, text):
+        super(String, self).__init__()
         self.text = text
         
     def __str__(self):
-        return self.alphabet.to_str(self.text)
+        return self.text
+    
+    def visit(self, visitor):
+        visitor.string(self.next, self.text)
 
 
 class StartGroup(_BaseNode):
@@ -165,19 +163,25 @@ class StartGroup(_BaseNode):
     def __str__(self):
         return "("
         
+    def visit(self, visitor):
+        visitor.start_group(self.next, self.number)
+
 
 class EndGroup(_BaseNode):
     '''
     Mark the end of a group (to be saved).
     '''
     
-    def __init__(self, start_group):
+    def __init__(self, number):
         super(EndGroup, self).__init__()
-        self.start_group = start_group
+        self.number = number
         
     def __str__(self):
         return ")"
     
+    def visit(self, visitor):
+        visitor.start_group(self.next, self.number)
+
 
 class BaseSplit(_BaseNode):
     '''
@@ -222,37 +226,52 @@ class Split(BaseSplit):
     def __str__(self):
         return self.__label
 
+    def visit(self, visitor):
+        visitor.split(self.next)
+
 
 class Match(_BaseNode):
     
     def __str__(self):
         return 'Match'
 
+    def visit(self, visitor):
+        visitor.match()
 
-class _AlphabetLineNode(_AlphabetNode):
 
-    def __init__(self, alphabet, multiline):
-        super(_AlphabetLineNode, self).__init__(alphabet)
+class _LineNode(_BaseNode):
+
+    def __init__(self, multiline):
+        super(_LineNode, self).__init__()
         self.multiline = multiline
     
 
-class Dot(_AlphabetLineNode):
+class Dot(_LineNode):
     
     def __str__(self):
         return '.'
 
+    def visit(self, visitor):
+        visitor.dot(self.next, self.multiline)
 
-class StartOfLine(_AlphabetLineNode):
+
+class StartOfLine(_LineNode):
     
     def __str__(self):
         return '^'
     
+    def visit(self, visitor):
+        visitor.start_of_line(self.next, self.multiline)
+
     
-class EndOfLine(_AlphabetLineNode):
+class EndOfLine(_LineNode):
     
     def __str__(self):
         return '$'
     
+    def visit(self, visitor):
+        visitor.end_of_line(self.next, self.multiline)
+
 
 class GroupReference(_BaseNode):
     
@@ -261,7 +280,10 @@ class GroupReference(_BaseNode):
         self.number = number
         
     def __str__(self):
-        return '\\\\' + str(self.number)
+        return '\\' + str(self.number)
+
+    def visit(self, visitor):
+        visitor.group_reference(self.next, self.number)
 
 
 class Lookahead(BaseSplit):
@@ -276,13 +298,19 @@ class Lookahead(BaseSplit):
             ('' if self.forwards else '<') + \
             ('=' if self.sense else '!') + '...)'
 
+    def visit(self, visitor):
+        visitor.lookahead(self.next, self.sense, self.forwards)
 
-class StatefulCount(BaseSplit):
+
+class Repeat(BaseSplit):
     
-    def __init__(self, begin, end, range):
-        super(StatefulCount, self).__init__(lazy=True)
+    def __init__(self, begin, end):
+        '''
+        If end is None the range is open.
+        '''
+        super(Repeat, self).__init__(lazy=True)
         self.begin = begin
-        self.end = end if range else begin
+        self.end = end
     
     def __str__(self):
         text = '{' + str(self.begin)
@@ -293,6 +321,9 @@ class StatefulCount(BaseSplit):
         text += '}'
         return text 
     
+    def visit(self, visitor):
+        visitor.repeat(self.next, self.begin, self.end)
+    
     
 class Conditional(BaseSplit):
     '''
@@ -300,51 +331,66 @@ class Conditional(BaseSplit):
     first.
     '''
     
-    def __init__(self, groupid):
+    def __init__(self, number):
         super(Conditional, self).__init__(lazy=True)
-        self.groupid = groupid
+        self.number = number
         
     def __str__(self):
-        text = '(?(' + str(self.groupid) + ')...'
+        text = '(?(' + str(self.number) + ')...'
         if len(self.next) == 3:
             text += '|...'
         text += ')'
         return text 
-
-
-class _EscapedNode(_AlphabetNode):
     
-    def __init__(self, alphabet, character, inverted=False):
-        super(_EscapedNode, self).__init__(alphabet)
+    def visit(self, visitor):
+        visitor.conditional(self.next, self.number)
+
+
+class _EscapedNode(_BaseNode):
+    
+    def __init__(self, character, inverted=False):
+        super(_EscapedNode, self).__init__()
         self.character = character
         self.inverted = inverted
         
     def __str__(self):
-        return '\\\\' + (self.character.upper() 
-                         if self.inverted else self.character.lower())
+        return '\\' + (self.character.upper() 
+                       if self.inverted else self.character.lower())
     
     
 class WordBoundary(_EscapedNode):
     
-    def __init__(self, alphabet, inverted=False):
-        super(WordBoundary, self).__init__(alphabet, 'b', inverted)
+    def __init__(self, inverted=False):
+        super(WordBoundary, self).__init__('b', inverted)
+
+    def visit(self, visitor):
+        visitor.word_boundary(self.next, self.inverted)
 
 
 class Digit(_EscapedNode):
     
-    def __init__(self, alphabet, inverted=False):
-        super(Digit, self).__init__(alphabet, 'd', inverted)
+    def __init__(self, inverted=False):
+        super(Digit, self).__init__('d', inverted)
+
+    def visit(self, visitor):
+        visitor.digit(self.next, self.inverted)
 
 
 class Space(_EscapedNode):
     
-    def __init__(self, alphabet, inverted=False):
-        super(Space, self).__init__(alphabet, 's', inverted)
+    def __init__(self, inverted=False):
+        super(Space, self).__init__('s', inverted)
+
+    def visit(self, visitor):
+        visitor.space(self.next, self.inverted)
 
 
 class Word(_EscapedNode):
     
-    def __init__(self, alphabet, inverted=False):
-        super(Word, self).__init__(alphabet, 'w', inverted)
+    def __init__(self, inverted=False):
+        super(Word, self).__init__('w', inverted)
+
+    def visit(self, visitor):
+        visitor.word(self.next, self.inverted)
 
 
