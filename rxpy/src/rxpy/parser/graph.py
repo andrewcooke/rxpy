@@ -148,7 +148,7 @@ class String(_BaseNode):
         return self.text
     
     def visit(self, visitor):
-        visitor.string(self.next, self.text)
+        return visitor.string(self.next, self.text)
 
 
 class StartGroup(_BaseNode):
@@ -164,7 +164,7 @@ class StartGroup(_BaseNode):
         return "("
         
     def visit(self, visitor):
-        visitor.start_group(self.next, self.number)
+        return visitor.start_group(self.next, self.number)
 
 
 class EndGroup(_BaseNode):
@@ -180,7 +180,7 @@ class EndGroup(_BaseNode):
         return ")"
     
     def visit(self, visitor):
-        visitor.start_group(self.next, self.number)
+        return visitor.start_group(self.next, self.number)
 
 
 class BaseSplit(_BaseNode):
@@ -227,7 +227,7 @@ class Split(BaseSplit):
         return self.__label
 
     def visit(self, visitor):
-        visitor.split(self.next)
+        return visitor.split(self.next)
 
 
 class Match(_BaseNode):
@@ -236,7 +236,7 @@ class Match(_BaseNode):
         return 'Match'
 
     def visit(self, visitor):
-        visitor.match()
+        return visitor.match()
 
 
 class _LineNode(_BaseNode):
@@ -252,7 +252,7 @@ class Dot(_LineNode):
         return '.'
 
     def visit(self, visitor):
-        visitor.dot(self.next, self.multiline)
+        return visitor.dot(self.next, self.multiline)
 
 
 class StartOfLine(_LineNode):
@@ -261,7 +261,7 @@ class StartOfLine(_LineNode):
         return '^'
     
     def visit(self, visitor):
-        visitor.start_of_line(self.next, self.multiline)
+        return visitor.start_of_line(self.next, self.multiline)
 
     
 class EndOfLine(_LineNode):
@@ -270,7 +270,7 @@ class EndOfLine(_LineNode):
         return '$'
     
     def visit(self, visitor):
-        visitor.end_of_line(self.next, self.multiline)
+        return visitor.end_of_line(self.next, self.multiline)
 
 
 class GroupReference(_BaseNode):
@@ -283,7 +283,7 @@ class GroupReference(_BaseNode):
         return '\\' + str(self.number)
 
     def visit(self, visitor):
-        visitor.group_reference(self.next, self.number)
+        return visitor.group_reference(self.next, self.number)
 
 
 class Lookahead(BaseSplit):
@@ -299,7 +299,7 @@ class Lookahead(BaseSplit):
             ('=' if self.sense else '!') + '...)'
 
     def visit(self, visitor):
-        visitor.lookahead(self.next, self.sense, self.forwards)
+        return visitor.lookahead(self.next, self.sense, self.forwards)
 
 
 class Repeat(BaseSplit):
@@ -322,7 +322,7 @@ class Repeat(BaseSplit):
         return text 
     
     def visit(self, visitor):
-        visitor.repeat(self.next, self.begin, self.end)
+        return visitor.repeat(self.next, self.begin, self.end)
     
     
 class Conditional(BaseSplit):
@@ -343,7 +343,7 @@ class Conditional(BaseSplit):
         return text 
     
     def visit(self, visitor):
-        visitor.conditional(self.next, self.number)
+        return visitor.conditional(self.next, self.number)
 
 
 class _EscapedNode(_BaseNode):
@@ -364,7 +364,7 @@ class WordBoundary(_EscapedNode):
         super(WordBoundary, self).__init__('b', inverted)
 
     def visit(self, visitor):
-        visitor.word_boundary(self.next, self.inverted)
+        return visitor.word_boundary(self.next, self.inverted)
 
 
 class Digit(_EscapedNode):
@@ -373,7 +373,7 @@ class Digit(_EscapedNode):
         super(Digit, self).__init__('d', inverted)
 
     def visit(self, visitor):
-        visitor.digit(self.next, self.inverted)
+        return visitor.digit(self.next, self.inverted)
 
 
 class Space(_EscapedNode):
@@ -382,7 +382,7 @@ class Space(_EscapedNode):
         super(Space, self).__init__('s', inverted)
 
     def visit(self, visitor):
-        visitor.space(self.next, self.inverted)
+        return visitor.space(self.next, self.inverted)
 
 
 class Word(_EscapedNode):
@@ -391,6 +391,6 @@ class Word(_EscapedNode):
         super(Word, self).__init__('w', inverted)
 
     def visit(self, visitor):
-        visitor.word(self.next, self.inverted)
+        return visitor.word(self.next, self.inverted)
 
 

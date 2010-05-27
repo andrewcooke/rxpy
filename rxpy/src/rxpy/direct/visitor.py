@@ -1,13 +1,35 @@
 
+from rxpy.parser.visitor import Visitor as _Visitor
+from rxpy.parser.graph import Match
 
-class UnsupportedOperation(Exception):
+
+class Fail(Exception):
     pass
 
 
-class Visitor(object):
+class Visitor(_Visitor):
     
+    def __init__(self, alphabet, graph, stream):
+        self.__alphabet = alphabet
+        self.__stack = []
+        self.__stream = stream
+        while not isinstance(graph, Match):
+            try:
+                (graph, self.__stream) = graph.visit(self)
+            except Fail:
+                if self.__stack:
+                    (graph, self.__stream) = self.__stack.pop()
+                else:
+                    raise Fail
+        
     def string(self, next, text):
-        raise UnsupportedOperation('string')
+        try:
+            l = len(text)
+            if self.__stream[0:l] == text:
+                return (next[0], self.__stream[l:]) 
+        except:
+            pass
+        raise Fail
     
     def start_group(self, next, number):
         raise UnsupportedOperation('start_group')
@@ -53,3 +75,4 @@ class Visitor(object):
     
     def word(self, next, inverted):
         raise UnsupportedOperation('word')
+    
