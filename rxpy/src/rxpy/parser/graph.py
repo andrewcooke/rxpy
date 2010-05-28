@@ -147,8 +147,8 @@ class String(_BaseNode):
     def __str__(self):
         return self.text
     
-    def visit(self, visitor):
-        return visitor.string(self.next, self.text)
+    def visit(self, visitor, state=None):
+        return visitor.string(self.next, self.text, state)
 
 
 class StartGroup(_BaseNode):
@@ -163,8 +163,8 @@ class StartGroup(_BaseNode):
     def __str__(self):
         return "("
         
-    def visit(self, visitor):
-        return visitor.start_group(self.next, self.number)
+    def visit(self, visitor, state=None):
+        return visitor.start_group(self.next, self.number, state)
 
 
 class EndGroup(_BaseNode):
@@ -179,8 +179,8 @@ class EndGroup(_BaseNode):
     def __str__(self):
         return ")"
     
-    def visit(self, visitor):
-        return visitor.start_group(self.next, self.number)
+    def visit(self, visitor, state=None):
+        return visitor.end_group(self.next, self.number, state)
 
 
 class BaseSplit(_BaseNode):
@@ -226,8 +226,8 @@ class Split(BaseSplit):
     def __str__(self):
         return self.__label
 
-    def visit(self, visitor):
-        return visitor.split(self.next)
+    def visit(self, visitor, state=None):
+        return visitor.split(self.next, state)
 
 
 class Match(_BaseNode):
@@ -235,8 +235,8 @@ class Match(_BaseNode):
     def __str__(self):
         return 'Match'
 
-    def visit(self, visitor):
-        return visitor.match()
+    def visit(self, visitor, state=None):
+        return visitor.match(state)
 
 
 class _LineNode(_BaseNode):
@@ -251,8 +251,8 @@ class Dot(_LineNode):
     def __str__(self):
         return '.'
 
-    def visit(self, visitor):
-        return visitor.dot(self.next, self.multiline)
+    def visit(self, visitor, state=None):
+        return visitor.dot(self.next, self.multiline, state)
 
 
 class StartOfLine(_LineNode):
@@ -260,8 +260,8 @@ class StartOfLine(_LineNode):
     def __str__(self):
         return '^'
     
-    def visit(self, visitor):
-        return visitor.start_of_line(self.next, self.multiline)
+    def visit(self, visitor, state=None):
+        return visitor.start_of_line(self.next, self.multiline, state)
 
     
 class EndOfLine(_LineNode):
@@ -269,8 +269,8 @@ class EndOfLine(_LineNode):
     def __str__(self):
         return '$'
     
-    def visit(self, visitor):
-        return visitor.end_of_line(self.next, self.multiline)
+    def visit(self, visitor, state=None):
+        return visitor.end_of_line(self.next, self.multiline, state)
 
 
 class GroupReference(_BaseNode):
@@ -282,24 +282,24 @@ class GroupReference(_BaseNode):
     def __str__(self):
         return '\\' + str(self.number)
 
-    def visit(self, visitor):
-        return visitor.group_reference(self.next, self.number)
+    def visit(self, visitor, state=None):
+        return visitor.group_reference(self.next, self.number, state)
 
 
 class Lookahead(BaseSplit):
     
-    def __init__(self, sense, forwards):
+    def __init__(self, equal, forwards):
         super(Lookahead, self).__init__(lazy=True)
-        self.sense = sense
+        self.equal = equal
         self.forwards = forwards
         
     def __str__(self):
         return '(?' + \
             ('' if self.forwards else '<') + \
-            ('=' if self.sense else '!') + '...)'
+            ('=' if self.equal else '!') + '...)'
 
-    def visit(self, visitor):
-        return visitor.lookahead(self.next, self.sense, self.forwards)
+    def visit(self, visitor, state=None):
+        return visitor.lookahead(self.next, self, self.equal, self.forwards, state)
 
 
 class Repeat(BaseSplit):
@@ -321,8 +321,8 @@ class Repeat(BaseSplit):
         text += '}'
         return text 
     
-    def visit(self, visitor):
-        return visitor.repeat(self.next, self.begin, self.end)
+    def visit(self, visitor, state=None):
+        return visitor.repeat(self.next, self.begin, self.end, state)
     
     
 class Conditional(BaseSplit):
@@ -342,8 +342,8 @@ class Conditional(BaseSplit):
         text += ')'
         return text 
     
-    def visit(self, visitor):
-        return visitor.conditional(self.next, self.number)
+    def visit(self, visitor, state=None):
+        return visitor.conditional(self.next, self.number, state)
 
 
 class _EscapedNode(_BaseNode):
@@ -363,8 +363,8 @@ class WordBoundary(_EscapedNode):
     def __init__(self, inverted=False):
         super(WordBoundary, self).__init__('b', inverted)
 
-    def visit(self, visitor):
-        return visitor.word_boundary(self.next, self.inverted)
+    def visit(self, visitor, state=None):
+        return visitor.word_boundary(self.next, self.inverted, state)
 
 
 class Digit(_EscapedNode):
@@ -372,8 +372,8 @@ class Digit(_EscapedNode):
     def __init__(self, inverted=False):
         super(Digit, self).__init__('d', inverted)
 
-    def visit(self, visitor):
-        return visitor.digit(self.next, self.inverted)
+    def visit(self, visitor, state=None):
+        return visitor.digit(self.next, self.inverted, state)
 
 
 class Space(_EscapedNode):
@@ -381,8 +381,8 @@ class Space(_EscapedNode):
     def __init__(self, inverted=False):
         super(Space, self).__init__('s', inverted)
 
-    def visit(self, visitor):
-        return visitor.space(self.next, self.inverted)
+    def visit(self, visitor, state=None):
+        return visitor.space(self.next, self.inverted, state)
 
 
 class Word(_EscapedNode):
@@ -390,7 +390,7 @@ class Word(_EscapedNode):
     def __init__(self, inverted=False):
         super(Word, self).__init__('w', inverted)
 
-    def visit(self, visitor):
-        return visitor.word(self.next, self.inverted)
+    def visit(self, visitor, state=None):
+        return visitor.word(self.next, self.inverted, state)
 
 

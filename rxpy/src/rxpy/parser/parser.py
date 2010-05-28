@@ -287,8 +287,7 @@ class RepeatBuilder(StatefulBuilder):
         split.next = [latest.concatenate(split)]
         parent_sequence._nodes.append(split)
         
-        
-        
+                
 class GroupEscapeBuilder(StatefulBuilder):
     
     def __init__(self, state, sequence):
@@ -383,14 +382,22 @@ class LookbackBuilder(StatefulBuilder):
             
 
 class LookaheadBuilder(BaseGroupBuilder):
+    '''
+    If it's a reverse lookup we add an end of string matcher, and prefix ".*"
+    so that we can use the matcher directly.
+    '''
     
-    def __init__(self, state, sequence, sense, forwards):
+    def __init__(self, state, sequence, equal, forwards):
         super(LookaheadBuilder, self).__init__(state, sequence)
-        self._sense = sense
+        self._equal = equal
         self._forwards = forwards
+        if not self._forwards:
+            RepeatBuilder.build_star(self, Dot(True), False)
         
     def _build_group(self):
-        lookahead = Lookahead(self._sense, self._forwards)
+        lookahead = Lookahead(self._equal, self._forwards)
+        if not self._forwards:
+            self._nodes.append(EndOfLine(False))
         lookahead.next = [self.build_dag().concatenate(Match())]
         self._parent_sequence._nodes.append(lookahead)
         return self._parent_sequence

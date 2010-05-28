@@ -31,4 +31,12 @@ class EscapeTest(TestCase):
         '''
         p = compile('a\\\x62c')
 #        assert p.match('a\\bc')
+
+    def test_nested_groups(self):
+        p = compile('(.)*')
+        m = p.match('ab')
+        assert m
+        assert m.groups() == ('b',), m.groups()
+        assert m.group(0) == 'ab', m.group(0)
+        assert m.group(1) == 'b', m.group(1)
         

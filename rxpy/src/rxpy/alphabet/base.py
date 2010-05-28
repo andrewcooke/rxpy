@@ -233,4 +233,7 @@ class CharSet(_BaseNode):
                     self.__intervals[0][1] == self.__alphabet.max:
                 return Dot()
         return self
-         
+    
+    def visit(self, visitor, state=None):
+        return visitor.character(self.next, self, state)
+
