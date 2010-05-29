@@ -83,4 +83,3 @@ class VisitorTest(TestCase):
         assert len(v.groups.group(0)) == 3, v.groups.group(0)
         v = Visitor(Unicode(), parse('a{1,}?b', ParserState(stateful=True)), 'aab')
         assert len(v.groups.group(0)) == 3, v.groups.group(0)
-        

@@ -7,6 +7,9 @@ class Fail(Exception):
 
 
 class State(object):
+    '''
+    State for a particular position moment / graph position / stream offset.
+    '''
     
     def __init__(self, stream, previous=None, offset=0, groups=None, loops=None):
         self.__stream = stream
