@@ -1,4 +1,7 @@
-from test.test_support import verbose, run_unittest, import_module
+
+# THIS FILE FROM PYTHON SOURCE - SEPARATE LICENCE
+
+#from rxpy._test.test_support import verbose, run_unittest, import_module
 import re
 from re import Scanner
 import sys, traceback
@@ -447,7 +450,6 @@ class ReTests(unittest.TestCase):
         import cPickle
         self.pickle_test(cPickle)
         # old pickles expect the _compile() reconstructor in sre module
-        import_module("sre", deprecated=True)
         from sre import _compile
 
     def pickle_test(self, pickle):
@@ -649,7 +651,7 @@ class ReTests(unittest.TestCase):
             u'\u32b4', # '\N{CIRCLED NUMBER THIRTY NINE}', category 'No'
             ]
         for x in not_decimal_digits:
-            self.assertIsNone(re.match('^\d$', x, re.UNICODE))
+            assert re.match('^\d$', x, re.UNICODE) is None
 
     def test_empty_array(self):
         # SF buf 1647541
@@ -712,13 +714,15 @@ class ReTests(unittest.TestCase):
         self.assertRaises(OverflowError, _sre.compile, "abc", 0, [long_overflow])
 
 def run_re_tests():
-    from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
-    if verbose:
-        print 'Running re_tests test suite'
-    else:
-        # To save time, only run the first and last 10 tests
-        #tests = tests[:10] + tests[-10:]
-        pass
+    from rxpy.direct._test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
+#    if verbose:
+#        print 'Running re_tests test suite'
+#    else:
+#        # To save time, only run the first and last 10 tests
+#        #tests = tests[:10] + tests[-10:]
+#        pass
+
+    verbose = True
 
     for t in tests:
         sys.stdout.flush()
@@ -835,9 +839,8 @@ def run_re_tests():
                 if result is None:
                     print '=== Fails on unicode-sensitive match', t
 
-def test_main():
-    run_unittest(ReTests)
-    run_re_tests()
-
-if __name__ == "__main__":
-    test_main()
+class TriggerReTests(unittest.TestCase):
+    
+    def test_all(self):
+        run_re_tests()
+        

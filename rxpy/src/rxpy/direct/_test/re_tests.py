@@ -1,3 +1,6 @@
+
+# THIS FILE FROM PYTHON SOURCE - SEPARATE LICENCE
+
 #!/usr/bin/env python
 # -*- mode: python -*-
 
