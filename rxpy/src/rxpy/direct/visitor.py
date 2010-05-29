@@ -1,5 +1,5 @@
 
-from rxpy.parser.visitor import Visitor as _Visitor, UnsupportedOperation
+from rxpy.parser.visitor import Visitor as _Visitor
 
 
 class Fail(Exception):
@@ -64,6 +64,7 @@ class State(object):
     def dot(self):
         try:
             self.__stream[0] # force error if doesn't exist
+            self.__previous = self.__stream[0]
             self.__stream = self.__stream[1:]
             self.__offset += 1
             return self
@@ -93,6 +94,10 @@ class State(object):
     @property
     def stream(self):
         return self.__stream
+
+    @property
+    def previous(self):
+        return self.__previous
 
 
 class Groups(object):
@@ -271,14 +276,38 @@ class Visitor(_Visitor):
                 return (next[1], state)
     
     def word_boundary(self, next, inverted, state):
-        raise UnsupportedOperation('word_boundary')
+        previous = state.previous
+        try:
+            current = state.stream[0]
+        except:
+            current = None
+        word = self.__alphabet.word
+        boundary = word(current) != word(previous)
+        if boundary != inverted:
+            return (next[0], state)
+        else:
+            raise Fail
 
     def digit(self, next, inverted, state):
-        raise UnsupportedOperation('digit')
+        try:
+            if self.__alphabet.digit(state.stream[0]) != inverted:
+                return (next[0], state.dot())
+        except IndexError:
+            pass
+        raise Fail
     
     def space(self, next, inverted, state):
-        raise UnsupportedOperation('space')
+        try:
+            if self.__alphabet.space(state.stream[0]) != inverted:
+                return (next[0], state.dot())
+        except IndexError:
+            pass
+        raise Fail
     
     def word(self, next, inverted, state):
-        raise UnsupportedOperation('word')
-    
+        try:
+            if self.__alphabet.word(state.stream[0]) != inverted:
+                return (next[0], state.dot())
+        except IndexError:
+            pass
+        raise Fail

@@ -40,3 +40,16 @@ class EscapeTest(TestCase):
         assert m.group(0) == 'ab', m.group(0)
         assert m.group(1) == 'b', m.group(1)
         
+        p = compile(r'(?:\s*(\b\w+\b)\s*){3}')
+        m = p.match('foo bar baz ')
+        assert m
+        assert m.groups() == ('baz',), m.groups()
+        
+        p = compile(r'(?:\s*(\b\w*\b)\s*){3}')
+        m = p.match(' a ab abc ')
+        assert m.group(0) == ' a ab abc ', m.group(0)
+        
+#        p = compile('(\b.*?\b)*')
+#        m = p.match(' a  ab  abc ')
+#        assert m.groups() == ('abc'), m.groups()
+        

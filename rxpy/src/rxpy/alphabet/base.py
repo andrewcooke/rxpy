@@ -2,6 +2,7 @@
 from bisect import bisect_left
 from collections import deque
 
+from rxpy.lib import UnsupportedOperation, unimplemented
 from rxpy.parser.graph import String, Dot, _BaseNode
 
 
@@ -10,7 +11,8 @@ class Alphabet(object):
     def __init__(self, min, max):
         self.min = min
         self.max = max
-        
+    
+    @unimplemented
     def code_to_char(self, code):
         '''
         Convert a code - an integer value between min and max, that maps the
@@ -18,6 +20,7 @@ class Alphabet(object):
         alphabet.
         '''
     
+    @unimplemented
     def char_to_code(self, char):
         '''
         Convert a character in the alphabet to a code - an integer value 
@@ -25,18 +28,21 @@ class Alphabet(object):
         integers.
         '''
         
+    @unimplemented
     def coerce(self, char):
         '''
         Force a character in str, unicode, or the alphabet itself, to be a
         member of the alphabet. 
         '''
         
+    @unimplemented
     def join(self, *strings):
         '''
         Construct a word in the alphabet, given a list of words and/or 
         characters.
         '''
         
+    @unimplemented
     def to_str(self, char):
         '''
         Support display of the character.
@@ -64,6 +70,24 @@ class Alphabet(object):
             return self.code_to_char(code - 1)
         else:
             return None
+        
+    def digit(self, char):
+        '''
+        Test whether the character is a digit or not.
+        '''
+        raise UnsupportedOperation('digit')
+    
+    def space(self, char):
+        '''
+        Test whether the character is a whitespace or not.
+        '''
+        raise UnsupportedOperation('space')
+        
+    def word(self, char):
+        '''
+        Test whether the character is a word character or not.
+        '''
+        raise UnsupportedOperation('word')
         
         
 class CharSet(_BaseNode):

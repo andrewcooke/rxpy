@@ -1,7 +1,5 @@
 
-
-class UnsupportedOperation(Exception):
-    pass
+from rxpy.lib import UnsupportedOperation
 
 
 class Visitor(object):
