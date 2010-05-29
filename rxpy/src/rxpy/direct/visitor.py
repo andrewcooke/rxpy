@@ -8,15 +8,16 @@ class Fail(Exception):
 
 class State(object):
     
-    def __init__(self, stream, offset=0, groups=None, previous=None):
+    def __init__(self, stream, previous=None, offset=0, groups=None, loops=None):
         self.__stream = stream
-        self.__offset = 0
-        self.__groups = groups if groups is not None else Groups(stream)
         self.__previous = previous
+        self.__offset = offset
+        self.__groups = groups if groups is not None else Groups(stream)
+        self.__loops = loops if loops else Loops()
     
     def clone(self):
-        return State(self.__stream, self.__offset, self.__groups.clone(),
-                     self.__previous)
+        return State(self.__stream, self.__previous, self.__offset, 
+                     self.__groups.clone(), self.__loops.clone())
     
     def string(self, text):
         try:
@@ -48,6 +49,13 @@ class State(object):
         
     def end_group(self, number):
         self.__groups.end_group(number, self.__offset)
+        return self
+    
+    def increment(self, node):
+        return self.__loops.increment(node)
+    
+    def drop(self, node):
+        self.__loops.drop(node)
         return self
     
     def dot(self):
@@ -108,6 +116,34 @@ class Groups(object):
     def group(self, number):
         return self.__groups[number]
     
+    
+class Loops(object):
+    '''
+    Manage a nested set of indices (loops *must* be nested).
+    '''
+    
+    def __init__(self, counts=None, order=None):
+        self.__counts = counts if counts else []
+        self.__order = order if order else {}
+        
+    def increment(self, node):
+        if node not in self.__order:
+            order = len(self.__counts)
+            self.__order[node] = order
+            self.__counts.append(0)
+        else:
+            order = self.__order[node]
+            self.__counts = self.__counts[0:order+1]
+            self.__counts[order] += 1
+        return self.__counts[order]
+    
+    def drop(self, node):
+        self.__counts = self.__counts[0:self.__order[node]]
+        del self.__order[node]
+        
+    def clone(self):
+        return Loops(list(self.__counts), dict(self.__order))
+    
 
 class Visitor(_Visitor):
     
@@ -124,7 +160,7 @@ class Visitor(_Visitor):
                 (graph, state) = graph.visit(self, state)
             except Fail:
                 if self.__stack:
-                    (graph, state) = self.__stack.pop()()
+                    (graph, state) = self.__stack.pop()
                 else:
                     break
         if self.__match:
@@ -167,7 +203,7 @@ class Visitor(_Visitor):
     def split(self, next, state):
         for graph in reversed(next[1:]):
             clone = state.clone()
-            self.__stack.append(lambda: (graph, clone))
+            self.__stack.append((graph, clone))
         return (next[0], state)
 
     def match(self, state):
@@ -203,8 +239,33 @@ class Visitor(_Visitor):
         else:
             raise Fail
 
-    def repeat(self, next, begin, end, state):
-        raise UnsupportedOperation('repeat')
+    def repeat(self, next, node, begin, end, lazy, state):
+        count = state.increment(node)
+        # if we haven't yet reached the point where we can continue, loop
+        if count < begin:
+            return (next[1], state)
+        # stack logic depends on laziness
+        if lazy:
+            # we can continue from here, but if that fails we want to restart 
+            # with another loop, unless we've exceeded the count or there's
+            # no stream left
+            if (end is None and state.stream) \
+                    or (end is not None and count < end):
+                self.__stack.append((next[1], state.clone()))
+            if end is None or count <= end:
+                return (next[0], state.drop(node))
+            else:
+                raise Fail
+        else:
+            if end is None or count < end:
+                # add a fallback so that if a higher loop fails, we can continue
+                self.__stack.append((next[0], state.clone().drop(node)))
+            if count == end:
+                # if last possible loop, continue
+                return (next[0], state.drop(node))
+            else:
+                # otherwise, do another loop
+                return (next[1], state)
     
     def word_boundary(self, next, inverted, state):
         raise UnsupportedOperation('word_boundary')

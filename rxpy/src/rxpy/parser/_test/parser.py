@@ -593,6 +593,21 @@ r"""strict digraph {
  2 -> 4
 }""")
         
+    def test_lazy_stateful_count(self):
+        self.assert_graphs(repr(parse('ab{1,2}?c', ParserState(stateful=True))), 
+"""strict digraph {
+ 0 [label="a"]
+ 1 [label="{1,2}?"]
+ 2 [label="c"]
+ 3 [label="b"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 1
+ 2 -> 4
+}""")
+        
     def test_stateful_open_count(self):
         self.assert_graphs(repr(parse('ab{1,}c', ParserState(stateful=True))), 
 """strict digraph {

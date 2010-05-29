@@ -4,6 +4,7 @@ from unittest import TestCase
 from rxpy.alphabet.unicode import Unicode
 from rxpy.direct.visitor import Visitor
 from rxpy.parser._test.parser import parse
+from rxpy.parser.parser import ParserState
 
 
 class VisitorTest(TestCase):
@@ -38,6 +39,10 @@ class VisitorTest(TestCase):
         assert Visitor(Unicode(), parse('a*b'), 'ab')
         assert Visitor(Unicode(), parse('a*b'), 'aab')
         assert not Visitor(Unicode(), parse('a*b'), 'aa')
+        v = Visitor(Unicode(), parse('a*'), 'aaa')
+        assert len(v.groups.group(0)) == 3, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a*'), 'aab')
+        assert len(v.groups.group(0)) == 2, v.groups.group(0)
         
     def test_nested_group(self):
         v = Visitor(Unicode(), parse('(.)*'), 'ab')
@@ -60,4 +65,22 @@ class VisitorTest(TestCase):
         assert not Visitor(Unicode(), parse('(.)?b(?(1)\\1)'), 'abc')
         assert Visitor(Unicode(), parse('(.)?b(?(1)\\1|c)'), 'bc')
         assert not Visitor(Unicode(), parse('(.)?b(?(1)\\1|c)'), 'bd')
+        
+    def test_counted(self):
+        v = Visitor(Unicode(), parse('a{2}', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 2, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,2}', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 2, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,}', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 3, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{2}?', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 2, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,2}?', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 1, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,}?', ParserState(stateful=True)), 'aaa')
+        assert len(v.groups.group(0)) == 1, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,2}?b', ParserState(stateful=True)), 'aab')
+        assert len(v.groups.group(0)) == 3, v.groups.group(0)
+        v = Visitor(Unicode(), parse('a{1,}?b', ParserState(stateful=True)), 'aab')
+        assert len(v.groups.group(0)) == 3, v.groups.group(0)
         

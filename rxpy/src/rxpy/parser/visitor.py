@@ -42,7 +42,7 @@ class Visitor(object):
     def lookahead(self, next, node, equal, forwards, state=None):
         raise UnsupportedOperation('lookahead')
 
-    def repeat(self, next, begin, end, state=None):
+    def repeat(self, next, node, begin, end, lazy, state=None):
         raise UnsupportedOperation('repeat')
     
     def word_boundary(self, next, inverted, state=None):

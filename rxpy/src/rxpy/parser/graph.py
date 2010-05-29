@@ -183,7 +183,7 @@ class EndGroup(_BaseNode):
         return visitor.end_group(self.next, self.number, state)
 
 
-class BaseSplit(_BaseNode):
+class _BaseSplit(_BaseNode):
     '''
     Base class for any node that includes a "tee".
     
@@ -201,7 +201,7 @@ class BaseSplit(_BaseNode):
     '''
     
     def __init__(self, lazy=False):
-        super(BaseSplit, self).__init__()
+        super(_BaseSplit, self).__init__()
         self.lazy = lazy
         self.__connected = False
         
@@ -217,7 +217,7 @@ class BaseSplit(_BaseNode):
         return self
 
 
-class Split(BaseSplit):
+class Split(_BaseSplit):
     
     def __init__(self, label, lazy=False):
         super(Split, self).__init__(lazy=lazy)
@@ -286,7 +286,7 @@ class GroupReference(_BaseNode):
         return visitor.group_reference(self.next, self.number, state)
 
 
-class Lookahead(BaseSplit):
+class Lookahead(_BaseSplit):
     
     def __init__(self, equal, forwards):
         super(Lookahead, self).__init__(lazy=True)
@@ -302,16 +302,27 @@ class Lookahead(BaseSplit):
         return visitor.lookahead(self.next, self, self.equal, self.forwards, state)
 
 
-class Repeat(BaseSplit):
+class Repeat(_BaseNode):
     
-    def __init__(self, begin, end):
+    def __init__(self, begin, end, lazy):
         '''
-        If end is None the range is open.
+        If end is None the range is open.  Note that lazy here is a flag,
+        it doesn't change how the children are ordered.
         '''
-        super(Repeat, self).__init__(lazy=True)
+        super(Repeat, self).__init__()
         self.begin = begin
         self.end = end
+        self.lazy = lazy
+        self.__connected = False
     
+    def concatenate(self, next):
+        if next:
+            if self.__connected:
+                raise GraphException('Node already connected')
+            self.next.insert(0, next)
+            self.__connected = True
+        return self
+
     def __str__(self):
         text = '{' + str(self.begin)
         if self.end != self.begin:
@@ -319,13 +330,16 @@ class Repeat(BaseSplit):
             if self.end is not None:
                 text += str(self.end)
         text += '}'
+        if self.lazy:
+            text += '?'
         return text 
     
     def visit(self, visitor, state=None):
-        return visitor.repeat(self.next, self.begin, self.end, state)
+        return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
+                              state)
     
     
-class Conditional(BaseSplit):
+class Conditional(_BaseSplit):
     '''
     If the group exists, the second child should be followed, otherwise the
     first.

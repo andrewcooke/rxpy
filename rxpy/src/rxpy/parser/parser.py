@@ -790,7 +790,9 @@ class CountBuilder(StatefulBuilder):
             raise ParseException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
         if self._state.stateful:
-            count = Repeat(self._begin, self._end if self._range else self._begin)
+            count = Repeat(self._begin, 
+                           self._end if self._range else self._begin, 
+                           self._lazy)
             count.next = [latest.concatenate(count)]
             self._parent_sequence._nodes.append(count)
         else:
