@@ -11,16 +11,16 @@ class State(object):
     State for a particular position moment / graph position / stream offset.
     '''
     
-    def __init__(self, stream, previous=None, offset=0, groups=None, loops=None):
+    def __init__(self, stream, groups, previous=None, offset=0, loops=None):
         self.__stream = stream
+        self.__groups = groups
         self.__previous = previous
         self.__offset = offset
-        self.__groups = groups if groups is not None else Groups(stream)
         self.__loops = loops if loops else Loops()
     
     def clone(self):
-        return State(self.__stream, self.__previous, self.__offset, 
-                     self.__groups.clone(), self.__loops.clone())
+        return State(self.__stream, self.__groups.clone(), self.__previous, 
+                     self.__offset, self.__loops.clone())
     
     def string(self, text):
         try:
@@ -102,10 +102,13 @@ class State(object):
 
 class Groups(object):
     
-    def __init__(self, stream=None, groups=None, offsets=None):
+    def __init__(self, stream=None, groups=None, offsets=None, count=0, 
+                 names=None):
         self.__stream = stream
         self.__groups = groups if groups else {}
         self.__offsets = offsets if offsets else {}
+        self.__count = count
+        self.__names = names if names else {}
         
     def start_group(self, number, offset):
         self.__offsets[number] = offset
@@ -116,16 +119,25 @@ class Groups(object):
         del self.__offsets[number]
     
     def __len__(self):
-        return len(self.__groups) - 1 if self.__groups else 0
+        return self.__count
     
     def clone(self):
-        return Groups(self.__stream, dict(self.__groups), dict(self.__offsets))
+        return Groups(self.__stream, dict(self.__groups), dict(self.__offsets),
+                      self.__count, self.__names)
     
     def __delitem__(self, number):
         del self.__groups[number]
         
     def __getitem__(self, number):
-        return self.__groups[number]
+        try:
+            return self.__groups[number]
+        except KeyError:
+            if number in self.__names:
+                return self.__groups[self.__names[number]]
+            elif isinstance(number, int) and number <= self.__count:
+                return None
+            else:
+                raise IndexError(number)
     
     def __setitem(self, number, text):
         self.__groups[number] = text
@@ -161,14 +173,23 @@ class Loops(object):
 
 class Visitor(_Visitor):
     
-    def __init__(self, (alphabet, flags, graph), stream, offset=0, groups=None):
+    @staticmethod
+    def from_parse_results((pstate, graph), stream, pos=0):
+        return Visitor(pstate.alphabet, pstate.flags, stream, graph,
+                       State(stream[pos:],
+                             Groups(stream=stream, count=pstate.group_count, 
+                                    names=pstate.group_names),
+                             offset=pos))
+    
+    def __init__(self, alphabet, flags, stream, graph, state):
         self.__alphabet = alphabet
         self.__flags = flags
         self.__stream = stream
+        
         self.__stack = []
         self.__lookaheads = {} # map from node to set of known ok states
         self.__match = None
-        state = State(stream=stream[offset:], offset=offset, groups=groups)
+        
         state.start_group(0)
         while self.__match is None:
             try:
@@ -211,10 +232,9 @@ class Visitor(_Visitor):
             raise Fail
 
     def conditional(self, next, number, state):
-        try:
-            state.groups[number]
+        if state.groups[number]:
             return (next[1], state)
-        except KeyError:
+        else:
             return (next[0], state)
 
     def split(self, next, state):
@@ -242,13 +262,15 @@ class Visitor(_Visitor):
         if state.offset not in self.__lookaheads[node]:
             # we need to match the lookahead, which we do as a separate process
             if forwards:
-                visitor = Visitor((self.__alphabet, self.__flags, next[1]), 
-                                  state.stream, groups=state.groups.clone())
+                visitor = Visitor(self.__alphabet, self.__flags, state.stream, 
+                                  next[1], 
+                                  State(state.stream, state.groups.clone()))
                 self.__lookaheads[node][state.offset] = bool(visitor) == equal
             else:
-                visitor = Visitor((self.__alphabet, self.__flags, next[1]), 
-                                  self.__stream[0:state.offset],
-                                  groups=state.groups.clone())
+                visitor = Visitor(self.__alphabet, self.__flags, 
+                                  self.__stream[0:state.offset], next[1],
+                                  State(self.__stream[0:state.offset],
+                                        state.groups.clone()))
                 self.__lookaheads[node][state.offset] = bool(visitor) == equal
         # if lookahead succeeded, continue
         if self.__lookaheads[node][state.offset]:

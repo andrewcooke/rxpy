@@ -21,6 +21,8 @@ class ParserState(object):
     (I, M, S, U, X, A, _S, _B) = map(lambda x: 2**x, range(8))
     (IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR) = (I, M, S, U, X, A, _S, _B)
     
+    _FLAGS = (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR)
+    
     def __init__(self, alphabet=None, flags=0):
         
         # default is unicode
@@ -75,6 +77,14 @@ class ParserState(object):
     @property
     def new_flags(self):
         return self.__new_flags
+    
+    @property
+    def group_names(self):
+        return dict(self.__name_to_count)
+    
+    @property
+    def group_count(self):
+        return self.__group_count
         
         
 class Sequence(_BaseNode):
@@ -345,7 +355,7 @@ class GroupEscapeBuilder(StatefulBuilder):
                 return GroupBuilder(self._state, self._parent_sequence, 
                                     binding=False)
             elif character in ParserStateBuilder.INITIAL:
-                return ParserStateBuilder()
+                return ParserStateBuilder(self._state, self._parent_sequence)
             elif character == 'P':
                 return NamedGroupBuilder(self._state, self._parent_sequence)
             elif character == '#':
@@ -374,7 +384,6 @@ class ParserStateBuilder(StatefulBuilder):
         self.__parent = parent
         self.__escape = False
         self.__table = {'i': ParserState.I,
-                        'L': ParserState.L,
                         'm': ParserState.M,
                         's': ParserState.S,
                         'u': ParserState.U,
@@ -888,4 +897,4 @@ def parse(text, alphabet=None, flags=0):
         graph = SequenceBuilder(state).parse(text)
     if state.new_flags & ~flags:
         raise ParseException('Inconsistent flags')
-    return (state.alphabet, state.flags, graph)
+    return (state, graph)

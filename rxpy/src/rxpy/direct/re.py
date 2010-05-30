@@ -2,11 +2,9 @@
 
 from rxpy.parser.parser import parse, ParserState
 from rxpy.direct.visitor import Visitor
-from rxpy.alphabet.unicode import Unicode
 
 
-DOTALL = ParserState.DOTALL
-S = ParserState.S
+(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR) = ParserState._FLAGS
 
 _LEAD = '_lead'
 
@@ -29,7 +27,7 @@ class Pattern(object):
             self.__match = parse(self.__pattern, flags=self.__flags)
         if endpos is not None:
             text = text[0:endpos]
-        visitor = Visitor(self.__match, text, offset=pos)
+        visitor = Visitor.from_parse_results(self.__match, text, pos=pos)
         return MatchObject(visitor.groups, 0, visitor.offset)
     
     def search(self, text, pos=0, endpos=None):
@@ -41,7 +39,7 @@ class Pattern(object):
                                   flags=self.__flags)
         if endpos is not None:
             text = text[0:endpos]
-        visitor = Visitor(self.__search, text, offset=pos)
+        visitor = Visitor.from_parse_results(self.__search, text, pos=pos)
         groups = visitor.groups
         lead = groups[_LEAD]
         del groups[_LEAD]
@@ -57,9 +55,13 @@ class MatchObject(object):
         self.begin = begin
         self.end = end
         
-    def group(self, index):
-        return self.__groups[index]
-    
+    def group(self, *indices):
+        if not indices:
+            indices = [0]
+        if len(indices) == 1:
+            return self.__groups[indices[0]]
+        else:
+            return tuple(map(lambda n: self.__groups[n], indices))
 
 def match(pattern, text, flags=0):
     return Pattern(pattern, flags).match(text)

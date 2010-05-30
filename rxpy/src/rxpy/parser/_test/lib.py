@@ -8,7 +8,7 @@ from gv import readstring, render, layout
 class GraphTest(TestCase):
     
     def assert_graphs(self, result, target):
-        (_alphabet, _flags, graph) = result
+        (_state, graph) = result
         graph = repr(graph)
         ok = graph == target
         if not ok:

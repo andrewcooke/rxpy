@@ -158,6 +158,7 @@ class StartGroup(_BaseNode):
     
     def __init__(self, number):
         super(StartGroup, self).__init__()
+        assert isinstance(number, int)
         self.number = number
         
     def __str__(self):
@@ -174,6 +175,7 @@ class EndGroup(_BaseNode):
     
     def __init__(self, number):
         super(EndGroup, self).__init__()
+        assert isinstance(number, int)
         self.number = number
         
     def __str__(self):
@@ -277,6 +279,7 @@ class GroupReference(_BaseNode):
     
     def __init__(self, number):
         super(GroupReference, self).__init__()
+        assert isinstance(number, int)
         self.number = number
         
     def __str__(self):
@@ -347,6 +350,7 @@ class Conditional(_BaseSplit):
     
     def __init__(self, number):
         super(Conditional, self).__init__(lazy=True)
+        assert isinstance(number, int)
         self.number = number
         
     def __str__(self):

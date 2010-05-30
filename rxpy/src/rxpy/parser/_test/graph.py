@@ -9,7 +9,7 @@ class ReprTest(GraphTest):
     
     def test_sequence(self):
         unicode = Unicode()
-        self.assert_graphs(repr(String('a').concatenate(String('b'))),
+        self.assert_graphs((None, String('a').concatenate(String('b'))),
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
