@@ -61,9 +61,9 @@ class State(object):
         self.__loops.drop(node)
         return self
     
-    def dot(self):
+    def dot(self, multiline=True):
         try:
-            self.__stream[0] # force error if doesn't exist
+            self.__stream[0] and (multiline or self.__stream[0] != '\n')
             self.__previous = self.__stream[0]
             self.__stream = self.__stream[1:]
             self.__offset += 1
@@ -72,7 +72,7 @@ class State(object):
             raise Fail
         
     def start_of_line(self, multiline):
-        if self.__previous is None or (multiline and self.__previous == '\n'):
+        if self.__offset == 0 or (multiline and self.__previous == '\n'):
             return self
         else:
             raise Fail
@@ -121,8 +121,14 @@ class Groups(object):
     def clone(self):
         return Groups(self.__stream, dict(self.__groups), dict(self.__offsets))
     
-    def group(self, number):
+    def __delitem__(self, number):
+        del self.__groups[number]
+        
+    def __getitem__(self, number):
         return self.__groups[number]
+    
+    def __setitem(self, number, text):
+        self.__groups[number] = text
     
     
 class Loops(object):
@@ -155,13 +161,14 @@ class Loops(object):
 
 class Visitor(_Visitor):
     
-    def __init__(self, alphabet, graph, stream, groups=None):
+    def __init__(self, (alphabet, flags, graph), stream, offset=0, groups=None):
         self.__alphabet = alphabet
+        self.__flags = flags
         self.__stream = stream
         self.__stack = []
         self.__lookaheads = {} # map from node to set of known ok states
         self.__match = None
-        state = State(stream=stream, groups=groups)
+        state = State(stream=stream[offset:], offset=offset, groups=groups)
         state.start_group(0)
         while self.__match is None:
             try:
@@ -174,8 +181,10 @@ class Visitor(_Visitor):
         if self.__match:
             state.end_group(0)
             self.groups = state.groups
+            self.offset = state.offset 
         else:
             self.groups = Groups()
+            self.offset = None
         
     def __bool__(self):
         return bool(self.__match)
@@ -197,15 +206,15 @@ class Visitor(_Visitor):
 
     def group_reference(self, next, number, state):
         try:
-            return (next[0], state.string(state.groups.group(number)))
-        except:
+            return (next[0], state.string(state.groups[number]))
+        except KeyError:
             raise Fail
 
     def conditional(self, next, number, state):
         try:
-            state.groups.group(number)
+            state.groups[number]
             return (next[1], state)
-        except:
+        except KeyError:
             return (next[0], state)
 
     def split(self, next, state):
@@ -219,7 +228,7 @@ class Visitor(_Visitor):
         return (None, state)
 
     def dot(self, next, multiline, state):
-        return (next[0], state.dot())
+        return (next[0], state.dot(multiline))
     
     def start_of_line(self, next, multiline, state):
         return (next[0], state.start_of_line(multiline))
@@ -233,11 +242,11 @@ class Visitor(_Visitor):
         if state.offset not in self.__lookaheads[node]:
             # we need to match the lookahead, which we do as a separate process
             if forwards:
-                visitor = Visitor(self.__alphabet, next[1], state.stream,
-                                  groups=state.groups.clone())
+                visitor = Visitor((self.__alphabet, self.__flags, next[1]), 
+                                  state.stream, groups=state.groups.clone())
                 self.__lookaheads[node][state.offset] = bool(visitor) == equal
             else:
-                visitor = Visitor(self.__alphabet, next[1], 
+                visitor = Visitor((self.__alphabet, self.__flags, next[1]), 
                                   self.__stream[0:state.offset],
                                   groups=state.groups.clone())
                 self.__lookaheads[node][state.offset] = bool(visitor) == equal

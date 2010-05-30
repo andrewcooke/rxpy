@@ -2,6 +2,7 @@
 from string import digits
 
 from rxpy.alphabet.base import CharSet
+from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
@@ -17,14 +18,29 @@ class ParseException(Exception):
 
 class ParserState(object):
     
-    def __init__(self, alphabet=None, stateful=False, multiline=False,
-                 ascii=False):
-        if alphabet is None:
-            alphabet = Unicode()
-        self.alphabet = alphabet
-        self.stateful = stateful
-        self.multiline = multiline
-        self.ascii = ascii
+    (I, M, S, U, X, A, _S, _B) = map(lambda x: 2**x, range(8))
+    (IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR) = (I, M, S, U, X, A, _S, _B)
+    
+    def __init__(self, alphabet=None, flags=0):
+        
+        # default is unicode
+        if alphabet is None and not (flags & (ParserState.ASCII | ParserState.UNICODE)):
+            flags |= ParserState.UNICODE
+        # if alphabet given, set flag
+        if alphabet:
+            if isinstance(alphabet, Ascii): flags |= ParserState.ASCII
+            if isinstance(alphabet, Unicode): flags |= ParserState.UNICODE
+        # if alphabet missing, set from flag
+        else:
+            if flags & ParserState.ASCII: alphabet = Ascii()
+            if flags & ParserState.UNICODE: alphabet = Unicode()
+        # check contradictions
+        if (flags & ParserState.ASCII) and (flags & ParserState.UNICODE):
+            raise ParseException('Cannot specify Unicode and ASCII together')
+        
+        self.__new_flags = 0
+        self.__alphabet = alphabet
+        self.__flags = flags
         self.__group_count = 0
         self.__name_to_count = {}
         self.__count_to_name = {}
@@ -47,6 +63,18 @@ class ParserState(object):
             return int(name)
         except:
             return self.count_for_name(name)
+        
+    @property
+    def alphabet(self):
+        return self.__alphabet
+    
+    @property
+    def flags(self):
+        return self.__flags
+    
+    @property
+    def new_flags(self):
+        return self.__new_flags
         
         
 class Sequence(_BaseNode):
@@ -199,6 +227,15 @@ class SequenceBuilder(StatefulBuilder):
         super(SequenceBuilder, self).__init__(state)
         self._alternatives = []
         self._nodes = []
+        
+    def parse(self, text):
+        builder = self
+        for character in text:
+            builder = builder.append_character(character)
+        builder = builder.append_character(None)
+        if self != builder:
+            raise ParseException('Incomplete expression')
+        return self.build_dag().concatenate(Match())
     
     def append_character(self, character, escaped=False):
         if not escaped and character and character in ')]}':
@@ -212,11 +249,11 @@ class SequenceBuilder(StatefulBuilder):
         elif not escaped and character == '[':
             return CharSetBuilder(self._state, self)
         elif not escaped and character == '.':
-            self._nodes.append(Dot(self._state.multiline))
+            self._nodes.append(Dot(self._state.flags & self._state.DOTALL))
         elif not escaped and character == '^':
-            self._nodes.append(StartOfLine(self._state.multiline))
+            self._nodes.append(StartOfLine(self._state.flags & ParserState.MULTILINE))
         elif not escaped and character == '$':
-            self._nodes.append(EndOfLine(self._state.multiline))
+            self._nodes.append(EndOfLine(self._state.flags & ParserState.MULTILINE))
         elif not escaped and character == '|':
             self._start_new_alternative()
         elif character and (not escaped and character in '+?*'):
@@ -307,9 +344,8 @@ class GroupEscapeBuilder(StatefulBuilder):
             if character == ':':
                 return GroupBuilder(self._state, self._parent_sequence, 
                                     binding=False)
-            elif character in 'aiLmsux':
-                raise ParseException(
-                    'Options must be read and removed by pre-processing')
+            elif character in ParserStateBuilder.INITIAL:
+                return ParserStateBuilder()
             elif character == 'P':
                 return NamedGroupBuilder(self._state, self._parent_sequence)
             elif character == '#':
@@ -329,6 +365,42 @@ class GroupEscapeBuilder(StatefulBuilder):
                     'Unexpected qualifier after (? - ' + character)
                 
                 
+class ParserStateBuilder(StatefulBuilder):
+    
+    INITIAL = 'iLmsuxa_'
+    
+    def __init__(self, state, parent):
+        super(ParserStateBuilder, self).__init__(state)
+        self.__parent = parent
+        self.__escape = False
+        self.__table = {'i': ParserState.I,
+                        'L': ParserState.L,
+                        'm': ParserState.M,
+                        's': ParserState.S,
+                        'u': ParserState.U,
+                        'x': ParserState.X,
+                        'a': ParserState.A,
+                        '_s': ParserState._S,
+                        '_b': ParserState._B}
+        
+    def append_character(self, character):
+        if not self.__escape and character == '_':
+            self.__escape = True
+            return self
+        elif self.__escape and character in 'sb':
+            self._state.new_flag(self.__table('_' + character))
+            return self
+        elif not self.__escape and character in 'iLmsuxa':
+            self.flags |= self.__table(character)
+            return self
+        elif not self.__escape and character == ')':
+            return self.__parent
+        elif self.__escape:
+            raise ParseException('Unexpected characters after (? - _' + character)
+        else:
+            raise ParseException('Unexpected character after (? - ' + character)
+        
+
 class BaseGroupBuilder(SequenceBuilder):
     
     # This must subclass SequenceBuilder rather than contain an instance
@@ -789,7 +861,7 @@ class CountBuilder(StatefulBuilder):
         if not self._parent_sequence._nodes:
             raise ParseException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
-        if self._state.stateful:
+        if self._state.flags & ParserState._STATEFUL:
             count = Repeat(self._begin, 
                            self._end if self._range else self._begin, 
                            self._lazy)
@@ -808,14 +880,12 @@ class CountBuilder(StatefulBuilder):
                                 self._parent_sequence, latest.clone(), self._lazy)
                         
         
-def parse(string, state=None):
-    if not state:
-        state = ParserState()
-    root = SequenceBuilder(state)
-    builder = root
-    for character in string:
-        builder = builder.append_character(character)
-    builder = builder.append_character(None)
-    if root != builder:
-        raise ParseException('Incomplete expression')
-    return root.build_dag().concatenate(Match())
+def parse(text, alphabet=None, flags=0):
+    state = ParserState(alphabet=alphabet, flags=flags)
+    graph = SequenceBuilder(state).parse(text)
+    if state.new_flags & ~flags:
+        state = ParserState(alphabet=alphabet, flags=flags | state.new_flags)
+        graph = SequenceBuilder(state).parse(text)
+    if state.new_flags & ~flags:
+        raise ParseException('Inconsistent flags')
+    return (state.alphabet, state.flags, graph)
