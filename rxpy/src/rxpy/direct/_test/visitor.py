@@ -41,9 +41,9 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(parse('a*b'), 'aab')
         assert not Visitor.from_parse_results(parse('a*b'), 'aa')
         v = Visitor.from_parse_results(parse('a*'), 'aaa')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a*'), 'aab')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         
     def test_nested_group(self):
         v = Visitor.from_parse_results(parse('(.)*'), 'ab')
@@ -67,65 +67,76 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(parse('(.)?b(?(1)\\1|c)'), 'bc')
         assert not Visitor.from_parse_results(parse('(.)?b(?(1)\\1|c)'), 'bd')
         
+    def test_star_etc(self):
+        assert Visitor.from_parse_results(parse('a*b'), 'b')
+        assert Visitor.from_parse_results(parse('a*b'), 'ab')
+        assert Visitor.from_parse_results(parse('a*b'), 'aab')
+        assert not Visitor.from_parse_results(parse('a+b'), 'b')
+        assert Visitor.from_parse_results(parse('a+b'), 'ab')
+        assert Visitor.from_parse_results(parse('a+b'), 'aab')
+        assert Visitor.from_parse_results(parse('a?b'), 'b')
+        assert Visitor.from_parse_results(parse('a?b'), 'ab')
+        assert not Visitor.from_parse_results(parse('a?b'), 'aab')
+        
     def test_counted(self):
         v = Visitor.from_parse_results(parse('a{2}', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,2}', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,}', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{2}?', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,2}?', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,}?', flags=ParserState._STATEFUL), 'aaa')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,2}?b', flags=ParserState._STATEFUL), 'aab')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
         v = Visitor.from_parse_results(parse('a{1,}?b', flags=ParserState._STATEFUL), 'aab')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
 
     def test_ascii_escapes(self):
         v = Visitor.from_parse_results(parse('\\d*', flags=ParserState.ASCII), '12x')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\D*', flags=ParserState.ASCII), 'x12')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\w*', flags=ParserState.ASCII), '12x a')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\W*', flags=ParserState.ASCII), ' a')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\s*', flags=ParserState.ASCII), '  a')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\S*', flags=ParserState.ASCII), 'aa ')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         assert Visitor.from_parse_results(parse(r'a\b ', flags=ParserState.ASCII), 'a ')
         assert not Visitor.from_parse_results(parse(r'a\bb', flags=ParserState.ASCII), 'ab')
         assert not Visitor.from_parse_results(parse(r'a\B ', flags=ParserState.ASCII), 'a ')
         assert Visitor.from_parse_results(parse(r'a\Bb', flags=ParserState.ASCII), 'ab')
         v = Visitor.from_parse_results(parse(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
-        assert v.groups[0] == ' a ', v.groups[0]
+        assert v.groups[0][0] == ' a ', v.groups[0][0]
         v = Visitor.from_parse_results(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._STATEFUL|ParserState.ASCII), ' a ab abc ')
-        assert v.groups[0] == ' a ab abc ', v.groups[0]
+        assert v.groups[0][0] == ' a ab abc ', v.groups[0][0]
         
     def test_unicode_escapes(self):
         v = Visitor.from_parse_results(parse('\\d*'), '12x')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\D*'), 'x12')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\w*'), '12x a')
-        assert len(v.groups[0]) == 3, v.groups[0]
+        assert len(v.groups[0][0]) == 3, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\W*'), ' a')
-        assert len(v.groups[0]) == 1, v.groups[0]
+        assert len(v.groups[0][0]) == 1, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\s*'), '  a')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         v = Visitor.from_parse_results(parse('\\S*'), 'aa ')
-        assert len(v.groups[0]) == 2, v.groups[0]
+        assert len(v.groups[0][0]) == 2, v.groups[0][0]
         assert Visitor.from_parse_results(parse(r'a\b '), 'a ')
         assert not Visitor.from_parse_results(parse(r'a\bb'), 'ab')
         assert not Visitor.from_parse_results(parse(r'a\B '), 'a ')
         assert Visitor.from_parse_results(parse(r'a\Bb'), 'ab')
         v = Visitor.from_parse_results(parse(r'\s*\b\w+\b\s*'), ' a ')
-        assert v.groups[0] == ' a ', v.groups[0]
+        assert v.groups[0][0] == ' a ', v.groups[0][0]
         v = Visitor.from_parse_results(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._STATEFUL), ' a ab abc ')
-        assert v.groups[0] == ' a ab abc ', v.groups[0]
+        assert v.groups[0][0] == ' a ab abc ', v.groups[0][0]
         

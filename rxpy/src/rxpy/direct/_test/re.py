@@ -28,3 +28,18 @@ class GroupsTest(TestCase):
         self.assert_groups('.(.).(.?)', 'abc', [2], '')
         self.assert_groups('.(.).(.)?', 'abc', [2], None)
         self.assert_groups('.(.).(.?)', 'abc', [3], IndexError)
+
+
+class RegexObjectTest(TestCase):
+    
+    def assert_split(self, pattern, text, target, *args):
+        result = compile(pattern).split(text, *args)
+        assert result == target, result
+    
+    def test_split_from_docs(self):
+        self.assert_split(r'\W+', 'Words, words, words.',
+                          ['Words', 'words', 'words', ''])
+        self.assert_split(r'(\W+)', 'Words, words, words.'
+                          ['Words', ', ', 'words', ', ', 'words', '.', ''])
+        self.assert_split(r'\W+', 'Words, words, words.',
+                          ['Words', 'words, words.'], 1)

@@ -115,7 +115,8 @@ class Groups(object):
         
     def end_group(self, number, offset):
         assert number in self.__offsets, 'Unopened group'
-        self.__groups[number] = self.__stream[self.__offsets[number]:offset]
+        self.__groups[number] = (self.__stream[self.__offsets[number]:offset],
+                                 self.__offsets[number], offset)
         del self.__offsets[number]
     
     def __len__(self):
@@ -126,7 +127,15 @@ class Groups(object):
                       self.__count, self.__names)
     
     def __delitem__(self, number):
-        del self.__groups[number]
+        try:
+            del self.__groups[number]
+        except KeyError:
+            if number in self.__names:
+                del self.__groups[self.__names[number]]
+            elif isinstance(number, int) and number <= self.__count:
+                return
+            else:
+                raise IndexError(number)
         
     def __getitem__(self, number):
         try:
@@ -135,12 +144,23 @@ class Groups(object):
             if number in self.__names:
                 return self.__groups[self.__names[number]]
             elif isinstance(number, int) and number <= self.__count:
-                return None
+                return [None, -1, -1]
             else:
                 raise IndexError(number)
     
-    def __setitem(self, number, text):
-        self.__groups[number] = text
+    def __setitem__(self, number, entry):
+        assert isinstance(entry, tuple)
+        self.__groups[number] = entry
+        
+    def group(self, number, default=None):
+        group = self[number][0]
+        return default if group is None else group
+        
+    def start(self, number):
+        return self[number][1]
+    
+    def end(self, number):
+        return self[number][2]
     
     
 class Loops(object):
@@ -227,12 +247,12 @@ class Visitor(_Visitor):
 
     def group_reference(self, next, number, state):
         try:
-            return (next[0], state.string(state.groups[number]))
+            return (next[0], state.string(state.groups.group(number)))
         except KeyError:
             raise Fail
 
     def conditional(self, next, number, state):
-        if state.groups[number]:
+        if state.groups.group(number):
             return (next[1], state)
         else:
             return (next[0], state)
