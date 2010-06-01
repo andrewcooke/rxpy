@@ -4,13 +4,18 @@ from rxpy.parser.parser import parse, ParserState
 from rxpy.direct.visitor import Visitor
 
 
-(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR) = ParserState._FLAGS
+(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = ParserState._FLAGS
 
 _LEAD = '_lead'
 
 
 def compile(pattern, flags=0):
-    return RegexObject(pattern, flags)
+    if isinstance(pattern, RegexObject):
+        if flags:
+            raise ValueError('Precompiled pattern')
+    else:
+        pattern = RegexObject(pattern, flags)
+    return pattern
 
 
 class RegexObject(object):
@@ -122,13 +127,13 @@ class MatchObject(object):
     def span(self, group=0):
         return (self.start(group), self.end(group))
     
-
+    
 def match(pattern, text, flags=0):
-    return RegexObject(pattern, flags).match(text)
+    compile(pattern, flags).match(text)
 
 
 def search(pattern, text, flags=0):
-    return RegexObject(pattern, flags).search(text)
+    compile(pattern, flags).search(text)
 
 
 def sub(pattern, replacement, text, count=0):

@@ -6,7 +6,7 @@ from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
-    Repeat, Conditional, WordBoundary, Word, Space, Digit
+    Repeat, Conditional, WordBoundary, Word, Space, Digit, Or
 
 
 OCTAL = '01234567'
@@ -19,9 +19,9 @@ class ParseException(Exception):
 class ParserState(object):
     
     (I, M, S, U, X, A, _S, _B) = map(lambda x: 2**x, range(8))
-    (IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR) = (I, M, S, U, X, A, _S, _B)
+    (IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = (I, M, S, U, X, A, _S, _B)
     
-    _FLAGS = (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACE_OR)
+    _FLAGS = (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR)
     
     def __init__(self, alphabet=None, flags=0):
         
@@ -150,30 +150,34 @@ class Sequence(_BaseNode):
     
 class Alternatives(_BaseNode):
     '''
-    A temporary node, similar to Sequence, but supporting several alternatives.
-    Construction includes the addition of `Split` and `Merge` instances.
+    A temporary node that does the wiring necessary to connect various
+    alternatives together within the same Split().  If `join` is true then
+    the alternatives all connect back at the exit of the node, otherwise
+    they become "side branches" on concatenation.
     '''
     
-    def __init__(self, sequences, split=None):
-        self._sequences = sequences
+    def __init__(self, sequences, split, join=True):
+        self.__sequences = sequences
         self.__split = split
+        self.__join = join
         
     def concatenate(self, next):
-        if self.__split is None:
-            self.__split = Split(str(self))
-        self.__split.next = list(map(lambda s: s.start, self._sequences))
-        merge = Merge(*self._sequences)
-        merge.concatenate(next)
+        self.__split.next = list(map(lambda s: s.start, self.__sequences))
+        if self.__join:
+            merge = Merge(*self.__sequences)
+            merge.concatenate(next)
+        else:
+            for sequence in self.__sequences:
+                sequence.concatenate(Match())
+            self.__split.concatenate(next)
         return self.__split
-    
-    def __str__(self):
-        return '...|...'
     
     def clone(self, cache=None):
         if cache is None:
             cache = {}
         return Alternatives([sequence.clone(cache) 
-                             for sequence in self._sequences])
+                             for sequence in self._sequences],
+                             self.__split, self.__join)
 
 
 class Merge(object):
@@ -259,28 +263,31 @@ class SequenceBuilder(StatefulBuilder):
         elif not escaped and character == '[':
             return CharSetBuilder(self._state, self)
         elif not escaped and character == '.':
-            self._nodes.append(Dot(self._state.flags & self._state.DOTALL))
+            self._nodes.append(Dot(self._state.flags & ParserState.DOTALL))
         elif not escaped and character == '^':
             self._nodes.append(StartOfLine(self._state.flags & ParserState.MULTILINE))
         elif not escaped and character == '$':
             self._nodes.append(EndOfLine(self._state.flags & ParserState.MULTILINE))
         elif not escaped and character == '|':
-            self._start_new_alternative()
+            self.__start_new_alternative()
         elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         elif character:
             self._nodes.append(String(character))
         return self
     
-    def _start_new_alternative(self):
+    def __start_new_alternative(self):
         self._alternatives.append(self._nodes)
         self._nodes = []
         
     def build_dag(self):
-        self._start_new_alternative()
+        self.__start_new_alternative()
         sequences = map(Sequence, self._alternatives)
         if len(sequences) > 1:
-            return Alternatives(sequences)
+            backtrack = self._state.flags & ParserState._BACKTRACK_OR
+            return Alternatives(sequences,
+                                Split('...|...') if backtrack else Or('...|...'), 
+                                join=backtrack)
         else:
             return sequences[0]
 
@@ -300,15 +307,23 @@ class RepeatBuilder(StatefulBuilder):
         
         lazy = character == '?'
         
-        if self._initial_character == '+':
-            self.build_plus(self._parent_sequence, self._latest, lazy)
+        # The idea here was to make explicit loop counting increment save less
+        # on the stack, but currently I can't see how it would work.
+        if False and self._state.flags & ParserState._STATEFUL and \
+                self._initial_character in '?+*':
+            CountBuilder.build_count(self._parent_sequence, self._latest,
+                                     1 if self._initial_character == '+' else 0,
+                                     1 if self._initial_character == '?' else None,
+                                     lazy)
         elif self._initial_character == '?':
             self.build_optional(self._parent_sequence, self._latest, lazy)
+        elif self._initial_character == '+':
+            self.build_plus(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '*':
             self.build_star(self._parent_sequence, self._latest, lazy)
         else:
             raise ParseException('Bad initial character for RepeatBuilder')
-        
+            
         if lazy:
             return self._parent_sequence
         else:
@@ -505,26 +520,34 @@ class ConditionalBuilder(StatefulBuilder):
             return self
         
     def callback(self, yesno, terminal):
+        # first callback - have 'yes', possibly terminated by '|'
         if self.__yes is None:
             (self.__yes, yesno) = (yesno, None)
+            # collect second alternative
             if terminal == '|':
                 return YesNoBuilder(self, self._state, self.__parent_sequence, ')')
         group = self._state.count_for_name_or_count(self.__name)
         conditional = Conditional(group)
         yes = self.__yes.build_dag()
         yes = yes.start
+        # have second callback too?
         if yesno:
             no = yesno.build_dag()
             no = no.start
             alternatives = Alternatives([no, yes], conditional)
             self.__parent_sequence._nodes.append(alternatives)
         else:
+            # Single alternative, which will be second child once connected
+            # in graph (Condiional is lazy Split)
             conditional.next = [yes]
             self.__parent_sequence._nodes.append(Merge(yes, conditional))
         return self.__parent_sequence
     
         
 class YesNoBuilder(BaseGroupBuilder):
+    '''
+    Collecy yes / no alternatives.
+    '''
     
     def __init__(self, conditional, state, sequence, terminals):
         super(YesNoBuilder, self).__init__(state, sequence)
@@ -871,11 +894,9 @@ class CountBuilder(StatefulBuilder):
             raise ParseException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
         if self._state.flags & ParserState._STATEFUL:
-            count = Repeat(self._begin, 
-                           self._end if self._range else self._begin, 
-                           self._lazy)
-            count.next = [latest.concatenate(count)]
-            self._parent_sequence._nodes.append(count)
+            self.build_count(self._parent_sequence, latest, self._begin, 
+                             self._end if self._range else self._begin, 
+                             self._lazy)
         else:
             for _i in range(self._begin):
                 self._parent_sequence._nodes.append(latest.clone())
@@ -887,6 +908,15 @@ class CountBuilder(StatefulBuilder):
                     for _i in range(self._end - self._begin):
                         RepeatBuilder.build_optional(
                                 self._parent_sequence, latest.clone(), self._lazy)
+    
+    @staticmethod
+    def build_count(parent_sequence, latest, begin, end, lazy):
+        '''
+        If end is None, then range is open.
+        '''
+        count = Repeat(begin, end, lazy)
+        count.next = [latest.concatenate(count)]
+        parent_sequence._nodes.append(count)
                         
         
 def parse(text, alphabet=None, flags=0):

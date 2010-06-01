@@ -31,7 +31,7 @@ class State(object):
                     self.__stream = self.__stream[l:]
                     self.__offset += l
                 return self
-        except:
+        except IndexError:
             pass
         raise Fail
     
@@ -42,7 +42,7 @@ class State(object):
                 self.__stream = self.__stream[1:]
                 self.__offset += 1
                 return self
-        except:
+        except IndexError:
             pass
         raise Fail
     
@@ -68,7 +68,7 @@ class State(object):
             self.__stream = self.__stream[1:]
             self.__offset += 1
             return self
-        except:
+        except IndexError:
             raise Fail
         
     def start_of_line(self, multiline):
@@ -170,6 +170,7 @@ class Loops(object):
     
     def __init__(self, counts=None, order=None):
         self.__counts = counts if counts else []
+        
         self.__order = order if order else {}
         
     def increment(self, node):
@@ -206,26 +207,39 @@ class Visitor(_Visitor):
         self.__flags = flags
         self.__stream = stream
         
-        self.__stack = []
+        self.__stack = None
+        self.__stacks = []
         self.__lookaheads = {} # map from node to set of known ok states
-        self.__match = None
+        self.__match = False
         
         state.start_group(0)
-        while self.__match is None:
-            try:
-                (graph, state) = graph.visit(self, state)
-            except Fail:
-                if self.__stack:
-                    (graph, state) = self.__stack.pop()
-                else:
-                    break
+        state = self.__run(graph, state)
+
         if self.__match:
             state.end_group(0)
             self.groups = state.groups
             self.offset = state.offset 
+            self.state = state
         else:
             self.groups = Groups()
             self.offset = None
+            self.state = None
+            
+    def __run(self, graph, state):
+        self.__stacks.append(self.__stack)
+        self.__stack = []
+        try:
+            while not self.__match:
+                try:
+                    (graph, state) = graph.visit(self, state)
+                except Fail:
+                    if self.__stack:
+                        (graph, state) = self.__stack.pop()
+                    else:
+                        break
+            return state
+        finally:
+            self.__stack = self.__stacks.pop()
         
     def __bool__(self):
         return bool(self.__match)
@@ -262,6 +276,14 @@ class Visitor(_Visitor):
             clone = state.clone()
             self.__stack.append((graph, clone))
         return (next[0], state)
+    
+    def or_(self, next, state):
+        for alternative in next[1:]:
+            clone = self.__run(alternative, state.clone())
+            if self.__match:
+                self.__match = False
+                return (next[0], clone)
+        raise Fail
 
     def match(self, state):
         self.__match = True
@@ -308,6 +330,7 @@ class Visitor(_Visitor):
             # we can continue from here, but if that fails we want to restart 
             # with another loop, unless we've exceeded the count or there's
             # no stream left
+            # this is well-behaved with stack space
             if (end is None and state.stream) \
                     or (end is not None and count < end):
                 self.__stack.append((next[1], state.clone()))
@@ -330,7 +353,7 @@ class Visitor(_Visitor):
         previous = state.previous
         try:
             current = state.stream[0]
-        except:
+        except IndexError:
             current = None
         word = self.__alphabet.word
         boundary = word(current) != word(previous)
