@@ -47,5 +47,4 @@ class Ascii(Alphabet):
         return char in ' \t\n\r\f\v'
         
     def word(self, char):
-        w = char in WORD
-        return w
+        return char in WORD

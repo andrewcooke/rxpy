@@ -45,7 +45,7 @@ class RegexObjectTest(TestCase):
                           ['Words', 'words, words.'], 1)
         self.assert_split(r'\W+', 'Words, words, words.',
                           ['Words', 'words', 'words', ''])
-        self.assert_split(r'(\W+)', 'Words, words, words.'
+        self.assert_split(r'(\W+)', 'Words, words, words.',
                           ['Words', ', ', 'words', ', ', 'words', '.', ''])
         self.assert_split(r'\W+', 'Words, words, words.',
                           ['Words', 'words, words.'], 1)

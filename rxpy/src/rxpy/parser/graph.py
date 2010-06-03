@@ -384,12 +384,12 @@ class _EscapedNode(_BaseNode):
     
     def __init__(self, character, inverted=False):
         super(_EscapedNode, self).__init__()
-        self.character = character
+        self._character = character
         self.inverted = inverted
         
     def __str__(self):
-        return '\\' + (self.character.upper() 
-                       if self.inverted else self.character.lower())
+        return '\\' + (self._character.upper() 
+                       if self.inverted else self._character.lower())
     
     
 class WordBoundary(_EscapedNode):

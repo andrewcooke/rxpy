@@ -39,7 +39,7 @@ class RegexObject(object):
     
     @property
     def groupindex(self):
-        return self.__match[0].group_names
+        return self.__parsed[0].group_names
     
     @property
     def pattern(self):
@@ -57,7 +57,7 @@ class RegexObject(object):
         visitor = Visitor.from_parse_results(self.__parsed, text, 
                                              pos=pos, search=search)
         if visitor:
-            return MatchObject(visitor.groups, self, text)
+            return MatchObject(visitor.groups, self, text, pos, len(text))
         else:
             return None
         
@@ -120,10 +120,12 @@ class RegexObject(object):
 
 class MatchObject(object):
     
-    def __init__(self, groups, re, text):
+    def __init__(self, groups, re, text, pos, endpos):
         self.__groups = groups
         self.re = re
         self.string = text
+        self.pos = pos
+        self.endpos = endpos
         self.lastindex = groups.lastindex
         self.lastgroup = groups.lastgroup
         
@@ -147,6 +149,12 @@ class MatchObject(object):
     
     def span(self, group=0):
         return (self.start(group), self.end(group))
+    
+    def groupdict(self, default=None):
+        groups = {}
+        for name in self.re.groupindex:
+            groups[name] = self.__groups.group(name, default=default)
+        return groups
     
     
 def match(pattern, text, flags=0):

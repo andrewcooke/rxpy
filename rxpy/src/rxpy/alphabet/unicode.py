@@ -1,7 +1,11 @@
 
 from sys import maxunicode
+from unicodedata import category
 
 from rxpy.alphabet.base import Alphabet
+
+
+WORD = set(['Ll', 'Lo', 'Lt', 'Lu', 'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc'])
 
 
 class Unicode(Alphabet):
@@ -33,3 +37,19 @@ class Unicode(Alphabet):
             text = text[1:]
         return text[1:-1]
 
+    def digit(self, char):
+        # http://bugs.python.org/issue1693050
+        return char and category(self.coerce(char)) == 'Nd'
+
+    def space(self, char):
+        # http://bugs.python.org/issue1693050
+        if char:
+            c = self.coerce(char)
+            return c in u' \t\n\r\f\v' or category(c) == 'Z'
+        else:
+            return False
+        
+    def word(self, char):
+        # http://bugs.python.org/issue1693050
+        return char and category(self.coerce(char)) in WORD
+    
