@@ -21,6 +21,18 @@ class State(object):
     def clone(self):
         return State(self.__stream, self.__groups.clone(), self.__previous, 
                      self.__offset, self.__loops.clone())
+        
+    def advance(self):
+        '''
+        Used in search to increment start point.
+        '''
+        if self.__stream:
+            self.__offset += 1
+            self.__groups.start_group(0, self.__offset)
+            self.__stream = self.__stream[1:]
+            return True
+        else:
+            return False
     
     def string(self, text):
         try:
@@ -63,13 +75,14 @@ class State(object):
     
     def dot(self, multiline=True):
         try:
-            self.__stream[0] and (multiline or self.__stream[0] != '\n')
-            self.__previous = self.__stream[0]
-            self.__stream = self.__stream[1:]
-            self.__offset += 1
-            return self
+            if self.__stream[0] and (multiline or self.__stream[0] != '\n'):
+                self.__previous = self.__stream[0]
+                self.__stream = self.__stream[1:]
+                self.__offset += 1
+                return self
         except IndexError:
-            raise Fail
+            pass
+        raise Fail
         
     def start_of_line(self, multiline):
         if self.__offset == 0 or (multiline and self.__previous == '\n'):
@@ -103,40 +116,36 @@ class State(object):
 class Groups(object):
     
     def __init__(self, stream=None, groups=None, offsets=None, count=0, 
-                 names=None):
+                 names=None, indices=None, lastindex=None):
         self.__stream = stream
         self.__groups = groups if groups else {}
         self.__offsets = offsets if offsets else {}
         self.__count = count
         self.__names = names if names else {}
+        self.__indices = indices if indices else {}
+        self.__lastindex = lastindex
         
     def start_group(self, number, offset):
         self.__offsets[number] = offset
         
     def end_group(self, number, offset):
+        assert isinstance(number, int)
         assert number in self.__offsets, 'Unopened group'
         self.__groups[number] = (self.__stream[self.__offsets[number]:offset],
                                  self.__offsets[number], offset)
         del self.__offsets[number]
+        if number: # avoid group 0
+            self.__lastindex = number
     
     def __len__(self):
         return self.__count
     
     def clone(self):
-        return Groups(self.__stream, dict(self.__groups), dict(self.__offsets),
-                      self.__count, self.__names)
+        return Groups(stream=self.__stream, groups=dict(self.__groups), 
+                      offsets=dict(self.__offsets), count=self.__count, 
+                      names=self.__names, indices=self.__indices,
+                      lastindex=self.__lastindex)
     
-    def __delitem__(self, number):
-        try:
-            del self.__groups[number]
-        except KeyError:
-            if number in self.__names:
-                del self.__groups[self.__names[number]]
-            elif isinstance(number, int) and number <= self.__count:
-                return
-            else:
-                raise IndexError(number)
-        
     def __getitem__(self, number):
         try:
             return self.__groups[number]
@@ -148,10 +157,6 @@ class Groups(object):
             else:
                 raise IndexError(number)
     
-    def __setitem__(self, number, entry):
-        assert isinstance(entry, tuple)
-        self.__groups[number] = entry
-        
     def group(self, number, default=None):
         group = self[number][0]
         return default if group is None else group
@@ -161,6 +166,14 @@ class Groups(object):
     
     def end(self, number):
         return self[number][2]
+
+    @property
+    def lastindex(self):
+        return self.__lastindex
+    
+    @property
+    def lastgroup(self):
+        return self.__indices.get(self.lastindex, None)
     
     
 class Loops(object):
@@ -195,14 +208,16 @@ class Loops(object):
 class Visitor(_Visitor):
     
     @staticmethod
-    def from_parse_results((pstate, graph), stream, pos=0):
+    def from_parse_results((pstate, graph), stream, pos=0, search=False):
         return Visitor(pstate.alphabet, pstate.flags, stream, graph,
                        State(stream[pos:],
                              Groups(stream=stream, count=pstate.group_count, 
-                                    names=pstate.group_names),
-                             offset=pos))
+                                    names=pstate.group_names, 
+                                    indices=pstate.group_indices),
+                             offset=pos),
+                       search=search)
     
-    def __init__(self, alphabet, flags, stream, graph, state):
+    def __init__(self, alphabet, flags, stream, graph, state, search=False):
         self.__alphabet = alphabet
         self.__flags = flags
         self.__stream = stream
@@ -213,7 +228,7 @@ class Visitor(_Visitor):
         self.__match = False
         
         state.start_group(0)
-        state = self.__run(graph, state)
+        state = self.__run(graph, state, search=search)
 
         if self.__match:
             state.end_group(0)
@@ -225,18 +240,32 @@ class Visitor(_Visitor):
             self.offset = None
             self.state = None
             
-    def __run(self, graph, state):
+    def __run(self, graph, state, search=False):
         self.__stacks.append(self.__stack)
         self.__stack = []
+        first = True
         try:
-            while not self.__match:
-                try:
-                    (graph, state) = graph.visit(self, state)
-                except Fail:
-                    if self.__stack:
-                        (graph, state) = self.__stack.pop()
+            while first or (search and not self.__match):
+                # if searching, save state for restarts
+                if search:
+                    (save_state, save_graph) = (state.clone(), graph)
+                # do a normal match
+                while not self.__match:
+                    try:
+                        (graph, state) = graph.visit(self, state)
+                    except Fail:
+                        if self.__stack:
+                            (graph, state) = self.__stack.pop()
+                        else:
+                            break
+                # match has exited; handle search
+                first = False
+                if search and not self.__match:
+                    if save_state.advance():
+                        (state, graph) = (save_state, save_graph) 
                     else:
-                        break
+                        search = False
+            # search has exited; return
             return state
         finally:
             self.__stack = self.__stacks.pop()

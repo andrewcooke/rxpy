@@ -212,9 +212,9 @@ class _BaseSplit(_BaseNode):
             if self.__connected:
                 raise GraphException('Node already connected')
             if self.lazy:
-                self.next.insert(0, next)
+                self.next.insert(0, next.start)
             else:
-                self.next.append(next)
+                self.next.append(next.start)
             self.__connected = True
         return self
 
@@ -234,7 +234,7 @@ class Split(_BaseSplit):
 
 class Or(_BaseSplit):
     '''
-    Used nly when alternatives do not backtrack.
+    Used only when alternatives do not backtrack.
     '''
     
     def __init__(self, label):
@@ -338,7 +338,7 @@ class Repeat(_BaseNode):
         if next:
             if self.__connected:
                 raise GraphException('Node already connected')
-            self.next.insert(0, next)
+            self.next.insert(0, next.start)
             self.__connected = True
         return self
 

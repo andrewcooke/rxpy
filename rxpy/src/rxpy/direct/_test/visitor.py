@@ -17,7 +17,9 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(parse('a.c'), 'abc')
         assert Visitor.from_parse_results(parse('...'), 'abcd')
         assert not Visitor.from_parse_results(parse('...'), 'ab')
-        
+        assert not Visitor.from_parse_results(parse('a.b'), 'a\nb')
+        assert Visitor.from_parse_results(parse('a.b', flags=ParserState.DOTALL), 'a\nb')
+       
     def test_char(self):
         assert Visitor.from_parse_results(parse('[ab]'), 'a')
         assert Visitor.from_parse_results(parse('[ab]'), 'b')
@@ -194,3 +196,6 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(parse('a|b', flags=ParserState._BACKTRACK_OR), 'b')
         assert not Visitor.from_parse_results(parse('a|b', flags=ParserState._BACKTRACK_OR), 'c')
         assert Visitor.from_parse_results(parse('(a|ac)$', flags=ParserState._BACKTRACK_OR), 'ac')
+
+    def test_search(self):
+        assert Visitor.from_parse_results(parse('a'), 'ab', search=True)

@@ -1,5 +1,5 @@
 
-from string import digits
+from string import digits, ascii_letters
 
 from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.ascii import Ascii
@@ -10,6 +10,7 @@ from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
 
 
 OCTAL = '01234567'
+ALPHANUMERIC = digits + ascii_letters
 
 
 class ParseException(Exception):
@@ -81,6 +82,10 @@ class ParserState(object):
     @property
     def group_names(self):
         return dict(self.__name_to_count)
+    
+    @property
+    def group_indices(self):
+        return dict(self.__count_to_name)
     
     @property
     def group_count(self):
@@ -176,7 +181,7 @@ class Alternatives(_BaseNode):
         if cache is None:
             cache = {}
         return Alternatives([sequence.clone(cache) 
-                             for sequence in self._sequences],
+                             for sequence in self.__sequences],
                              self.__split, self.__join)
 
 
@@ -193,7 +198,7 @@ class Merge(object):
     def concatenate(self, next):
         last = None
         for node in self._nodes:
-            last = node.concatenate(next)
+            last = node.concatenate(next.start)
         return last
     
     
@@ -529,17 +534,15 @@ class ConditionalBuilder(StatefulBuilder):
         group = self._state.count_for_name_or_count(self.__name)
         conditional = Conditional(group)
         yes = self.__yes.build_dag()
-        yes = yes.start
         # have second callback too?
         if yesno:
             no = yesno.build_dag()
-            no = no.start
             alternatives = Alternatives([no, yes], conditional)
             self.__parent_sequence._nodes.append(alternatives)
         else:
             # Single alternative, which will be second child once connected
-            # in graph (Condiional is lazy Split)
-            conditional.next = [yes]
+            # in graph (Conditional is lazy Split)
+            conditional.next = [yes.start]
             self.__parent_sequence._nodes.append(Merge(yes, conditional))
         return self.__parent_sequence
     
@@ -694,7 +697,7 @@ class SimpleEscapeBuilder(StatefulBuilder):
         super(SimpleEscapeBuilder, self).__init__(state)
         self._parent_builder = parent
         self.__std_escapes = {'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n',
-                              'r': '\r', 't': '\t', 'v': '\v', '\\': '\\'}
+                              'r': '\r', 't': '\t', 'v': '\v'}
         
     def append_character(self, character):
         if not character:
@@ -706,6 +709,8 @@ class SimpleEscapeBuilder(StatefulBuilder):
         elif character in self.__std_escapes:
             return self._parent_builder.append_character(
                         self.__std_escapes[character], escaped=True)
+        elif character not in ascii_letters: # matches re.escape
+            return self._parent_builder.append_character(character, escaped=True)
         else:
             raise ParseException('Unexpected escape: ' + character)
     

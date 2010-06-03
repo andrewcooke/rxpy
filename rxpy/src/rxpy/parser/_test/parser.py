@@ -950,3 +950,15 @@ r"""strict digraph {
  8 -> 9
  9 -> 10
 }""")
+
+    def test_named_group_bug(self):
+        self.assert_graphs(parse('(?P<quote>)(?(quote))'), 
+"""strict digraph {
+ 0 [label="("]
+ 1 [label=")"]
+ 2 [label="(?(1)...)"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+}""")

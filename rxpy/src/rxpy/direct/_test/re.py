@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 
-from rxpy.direct.re import compile
+from rxpy.direct.re import compile, escape, findall, search
 
 
 class GroupsTest(TestCase):
@@ -35,11 +35,52 @@ class RegexObjectTest(TestCase):
     def assert_split(self, pattern, text, target, *args):
         result = compile(pattern).split(text, *args)
         assert result == target, result
-    
+        
     def test_split_from_docs(self):
+        self.assert_split(r'[^A-Za-z]+', 'Words, words, words.',
+                          ['Words', 'words', 'words', ''])
+        self.assert_split(r'([^A-Za-z]+)', 'Words, words, words.',
+                          ['Words', ', ', 'words', ', ', 'words', '.', ''])
+        self.assert_split(r'[^A-Za-z]+', 'Words, words, words.',
+                          ['Words', 'words, words.'], 1)
         self.assert_split(r'\W+', 'Words, words, words.',
                           ['Words', 'words', 'words', ''])
         self.assert_split(r'(\W+)', 'Words, words, words.'
                           ['Words', ', ', 'words', ', ', 'words', '.', ''])
         self.assert_split(r'\W+', 'Words, words, words.',
                           ['Words', 'words, words.'], 1)
+        
+    def test_match(self):
+        results = compile('.*?(x+)').match('axxb')
+        assert results
+        assert results.group(1) == 'xx', results.group(1)
+        
+    def test_findall(self):
+        match = compile('(a|(b))').match('aba')
+        assert match.re.groups == 2, match.re.groups
+        assert match.group(0) == 'a', match.group(0)
+        assert match.group(1) == 'a', match.group(1)
+        assert match.group(2) == None, match.group(2)
+        results = compile('(a|(b))').findall('aba')
+        assert results == [('a', ''), ('b', 'b'), ('a', '')], results
+        
+    def test_find_from_docs(self):
+        assert search(r"[a-zA-Z]+ly", 
+            "He was carefully disguised but captured quickly by police.")
+        results = findall(r"[a-zA-Z]+ly", 
+            "He was carefully disguised but captured quickly by police.")
+        assert results == ['carefully', 'quickly'], results
+        results = findall(r"\w+ly", 
+            "He was carefully disguised but captured quickly by police.")
+        assert results == ['carefully', 'quickly'], results
+
+
+class EscapeTest(TestCase):
+    
+    def test_escape(self):
+        text = '123abc;.,}{? '
+        esc = escape('123abc;.,}{? ')
+        assert esc == '123abc\\;\\.\\,\\}\\{\\?\\ ', esc
+        result = compile(esc).match(text)
+        assert result
+
