@@ -1,7 +1,7 @@
 
 
 from rxpy.parser.parser import parse, ParserState, ParseException
-from rxpy.direct.visitor import Visitor
+from rxpy.direct.visitor import Visitor, compile_repl
 from string import ascii_letters, digits
 
 
@@ -54,12 +54,12 @@ class RegexObject(object):
     def __match(self, text, pos=0, endpos=None, search=False):
         if endpos is not None:
             text = text[0:endpos]
-        visitor = Visitor.from_parse_results(self.__parsed, text, 
-                                             pos=pos, search=search)
-        if visitor:
-            return MatchObject(visitor.groups, self, text, pos, len(text))
-        else:
-            return None
+        if pos < len(text):
+            visitor = Visitor.from_parse_results(self.__parsed, text, 
+                                                 pos=pos, search=search)
+            if visitor:
+                return MatchObject(visitor.groups, self, text, pos, len(text))
+        return None
         
     def finditer(self, text, pos=0, endpos=None):
         found = True
@@ -85,19 +85,19 @@ class RegexObject(object):
         yield text[start:]
             
     def subn(self, repl, text, count=0):
-        count, n, pos = count if count else -1, 0, 0
-        replacement = compile_repl(repl)
+        count_, n, pos = [count if count else -1], [0], [0]
+        replacement = compile_repl(repl, self.__alphabet)
         def subiter():
             for found in self.finditer(text):
-                n += 1
-                yield text[pos:found.start()]
-                pos = found.end()
+                n[0] += 1
+                yield text[pos[0]:found.start()]
+                pos[0] = found.end()
                 yield replacement(found)
-                count -= 1
-                if count == 0:
+                count_[0] -= 1
+                if count_[0] == 0:
                     break
-            yield text[pos:]
-        return (type(text)(list(subiter())), n)
+            yield text[pos[0]:]
+        return (type(text)('').join(list(subiter())), n[0])
     
     def findall(self, text, pos=0, endpos=None):
         def expand(match):
@@ -186,4 +186,4 @@ def escape(text):
             if letter not in _ALPHANUMERICS:
                 yield '\\'
             yield letter
-    return ''.join(list(letters()))
+    return type(text)('').join(list(letters()))

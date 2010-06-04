@@ -73,6 +73,13 @@ class RegexObjectTest(TestCase):
         results = findall(r"\w+ly", 
             "He was carefully disguised but captured quickly by police.")
         assert results == ['carefully', 'quickly'], results
+        
+    def test_findall_empty(self):
+        results = findall('x+', 'abxd')
+        assert results == ['x'], results
+        results = findall('x*', 'abxd')
+        assert results == ['', '', 'x', ''], results
+
 
 
 class EscapeTest(TestCase):

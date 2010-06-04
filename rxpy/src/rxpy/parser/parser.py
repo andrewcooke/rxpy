@@ -715,14 +715,25 @@ class SimpleEscapeBuilder(StatefulBuilder):
             raise ParseException('Unexpected escape: ' + character)
     
 
-class ComplexEscapeBuilder(SimpleEscapeBuilder):
+class IntermediateEscapeBuilder(SimpleEscapeBuilder):
     '''
     Extend SimpleEscapeBuilder to also handle group references.
     '''
     
-    def __init__(self, state, parent):
-        super(ComplexEscapeBuilder, self).__init__(state, parent)
+    def append_character(self, character):
+        if not character:
+            raise ParseException('Incomplete character escape')
+        elif character in digits and character != '0':
+            return GroupReferenceBuilder(self._parent_builder, character)
+        else:
+            return super(IntermediateEscapeBuilder, self).append_character(character)
         
+        
+class ComplexEscapeBuilder(IntermediateEscapeBuilder):
+    '''
+    Extend IntermediateEscapeBuilder to handle character classes.
+    '''
+    
     def append_character(self, character):
         if not character:
             raise ParseException('Incomplete character escape')
@@ -858,8 +869,13 @@ class CountBuilder(StatefulBuilder):
             else:
                 self.__build()
                 return self._parent_sequence.append_character(character)
-            
-        if character == '}':
+        
+        empty = not self._acc and self._begin is None
+        if empty and character == '}':
+            for character in '{}':
+                self._parent_sequence.append_character(character, escaped=True)
+            return self._parent_sequence
+        elif character == '}':
             self.__store_value()
             self._closed = True
         elif character == ',':
@@ -924,12 +940,90 @@ class CountBuilder(StatefulBuilder):
         parent_sequence._nodes.append(count)
                         
         
-def parse(text, alphabet=None, flags=0):
+def _parse(text, alphabet=None, flags=0, class_=SequenceBuilder):
     state = ParserState(alphabet=alphabet, flags=flags)
-    graph = SequenceBuilder(state).parse(text)
+    graph = class_(state).parse(text)
     if state.new_flags & ~flags:
         state = ParserState(alphabet=alphabet, flags=flags | state.new_flags)
         graph = SequenceBuilder(state).parse(text)
     if state.new_flags & ~flags:
         raise ParseException('Inconsistent flags')
     return (state, graph)
+
+def parse(text, alphabet=None, flags=0):
+    return _parse(text, alphabet=alphabet, flags=flags)
+
+def parse_repl(text, alphabet=None, flags=0):
+    return _parse(text, alphabet=alphabet, flags=flags, 
+                  class_=ReplacementBuilder)
+
+
+class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
+    
+    def append_character(self, character):
+        if not character:
+            raise ParseException('Incomplete character escape')
+        elif character == 'g':
+            return ReplacementGroupReferenceBuilder(self._parent_builder)
+        else:
+            return super(ReplacementEscapeBuilder, self).append_character(character)
+        
+        
+class ReplacementGroupReferenceBuilder(Builder):
+    
+    def __init__(self, parent):
+        super(ReplacementGroupReferenceBuilder, self).__init__()
+        self.__parent_sequence = parent
+        self.__buffer = ''
+        
+    def __decode(self):
+        try:
+            return GroupReference(int(self.__buffer[1:]))
+        except:
+            raise ParseException('Bad group reference: ' + self.__buffer)
+        
+    def append_character(self, character):
+        if not self.__buffer and character == '<':
+            self.__buffer += character
+            return self
+        elif len(self.__buffer) > 1 and character == '>':
+            self.__parent_sequence._nodes.append(self.__decode())
+            return self.__parent_sequence
+        elif character and character in digits:
+            self.__buffer += character
+            return self
+        elif character:
+            raise ParseException('Unexpected character in group escape: ' + character)
+        else:
+            raise ParseException('Incomplete group escape')
+        
+
+class ReplacementBuilder(StatefulBuilder):
+    '''
+    A separate builder (which uses escape handling above) used to parse the
+    "replacement" string for the "subn" method.
+    '''
+    
+    def __init__(self, state):
+        super(ReplacementBuilder, self).__init__(state)
+        self._nodes = []
+        
+    def parse(self, text):
+        builder = self
+        for character in text:
+            builder = builder.append_character(character)
+        builder = builder.append_character(None)
+        if self != builder:
+            raise ParseException('Incomplete expression')
+        return self.build_dag().concatenate(Match())
+    
+    def append_character(self, character, escaped=False):
+        if not escaped and character == '\\':
+            return ReplacementEscapeBuilder(self._state, self)
+        elif character:
+            self._nodes.append(String(character))
+        return self
+    
+    def build_dag(self):
+        return Sequence(self._nodes)
+

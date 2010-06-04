@@ -1,5 +1,6 @@
 
 from rxpy.parser.visitor import Visitor as _Visitor
+from rxpy.parser.parser import parse_repl
 
 
 class Fail(Exception):
@@ -414,3 +415,40 @@ class Visitor(_Visitor):
         except IndexError:
             pass
         raise Fail
+    
+    
+class ReplVisitor(_Visitor):
+    
+    def __init__(self, repl, alphabet):
+        (_status, self.__graph) = parse_repl(repl, alphabet)
+    
+    def evaluate(self, match):
+        self.__result = ''
+        graph = self.__graph
+        while graph:
+            (graph, match) = graph.visit(self, match)
+        return self.__result
+    
+    def string(self, next, text, match):
+        self.__result += text
+        return (next[0], match)
+    
+    def group_reference(self, next, number, match):
+        self.__result += match.group(number)
+        return (next[0], match)
+
+    def match(self, match):
+        return (None, match)
+
+
+def compile_repl(repl, alphabet):
+    cache = []
+    def compiled(match):
+        try:
+            return repl(match)
+        except:
+            if not cache:
+                cache.append(ReplVisitor(repl, alphabet))
+        return cache[0].evaluate(match)
+    return compiled
+
