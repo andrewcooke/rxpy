@@ -24,10 +24,13 @@ class RegexObject(object):
     
     def __init__(self, pattern, flags=0):
         self.__pattern = pattern
-        self.__alphabet = None
         self.__flags = flags
         self.__parsed = parse(self.__pattern, flags=flags)
         self.__search = None
+        
+    @property
+    def __state(self):
+        return self.__parsed[0]
 
     @property
     def flags(self):
@@ -35,11 +38,11 @@ class RegexObject(object):
         
     @property
     def groups(self):
-        return self.__parsed[0].group_count
+        return self.__state.group_count
     
     @property
     def groupindex(self):
-        return self.__parsed[0].group_names
+        return self.__state.group_names
     
     @property
     def pattern(self):
@@ -54,14 +57,15 @@ class RegexObject(object):
     def __match(self, text, pos=0, endpos=None, search=False):
         if endpos is not None:
             text = text[0:endpos]
-        if pos < len(text):
+        if pos <= len(text):
             visitor = Visitor.from_parse_results(self.__parsed, text, 
                                                  pos=pos, search=search)
             if visitor:
-                return MatchObject(visitor.groups, self, text, pos, len(text))
+                return MatchObject(visitor.groups, self, text, pos, len(text),
+                                   self.__state)
         return None
         
-    def finditer(self, text, pos=0, endpos=None):
+    def __searchiter(self, text, pos=0, endpos=None):
         found = True
         while found:
             found = self.search(text, pos, endpos)
@@ -69,35 +73,71 @@ class RegexObject(object):
                 yield found
                 offset = found.end()
                 pos = offset if offset > pos else offset + 1 
-        
+
+    def finditer(self, text, pos=0, endpos=None):
+        pending_empty = None
+        for found in self.__searchiter(text, pos=pos, endpos=endpos):
+            # this is the "not touching" condition
+            if pending_empty:
+                if pending_empty.end() < found.start():
+                    yield pending_empty
+                pending_empty = None
+            if found.group():
+                yield found
+            else:
+                pending_empty = found
+        if pending_empty:
+            yield pending_empty
+
     def splititer(self, text, maxsplit=0):
-        start = 0
+        pos = 0
         maxsplit = maxsplit if maxsplit else -1
         for found in self.finditer(text):
-            yield text[start:found.start()]
-            for group in found.groups():
-                if group is not None:
+            if found.group():
+                yield text[pos:found.start()]
+                for group in found.groups():
                     yield group
-            start = found.end()
-            maxsplit -= 1
-            if not maxsplit:
-                break
-        yield text[start:]
+                pos = found.end()
+                maxsplit -= 1
+                if not maxsplit:
+                    break
+        yield text[pos:]
             
     def subn(self, repl, text, count=0):
-        count_, n, pos = [count if count else -1], [0], [0]
-        replacement = compile_repl(repl, self.__alphabet)
-        def subiter():
-            for found in self.finditer(text):
-                n[0] += 1
-                yield text[pos[0]:found.start()]
-                pos[0] = found.end()
-                yield replacement(found)
-                count_[0] -= 1
-                if count_[0] == 0:
-                    break
-            yield text[pos[0]:]
-        return (type(text)('').join(list(subiter())), n[0])
+        def subiter(count):
+            # this implements the "not adjacent" condition
+            count = count if count else -1
+            prev = None
+            pending_empty = None
+            for found in self.__searchiter(text):
+                if pending_empty:
+                    if pending_empty.end() < found.start():
+                        yield pending_empty
+                        count -= 1
+                        if not count:
+                            break
+                    pending_empty = None
+                if found.group():
+                    yield found
+                    count -= 1
+                    if not count:
+                        break
+                elif not prev or prev.end() < found.start():
+                    pending_empty = found
+                prev = found
+            if pending_empty:
+                yield pending_empty
+        replacement = compile_repl(repl, self.__state)
+        n = 0
+        pos = 0
+        results = []
+        for found in subiter(count):
+            results.append(text[pos:found.start()])
+            results.append(replacement(found))
+            n += 1
+            pos = found.end()
+        results += text[pos:]
+        return (type(text)('').join(results), n)
     
     def findall(self, text, pos=0, endpos=None):
         def expand(match):
@@ -120,12 +160,13 @@ class RegexObject(object):
 
 class MatchObject(object):
     
-    def __init__(self, groups, re, text, pos, endpos):
+    def __init__(self, groups, re, text, pos, endpos, state):
         self.__groups = groups
         self.re = re
         self.string = text
         self.pos = pos
         self.endpos = endpos
+        self.__state = state
         self.lastindex = groups.lastindex
         self.lastgroup = groups.lastgroup
         
@@ -156,6 +197,20 @@ class MatchObject(object):
             groups[name] = self.__groups.group(name, default=default)
         return groups
     
+    def expand(self, repl):
+        replacement = compile_repl(repl, self.__state)
+        return replacement(self)
+        
+    @property
+    def regs(self):
+        '''
+        This is an undocumented hangover from regex in 1.5
+        '''
+        groups = [(self.start(index), self.end(index)) 
+                    for index in range(self.re.groups+1)
+                    if self.__groups.group(index)]
+        return tuple(groups)
+    
     
 def match(pattern, text, flags=0):
     return compile(pattern, flags=flags).match(text)
@@ -175,6 +230,14 @@ def finditer(pattern, text, flags=0):
 
 def sub(pattern, repl, text, count=0):
     return compile(pattern).sub(repl, text, count=count)
+
+
+def subn(pattern, repl, text, count=0):
+    return compile(pattern).subn(repl, text, count=count)
+
+
+def split(pattern, text, maxsplit=0):
+    return compile(pattern).split(text, maxsplit=maxsplit)
 
 
 error = ParseException

@@ -152,6 +152,12 @@ class Sequence(_BaseNode):
             cache = {}
         return Sequence([node.clone(cache) for node in self._nodes])
     
+    def __bool__(self):
+        return bool(self._nodes)
+    
+    def __nonzero__(self):
+        return self.__bool__()
+    
     
 class Alternatives(_BaseNode):
     '''
@@ -534,16 +540,25 @@ class ConditionalBuilder(StatefulBuilder):
         group = self._state.count_for_name_or_count(self.__name)
         conditional = Conditional(group)
         yes = self.__yes.build_dag()
-        # have second callback too?
-        if yesno:
-            no = yesno.build_dag()
-            alternatives = Alternatives([no, yes], conditional)
-            self.__parent_sequence._nodes.append(alternatives)
+        no = yesno.build_dag() if yesno else None
+        # Various possibilities here, depending on what is empty
+        if yes:
+            if no:
+                alternatives = Alternatives([no, yes], conditional)
+                self.__parent_sequence._nodes.append(alternatives)
+            else:
+                # Single alternative, which will be second child once connected
+                # in graph (Conditional is lazy Split)
+                conditional.next = [yes.start]
+                self.__parent_sequence._nodes.append(Merge(yes, conditional))
         else:
-            # Single alternative, which will be second child once connected
-            # in graph (Conditional is lazy Split)
-            conditional.next = [yes.start]
-            self.__parent_sequence._nodes.append(Merge(yes, conditional))
+            if no:
+                conditional = Conditional(group, False)
+                conditional.next = [no.start]
+                self.__parent_sequence._nodes.append(Merge(no, conditional))
+            else:
+                # no point in doing anything at all!
+                pass
         return self.__parent_sequence
     
         
@@ -940,8 +955,12 @@ class CountBuilder(StatefulBuilder):
         parent_sequence._nodes.append(count)
                         
         
-def _parse(text, alphabet=None, flags=0, class_=SequenceBuilder):
-    state = ParserState(alphabet=alphabet, flags=flags)
+def _parse(text, alphabet=None, flags=0, state=None, class_=SequenceBuilder):
+    if state is None:
+        state = ParserState(alphabet=alphabet, flags=flags)
+    else:
+        alphabet = state.alphabet
+        flags = state.flags
     graph = class_(state).parse(text)
     if state.new_flags & ~flags:
         state = ParserState(alphabet=alphabet, flags=flags | state.new_flags)
@@ -953,9 +972,8 @@ def _parse(text, alphabet=None, flags=0, class_=SequenceBuilder):
 def parse(text, alphabet=None, flags=0):
     return _parse(text, alphabet=alphabet, flags=flags)
 
-def parse_repl(text, alphabet=None, flags=0):
-    return _parse(text, alphabet=alphabet, flags=flags, 
-                  class_=ReplacementBuilder)
+def parse_repl(text, state):
+    return _parse(text, state=state, class_=ReplacementBuilder)
 
 
 class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
@@ -964,32 +982,61 @@ class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
         if not character:
             raise ParseException('Incomplete character escape')
         elif character == 'g':
-            return ReplacementGroupReferenceBuilder(self._parent_builder)
+            return ReplacementGroupReferenceBuilder(self._state, 
+                                                    self._parent_builder)
         else:
             return super(ReplacementEscapeBuilder, self).append_character(character)
         
         
-class ReplacementGroupReferenceBuilder(Builder):
+class ReplacementGroupReferenceBuilder(StatefulBuilder):
     
-    def __init__(self, parent):
-        super(ReplacementGroupReferenceBuilder, self).__init__()
+    def __init__(self, state, parent):
+        super(ReplacementGroupReferenceBuilder, self).__init__(state)
         self.__parent_sequence = parent
         self.__buffer = ''
         
     def __decode(self):
         try:
-            return GroupReference(int(self.__buffer[1:]))
-        except:
-            raise ParseException('Bad group reference: ' + self.__buffer)
+            return GroupReference(
+                    self._state.count_for_name_or_count(self.__buffer[1:]))
+        except ParseException:
+            raise IndexError('Bad group reference: ' + self.__buffer[1:])
+        
+    @property
+    def __numeric(self):
+        if not self.__buffer:
+            return False
+        elif not self.__buffer[1:]:
+            return True
+        else:
+            try:
+                int(self.__buffer[1:])
+                return True
+            except:
+                return False
+            
+    @property
+    def __name(self):
+        if not self.__buffer:
+            return False
+        elif not self.__buffer[1:]:
+            return True
+        return not self.__buffer[1] in digits
+             
         
     def append_character(self, character):
+        # this is so complex because the tests for different errors are so
+        # detailed
         if not self.__buffer and character == '<':
             self.__buffer += character
             return self
         elif len(self.__buffer) > 1 and character == '>':
             self.__parent_sequence._nodes.append(self.__decode())
             return self.__parent_sequence
-        elif character and character in digits:
+        elif character and self.__numeric and character in digits:
+            self.__buffer += character
+            return self
+        elif character and self.__name and character in ALPHANUMERIC:
             self.__buffer += character
             return self
         elif character:

@@ -364,8 +364,8 @@ class Conditional(_BaseSplit):
     first.
     '''
     
-    def __init__(self, number):
-        super(Conditional, self).__init__(lazy=True)
+    def __init__(self, number, lazy=True):
+        super(Conditional, self).__init__(lazy=lazy)
         assert isinstance(number, int)
         self.number = number
         

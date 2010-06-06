@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 
-from rxpy.direct.re import compile, escape, findall, search
+from rxpy.direct.re import compile, escape, findall, search, sub
 
 
 class GroupsTest(TestCase):
@@ -61,8 +61,13 @@ class RegexObjectTest(TestCase):
         assert match.group(0) == 'a', match.group(0)
         assert match.group(1) == 'a', match.group(1)
         assert match.group(2) == None, match.group(2)
+        
         results = compile('(a|(b))').findall('aba')
         assert results == [('a', ''), ('b', 'b'), ('a', '')], results
+        
+        results = compile('x*').findall('a')
+        assert len(results) == 2, results
+        
         
     def test_find_from_docs(self):
         assert search(r"[a-zA-Z]+ly", 
@@ -78,8 +83,16 @@ class RegexObjectTest(TestCase):
         results = findall('x+', 'abxd')
         assert results == ['x'], results
         results = findall('x*', 'abxd')
-        assert results == ['', '', 'x', ''], results
+        # this checks against actual behaviour
+        assert results == ['', '', 'x', '', ''], results
 
+    def test_findall_sub(self):
+        # this also checks against behaviour
+        results = sub('x*', '-', 'abxd')
+        assert results == '-a-b-d-', results
+        # this too
+        results = sub('x*?', '-', 'abxd')
+        assert results == '-a-b-x-d-', results
 
 
 class EscapeTest(TestCase):

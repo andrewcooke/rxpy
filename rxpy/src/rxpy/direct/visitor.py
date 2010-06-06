@@ -1,6 +1,6 @@
 
 from rxpy.parser.visitor import Visitor as _Visitor
-from rxpy.parser.parser import parse_repl
+from rxpy.parser.parser import parse_repl, ParseException
 
 
 class Fail(Exception):
@@ -92,7 +92,10 @@ class State(object):
             raise Fail
             
     def end_of_line(self, multiline):
-        if not self.__stream or (multiline and self.__stream[0] == '\n'):
+        if ((not self.__stream or (multiline and self.__stream[0] == '\n'))
+                # also before \n at end of stream
+                or (self.__stream and self.__stream[0] == '\n' and
+                    not self.__stream[1:])):
             return self
         else:
             raise Fail
@@ -148,12 +151,14 @@ class Groups(object):
                       lastindex=self.__lastindex)
     
     def __getitem__(self, number):
+        if number in self.__names:
+            index = self.__names[number]
+        else:
+            index = number
         try:
-            return self.__groups[number]
+            return self.__groups[index]
         except KeyError:
-            if number in self.__names:
-                return self.__groups[self.__names[number]]
-            elif isinstance(number, int) and number <= self.__count:
+            if isinstance(index, int) and index <= self.__count:
                 return [None, -1, -1]
             else:
                 raise IndexError(number)
@@ -259,6 +264,8 @@ class Visitor(_Visitor):
                             (graph, state) = self.__stack.pop()
                         else:
                             break
+                    except AttributeError:
+                        raise
                 # match has exited; handle search
                 first = False
                 if search and not self.__match:
@@ -291,7 +298,11 @@ class Visitor(_Visitor):
 
     def group_reference(self, next, number, state):
         try:
-            return (next[0], state.string(state.groups.group(number)))
+            text = state.groups.group(number)
+            if text:
+                return (next[0], state.string(text))
+            else:
+                return (next[0], state)
         except KeyError:
             raise Fail
 
@@ -419,8 +430,8 @@ class Visitor(_Visitor):
     
 class ReplVisitor(_Visitor):
     
-    def __init__(self, repl, alphabet):
-        (_status, self.__graph) = parse_repl(repl, alphabet)
+    def __init__(self, repl, state):
+        (_state, self.__graph) = parse_repl(repl, state)
     
     def evaluate(self, match):
         self.__result = ''
@@ -434,21 +445,25 @@ class ReplVisitor(_Visitor):
         return (next[0], match)
     
     def group_reference(self, next, number, match):
-        self.__result += match.group(number)
-        return (next[0], match)
+        try:
+            self.__result += match.group(number)
+            return (next[0], match)
+        # raised when match.group returns None
+        except TypeError:
+            raise ParseException('No match for group ' + str(number))
 
     def match(self, match):
         return (None, match)
 
 
-def compile_repl(repl, alphabet):
+def compile_repl(repl, state):
     cache = []
     def compiled(match):
         try:
             return repl(match)
         except:
             if not cache:
-                cache.append(ReplVisitor(repl, alphabet))
+                cache.append(ReplVisitor(repl, state))
         return cache[0].evaluate(match)
     return compiled
 

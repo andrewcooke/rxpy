@@ -891,7 +891,7 @@ r"""strict digraph {
 }""")
 
     def test_conditional(self):
-        # in both cases, "no" is the first alternative
+        # in all cases, "no" is the first alternative
         self.assert_graphs(parse('(a)(?(1)b)'),
 """strict digraph {
  0 [label="("]
@@ -923,6 +923,43 @@ r"""strict digraph {
  3 -> 5
  5 -> 6
  4 -> 6
+}""")
+        # so here, 'no' goes to b and is before the direct jump to Match
+        # (3->4 before 3->5)
+        self.assert_graphs(parse('(a)(?(1)|b)'),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a"]
+ 2 [label=")"]
+ 3 [label="(?(1)...)"]
+ 4 [label="b"]
+ 5 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 3 -> 5
+ 4 -> 5
+}""")
+        self.assert_graphs(parse('(a)(?(1)|)'),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a"]
+ 2 [label=")"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+}""")
+        self.assert_graphs(parse('(a)(?(1))'),
+"""strict digraph {
+ 0 [label="("]
+ 1 [label="a"]
+ 2 [label=")"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
 }""")
         
     def test_character_escape(self):
@@ -956,9 +993,7 @@ r"""strict digraph {
 """strict digraph {
  0 [label="("]
  1 [label=")"]
- 2 [label="(?(1)...)"]
- 3 [label="Match"]
+ 2 [label="Match"]
  0 -> 1
  1 -> 2
- 2 -> 3
 }""")
