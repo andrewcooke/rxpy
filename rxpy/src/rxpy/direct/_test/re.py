@@ -68,7 +68,6 @@ class RegexObjectTest(TestCase):
         results = compile('x*').findall('a')
         assert len(results) == 2, results
         
-        
     def test_find_from_docs(self):
         assert search(r"[a-zA-Z]+ly", 
             "He was carefully disguised but captured quickly by police.")
@@ -93,6 +92,17 @@ class RegexObjectTest(TestCase):
         # this too
         results = sub('x*?', '-', 'abxd')
         assert results == '-a-b-x-d-', results
+        
+    def test_end_of_line(self):
+        results = list(compile('$').finditer('ab\n'))
+        assert len(results) == 2, results
+        assert results[0].group(0) == '', results[0].group(0)
+        assert results[0].span(0) == (2,2), results[0].span(0)
+        assert results[1].group(0) == '', results[1].group(0)
+        assert results[1].span(0) == (3,3), results[1].span(0)
+        
+        results = sub('$', 'x', 'ab\n')
+        assert results == 'abx\nx', results
 
 
 class EscapeTest(TestCase):

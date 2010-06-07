@@ -70,6 +70,7 @@ class RegexObject(object):
         while found:
             found = self.search(text, pos, endpos)
             if found:
+#                print('searchiter >' + found.group(0) + '<' + str(found.span(0)))
                 yield found
                 offset = found.end()
                 pos = offset if offset > pos else offset + 1 
@@ -110,21 +111,23 @@ class RegexObject(object):
             prev = None
             pending_empty = None
             for found in self.__searchiter(text):
+#                print('subn >' + found.group(0) + '<' + str(found.span(0)))
                 if pending_empty:
                     if pending_empty.end() < found.start():
                         yield pending_empty
+                        prev = pending_empty
                         count -= 1
                         if not count:
                             break
                     pending_empty = None
                 if found.group():
                     yield found
+                    prev = found
                     count -= 1
                     if not count:
                         break
                 elif not prev or prev.end() < found.start():
                     pending_empty = found
-                prev = found
             if pending_empty:
                 yield pending_empty
         replacement = compile_repl(repl, self.__state)

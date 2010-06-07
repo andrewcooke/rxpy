@@ -199,3 +199,4 @@ class VisitorTest(TestCase):
 
     def test_search(self):
         assert Visitor.from_parse_results(parse('a'), 'ab', search=True)
+        
