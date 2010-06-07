@@ -120,13 +120,14 @@ class _BaseNode(object):
         if cache is None:
             cache = {}
         copy = self.__class__(**self.__kargs())
+        cache[self] = copy
         copy.next = list(self.__clone_next(cache))
-        return copy
+        return cache[self]
         
     def __clone_next(self, cache):
         for next in self.next:
             if next not in cache:
-                cache[next] = next.clone(cache=cache)
+                next.clone(cache=cache)
             yield cache[next]
         
     def __kargs(self):
@@ -210,7 +211,8 @@ class _BaseSplit(_BaseNode):
     def concatenate(self, next):
         if next:
             if self.__connected:
-                raise GraphException('Node already connected')
+                raise GraphException('Node already connected: ' + 
+                                     self.__class__.__name__)
             if self.lazy:
                 self.next.insert(0, next.start)
             else:
@@ -223,10 +225,10 @@ class Split(_BaseSplit):
     
     def __init__(self, label, lazy=False):
         super(Split, self).__init__(lazy=lazy)
-        self.__label = label + ('?' if lazy else '')
+        self.label = label + ('?' if lazy else '')
         
     def __str__(self):
-        return self.__label
+        return self.label
 
     def visit(self, visitor, state=None):
         return visitor.split(self.next, state)
@@ -237,12 +239,12 @@ class Or(_BaseSplit):
     Used only when alternatives do not backtrack.
     '''
     
-    def __init__(self, label):
-        super(Or, self).__init__(lazy=True)
-        self.__label = label
+    def __init__(self, label, lazy=True):
+        super(Or, self).__init__(lazy=lazy)
+        self.label = label
         
     def __str__(self):
-        return self.__label
+        return self.label
 
     def visit(self, visitor, state=None):
         return visitor.or_(self.next, state)

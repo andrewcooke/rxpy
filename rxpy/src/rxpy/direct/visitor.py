@@ -299,7 +299,9 @@ class Visitor(_Visitor):
     def group_reference(self, next, number, state):
         try:
             text = state.groups.group(number)
-            if text:
+            if text is None:
+                raise Fail
+            elif text:
                 return (next[0], state.string(text))
             else:
                 return (next[0], state)

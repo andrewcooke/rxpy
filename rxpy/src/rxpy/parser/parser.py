@@ -188,7 +188,7 @@ class Alternatives(_BaseNode):
             cache = {}
         return Alternatives([sequence.clone(cache) 
                              for sequence in self.__sequences],
-                             self.__split, self.__join)
+                             self.__split.clone(cache), self.__join)
 
 
 class Merge(object):
@@ -349,7 +349,7 @@ class RepeatBuilder(StatefulBuilder):
     @staticmethod
     def build_plus(parent_sequence, latest, lazy):
         split = Split('...+', lazy)
-        # this (frozen) sequence protects "latest" from coallescing 
+        # this (frozen) sequence protects "latest" from coalescing 
         seq = Sequence([latest, split])
         split.next = [seq.start]
         parent_sequence._nodes.append(seq)
