@@ -32,7 +32,9 @@ class ParserState(object):
         # if alphabet given, set flag
         if alphabet:
             if isinstance(alphabet, Ascii): flags |= ParserState.ASCII
-            if isinstance(alphabet, Unicode): flags |= ParserState.UNICODE
+            elif isinstance(alphabet, Unicode): flags |= ParserState.UNICODE
+            elif flags & (ParserState.ASCII | ParserState.UNICODE):
+                raise ParseException('The alphabet is inconsistent with the parser flags')
         # if alphabet missing, set from flag
         else:
             if flags & ParserState.ASCII: alphabet = Ascii()
@@ -101,9 +103,10 @@ class Sequence(_BaseNode):
     if needed.
     '''
     
-    def __init__(self, nodes):
+    def __init__(self, nodes, state):
         self._nodes = nodes
         self._frozen = False
+        self._state = state
     
     def concatenate(self, next):
         self.__freeze()
@@ -122,7 +125,7 @@ class Sequence(_BaseNode):
                         old_nodes.extend(node._nodes)
                     elif isinstance(node, String):
                         if acc:
-                            acc.text = node.text + acc.text
+                            acc.text = self._state.alphabet.join(node.text, acc.text)
                         else:
                             acc = node
                     else:
@@ -150,7 +153,8 @@ class Sequence(_BaseNode):
     def clone(self, cache=None):
         if cache is None:
             cache = {}
-        return Sequence([node.clone(cache) for node in self._nodes])
+        return Sequence([node.clone(cache) for node in self._nodes],
+                        self._state)
     
     def __bool__(self):
         return bool(self._nodes)
@@ -284,7 +288,8 @@ class SequenceBuilder(StatefulBuilder):
         elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         elif character:
-            self._nodes.append(String(character))
+            self._nodes.append(String(
+                self._state.alphabet.join(self._state.alphabet.coerce(character))))
         return self
     
     def __start_new_alternative(self):
@@ -293,7 +298,7 @@ class SequenceBuilder(StatefulBuilder):
         
     def build_dag(self):
         self.__start_new_alternative()
-        sequences = map(Sequence, self._alternatives)
+        sequences = map(lambda x: Sequence(x, self._state), self._alternatives)
         if len(sequences) > 1:
             backtrack = self._state.flags & ParserState._BACKTRACK_OR
             return Alternatives(sequences,
@@ -329,7 +334,8 @@ class RepeatBuilder(StatefulBuilder):
         elif self._initial_character == '?':
             self.build_optional(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '+':
-            self.build_plus(self._parent_sequence, self._latest, lazy)
+            self.build_plus(self._parent_sequence, self._latest, lazy,
+                            self._state.alphabet)
         elif self._initial_character == '*':
             self.build_star(self._parent_sequence, self._latest, lazy)
         else:
@@ -347,10 +353,10 @@ class RepeatBuilder(StatefulBuilder):
         parent_sequence._nodes.append(Merge(latest, split))
     
     @staticmethod
-    def build_plus(parent_sequence, latest, lazy):
+    def build_plus(parent_sequence, latest, lazy, alphabet):
         split = Split('...+', lazy)
         # this (frozen) sequence protects "latest" from coalescing 
-        seq = Sequence([latest, split])
+        seq = Sequence([latest, split], alphabet)
         split.next = [seq.start]
         parent_sequence._nodes.append(seq)
         
@@ -467,7 +473,8 @@ class GroupBuilder(BaseGroupBuilder):
         contents = self.build_dag()
         if self._start:
             contents = Sequence([self._start, contents, 
-                                 EndGroup(self._start.number)])
+                                 EndGroup(self._start.number)],
+                                 self._state.alphabet)
         self._parent_sequence._nodes.append(contents)
         return self._parent_sequence
         
