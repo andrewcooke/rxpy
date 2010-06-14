@@ -15,76 +15,36 @@ def compile(pattern, flags=0, alphabet=None):
         if flags or alphabet:
             raise ValueError('Precompiled pattern')
     else:
-        pattern = RegexObject(pattern, flags=flags, alphabet=alphabet)
+        pattern = RegexObject(parse(pattern, flags=flags, alphabet=alphabet),
+                              pattern)
     return pattern
 
 
 class RegexObject(object):
     
-    def __init__(self, pattern, flags=0, alphabet=None):
+    def __init__(self, parsed, pattern=None):
+        self.__parsed = parsed
         self.__pattern = pattern
-        self.__flags = flags
-        self.__regex = _Regex(parse(self.__pattern, 
-                                    alphabet=alphabet, flags=flags))
         
+    @property
+    def __state(self):
+        return self.__parsed[0]
+
     @property
     def flags(self):
-        return self.__flags
+        return self.__state.flags
         
-    @property
-    def groups(self):
-        return self.__regex.state.group_count
-    
-    @property
-    def groupindex(self):
-        return self.__regex.state.group_names
-    
     @property
     def pattern(self):
         return self.__pattern
     
-    def scanner(self, text, pos=0, endpos=None):
-        return self.__regex.scanner(text, pos, endpos)
-        
-    def match(self, text, pos=0, endpos=None):
-        return self.__regex.match(text, pos=pos, endpos=endpos)
-    
-    def search(self, text, pos=0, endpos=None):
-        return self.__regex.search(text, pos=pos, endpos=endpos)
-        
-    def finditer(self, text, pos=0, endpos=None):
-        for found in self.__regex.finditer(text, pos=pos, endpos=endpos):
-            yield found
-
-    def subn(self, repl, text, count=0):
-        return self.__regex.subn(repl, text, count=count)
-    
-    def findall(self, text, pos=0, endpos=None):
-        return self.__regex.findall(text, pos=pos, endpos=endpos)
-    
-    def split(self, text, maxsplit=0):
-        return self.__regex.split(text, maxsplit=maxsplit)
-    
-    def sub(self, repl, text, count=0):
-        return self.__regex.sub(repl, text, count=count)
-    
-    
-class _Regex(object):
-    
-    def __init__(self, parsed):
-        self.__parsed = parsed
-        
-    @property
-    def state(self):
-        return self.__parsed[0]
-
     @property
     def groups(self):
-        return self.state.group_count
+        return self.__state.group_count
     
     @property
     def groupindex(self):
-        return self.state.group_names
+        return self.__state.group_names
     
     def scanner(self, text, pos=0, endpos=None):
         return MatchIterator(self, self.__parsed, text, pos, endpos)
@@ -150,7 +110,7 @@ class _Regex(object):
             yield pending_empty
             
     def subn(self, repl, text, count=0):
-        replacement = compile_repl(repl, self.state)
+        replacement = compile_repl(repl, self.__state)
         n = 0
         pos = 0
         results = []
@@ -193,8 +153,8 @@ class MatchIterator(object):
     None when no more calls will work.
     '''
     
-    def __init__(self, regex, parsed, text, pos=0, endpos=None):
-        self.__regex = regex
+    def __init__(self, re, parsed, text, pos=0, endpos=None):
+        self.__re = re
         self.__parsed = parsed
         self.__text = text
         self.__pos = pos
@@ -206,7 +166,7 @@ class MatchIterator(object):
                         self.__parsed, self.__text[:self.__endpos], 
                         pos=self.__pos, search=search)
             if visitor:
-                found = MatchObject(visitor.groups, self.__regex, self.__text, 
+                found = MatchObject(visitor.groups, self.__re, self.__text, 
                                     self.__pos, self.__endpos, self.__parsed[0])
                 offset = found.end()
                 self.__pos = offset if offset > self.__pos else offset + 1 
@@ -338,8 +298,8 @@ class Scanner(object):
     '''
 
     def __init__(self, pairs, flags=0, alphabet=None):
-        self.__regex = _Regex(parse_groups(map(lambda x: x[0], pairs), 
-                                           flags=flags, alphabet=alphabet))
+        self.__regex = RegexObject(parse_groups(map(lambda x: x[0], pairs), 
+                                                flags=flags, alphabet=alphabet))
         self.__actions = list(map(lambda x: x[1], pairs))
     
     def scaniter(self, text, pos=0, endpos=None, search=False):
