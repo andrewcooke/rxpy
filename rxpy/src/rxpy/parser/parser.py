@@ -285,9 +285,11 @@ class SequenceBuilder(StatefulBuilder):
             self.__start_new_alternative()
         for character in text:
             builder = builder.append_character(character)
-        builder = builder.append_character(')')
-        if self != builder:
-            raise ParseException('Incomplete expression')
+        try:
+            builder = builder.append_character(')')
+            assert builder == self
+        except:
+            raise ParseException('Incomplete group')
         
     def build_complete(self):
         return self.build_dag().concatenate(Match())
@@ -314,8 +316,13 @@ class SequenceBuilder(StatefulBuilder):
         elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         elif character:
-            self._nodes.append(String(
-                self._state.alphabet.join(self._state.alphabet.coerce(character))))
+            (is_charset, value) = self._state.alphabet.unpack(
+                                    character, 
+                                    self._state.flags & ParserState.IGNORECASE)
+            if is_charset:
+                self._nodes.append(value)
+            else:
+                self._nodes.append(String(value))
         return self
     
     def __start_new_alternative(self):
@@ -1114,7 +1121,10 @@ class ReplacementBuilder(StatefulBuilder):
         if not escaped and character == '\\':
             return ReplacementEscapeBuilder(self._state, self)
         elif character:
-            self._nodes.append(String(character))
+            # ignore case here - used only for replacement
+            self._nodes.append(
+                String(self._state.alphabet.join(
+                            self._state.alphabet.coerce(character))))
         return self
     
     def build_dag(self):

@@ -2,7 +2,7 @@
 from sys import maxunicode
 from unicodedata import category
 
-from rxpy.alphabet.base import Alphabet
+from rxpy.alphabet.base import Alphabet, CharSet
 
 
 WORD = set(['Ll', 'Lo', 'Lt', 'Lu', 'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc'])
@@ -53,3 +53,14 @@ class Unicode(Alphabet):
         # http://bugs.python.org/issue1693050
         return char and category(self.coerce(char)) in WORD
     
+    def unpack(self, char, nocase):
+        '''
+        Return either (True, CharSet) or (False, char)
+        '''
+        char = self.join(self.coerce(char))
+        if nocase:
+            lo = char.lower()
+            hi = char.upper()
+            if lo != hi:
+                return (True, CharSet([(lo,lo),(hi,hi)]))
+        return (False, char)

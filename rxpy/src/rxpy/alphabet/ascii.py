@@ -1,7 +1,7 @@
 
 from string import digits, ascii_letters
 
-from rxpy.alphabet.base import Alphabet
+from rxpy.alphabet.base import Alphabet, CharSet
 
 
 WORD = set(ascii_letters + digits + '_')
@@ -48,3 +48,15 @@ class Ascii(Alphabet):
         
     def word(self, char):
         return char in WORD
+    
+    def unpack(self, char, nocase):
+        '''
+        Return either (True, CharSet) or (False, char)
+        '''
+        char = self.join(self.coerce(char))
+        if nocase:
+            lo = char.lower()
+            hi = char.upper()
+            if lo != hi:
+                return (True, CharSet([(lo,lo),(hi,hi)]))
+        return (False, char)

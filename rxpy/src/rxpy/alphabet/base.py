@@ -88,6 +88,13 @@ class Alphabet(object):
         Test whether the character is a word character or not.
         '''
         raise UnsupportedOperation('word')
+    
+    def unpack(self, char, nocase):
+        '''
+        Return either (True, CharSet) or (False, char)
+        '''
+        assert not nocase, 'Default alphabet does not handle case'
+        return (False, self.join(self.coerce(char)))
         
         
 class CharSet(_BaseNode):
