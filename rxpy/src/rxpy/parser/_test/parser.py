@@ -1,6 +1,6 @@
 
 from rxpy.parser._test.lib import GraphTest
-from rxpy.parser.parser import parse, ParserState
+from rxpy.parser.parser import parse, ParserState, ParseException
 
 
 class ParserTest(GraphTest):
@@ -997,3 +997,33 @@ r"""strict digraph {
  0 -> 1
  1 -> 2
 }""")
+
+    def assert_flags(self, regexp, flags):
+        (state, _graph) = parse(regexp)
+        assert state.flags == flags, state.flags 
+        
+    def test_flags(self):
+        self.assert_flags('', 0)
+        self.assert_flags('(?i)', ParserState.IGNORECASE)
+        try:
+            self.assert_flags('(?L)', 0)
+            assert False
+        except ParseException:
+            pass
+        self.assert_flags('(?m)', ParserState.MULTILINE)
+        self.assert_flags('(?s)', ParserState.DOTALL)
+        self.assert_flags('(?u)', ParserState.UNICODE)
+        self.assert_flags('(?x)', ParserState.VERBOSE)
+        self.assert_flags('(?a)', ParserState.ASCII)
+        self.assert_flags('(?_s)', ParserState._STATEFUL)
+        self.assert_flags('(?_b)', ParserState._BACKTRACK_OR)
+        try:
+            self.assert_flags('(?imsuxa_s_b)', 0)
+            assert False
+        except ParseException:
+            pass
+        self.assert_flags('(?imsux_s_b)', 
+                          ParserState.IGNORECASE | ParserState.MULTILINE | 
+                          ParserState.DOTALL | ParserState.UNICODE |
+                          ParserState.VERBOSE |
+                          ParserState._STATEFUL | ParserState._BACKTRACK_OR)

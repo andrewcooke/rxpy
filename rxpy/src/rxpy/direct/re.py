@@ -1,83 +1,103 @@
 
 
-from rxpy.parser.parser import parse, ParserState, ParseException
+from rxpy.parser.parser import parse, ParserState, ParseException, parse_groups
 from rxpy.direct.visitor import Visitor, compile_repl
 from string import ascii_letters, digits
 
 
 (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = ParserState._FLAGS
 
-_LEAD = '_lead'
 _ALPHANUMERICS = ascii_letters + digits
 
 
-def compile(pattern, flags=0):
+def compile(pattern, flags=0, alphabet=None):
     if isinstance(pattern, RegexObject):
-        if flags:
+        if flags or alphabet:
             raise ValueError('Precompiled pattern')
     else:
-        pattern = RegexObject(pattern, flags=flags)
+        pattern = RegexObject(pattern, flags=flags, alphabet=alphabet)
     return pattern
 
 
 class RegexObject(object):
     
-    def __init__(self, pattern, flags=0):
+    def __init__(self, pattern, flags=0, alphabet=None):
         self.__pattern = pattern
         self.__flags = flags
-        self.__parsed = parse(self.__pattern, flags=flags)
-        self.__search = None
+        self.__regex = _Regex(parse(self.__pattern, 
+                                    alphabet=alphabet, flags=flags))
         
-    @property
-    def __state(self):
-        return self.__parsed[0]
-
     @property
     def flags(self):
         return self.__flags
         
     @property
     def groups(self):
-        return self.__state.group_count
+        return self.__regex.state.group_count
     
     @property
     def groupindex(self):
-        return self.__state.group_names
+        return self.__regex.state.group_names
     
     @property
     def pattern(self):
         return self.__pattern
+    
+    def scanner(self, text, pos=0, endpos=None):
+        return self.__regex.scanner(text, pos, endpos)
         
     def match(self, text, pos=0, endpos=None):
-        return self.__match(text, pos=pos, endpos=endpos)
+        return self.__regex.match(text, pos=pos, endpos=endpos)
     
     def search(self, text, pos=0, endpos=None):
-        return self.__match(text, pos=pos, endpos=endpos, search=True)
-    
-    def __match(self, text, pos=0, endpos=None, search=False):
-        if endpos is not None:
-            text = text[0:endpos]
-        if pos <= len(text):
-            visitor = Visitor.from_parse_results(self.__parsed, text, 
-                                                 pos=pos, search=search)
-            if visitor:
-                return MatchObject(visitor.groups, self, text, pos, len(text),
-                                   self.__state)
-        return None
+        return self.__regex.search(text, pos=pos, endpos=endpos)
         
-    def __searchiter(self, text, pos=0, endpos=None):
-        found = True
-        while found:
-            found = self.search(text, pos, endpos)
-            if found:
-#                print('searchiter >' + found.group(0) + '<' + str(found.span(0)))
-                yield found
-                offset = found.end()
-                pos = offset if offset > pos else offset + 1 
+    def finditer(self, text, pos=0, endpos=None):
+        for found in self.__regex.finditer(text, pos=pos, endpos=endpos):
+            yield found
 
+    def subn(self, repl, text, count=0):
+        return self.__regex.subn(repl, text, count=count)
+    
+    def findall(self, text, pos=0, endpos=None):
+        return self.__regex.findall(text, pos=pos, endpos=endpos)
+    
+    def split(self, text, maxsplit=0):
+        return self.__regex.split(text, maxsplit=maxsplit)
+    
+    def sub(self, repl, text, count=0):
+        return self.__regex.sub(repl, text, count=count)
+    
+    
+class _Regex(object):
+    
+    def __init__(self, parsed):
+        self.__parsed = parsed
+        
+    @property
+    def state(self):
+        return self.__parsed[0]
+
+    @property
+    def groups(self):
+        return self.state.group_count
+    
+    @property
+    def groupindex(self):
+        return self.state.group_names
+    
+    def scanner(self, text, pos=0, endpos=None):
+        return MatchIterator(self, self.__parsed, text, pos, endpos)
+        
+    def match(self, text, pos=0, endpos=None):
+        return self.scanner(text, pos=pos, endpos=endpos).match()
+    
+    def search(self, text, pos=0, endpos=None):
+        return self.scanner(text, pos=pos, endpos=endpos).search()
+        
     def finditer(self, text, pos=0, endpos=None):
         pending_empty = None
-        for found in self.__searchiter(text, pos=pos, endpos=endpos):
+        for found in self.scanner(text, pos=pos, endpos=endpos).searchiter():
             # this is the "not touching" condition
             if pending_empty:
                 if pending_empty.end() < found.start():
@@ -103,38 +123,38 @@ class RegexObject(object):
                 if not maxsplit:
                     break
         yield text[pos:]
-            
-    def subn(self, repl, text, count=0):
-        def subiter(count):
-            # this implements the "not adjacent" condition
-            count = count if count else -1
-            prev = None
-            pending_empty = None
-            for found in self.__searchiter(text):
-#                print('subn >' + found.group(0) + '<' + str(found.span(0)))
-                if pending_empty:
-                    if pending_empty.end() < found.start():
-                        yield pending_empty
-                        prev = pending_empty
-                        count -= 1
-                        if not count:
-                            break
-                    pending_empty = None
-                if found.group():
-                    yield found
-                    prev = found
+        
+    def subiter(self, text, count=0):
+        # this implements the "not adjacent" condition
+        count = count if count else -1
+        prev = None
+        pending_empty = None
+        for found in self.scanner(text).searchiter():
+            if pending_empty:
+                if pending_empty.end() < found.start():
+                    yield pending_empty
+                    prev = pending_empty
                     count -= 1
                     if not count:
                         break
-                elif not prev or prev.end() < found.start():
-                    pending_empty = found
-            if pending_empty:
-                yield pending_empty
-        replacement = compile_repl(repl, self.__state)
+                pending_empty = None
+            if found.group():
+                yield found
+                prev = found
+                count -= 1
+                if not count:
+                    break
+            elif not prev or prev.end() < found.start():
+                pending_empty = found
+        if pending_empty and count:
+            yield pending_empty
+            
+    def subn(self, repl, text, count=0):
+        replacement = compile_repl(repl, self.state)
         n = 0
         pos = 0
         results = []
-        for found in subiter(count):
+        for found in self.subiter(text, count):
             results.append(text[pos:found.start()])
             results.append(replacement(found))
             n += 1
@@ -159,6 +179,62 @@ class RegexObject(object):
     
     def sub(self, repl, text, count=0):
         return self.subn(repl, text, count=count)[0]
+    
+    
+class MatchIterator(object):
+    '''
+    A compiled regexp and a string, plus offset state.
+    
+    Originally, this was implemented as generators in RegexObject, but the 
+    standard tests imply the existence of this (otherwise undocumented)
+    class.
+    
+    Successive calls to match and search increment indices.  Methods return
+    None when no more calls will work.
+    '''
+    
+    def __init__(self, regex, parsed, text, pos=0, endpos=None):
+        self.__regex = regex
+        self.__parsed = parsed
+        self.__text = text
+        self.__pos = pos
+        self.__endpos = endpos if endpos else len(text)
+    
+    def next(self, search):
+        if self.__pos <= self.__endpos:
+            visitor = Visitor.from_parse_results(
+                        self.__parsed, self.__text[:self.__endpos], 
+                        pos=self.__pos, search=search)
+            if visitor:
+                found = MatchObject(visitor.groups, self.__regex, self.__text, 
+                                    self.__pos, self.__endpos, self.__parsed[0])
+                offset = found.end()
+                self.__pos = offset if offset > self.__pos else offset + 1 
+                return found
+        return None
+    
+    def match(self):
+        return self.next(False)
+    
+    def search(self):
+        return self.next(True)
+    
+    def iter(self, search):
+        while True:
+            found = self.next(search)
+            if found is None:
+                break
+            yield found
+    
+    def matchiter(self):
+        return self.iter(False)
+            
+    def searchiter(self):
+        return self.iter(True)
+    
+    @property
+    def remaining(self):
+        return self.__text[self.__pos:]
     
 
 class MatchObject(object):
@@ -203,7 +279,7 @@ class MatchObject(object):
     def expand(self, repl):
         replacement = compile_repl(repl, self.__state)
         return replacement(self)
-        
+    
     @property
     def regs(self):
         '''
@@ -253,3 +329,29 @@ def escape(text):
                 yield '\\'
             yield letter
     return type(text)('').join(list(letters()))
+
+
+class Scanner(object):
+    '''
+    Also undocumented in the Python docs.
+    http://code.activestate.com/recipes/457664-hidden-scanner-functionality-in-re-module/
+    '''
+
+    def __init__(self, pairs, flags=0, alphabet=None):
+        self.__regex = _Regex(parse_groups(map(lambda x: x[0], pairs), 
+                                           flags=flags, alphabet=alphabet))
+        self.__actions = list(map(lambda x: x[1], pairs))
+    
+    def scaniter(self, text, pos=0, endpos=None, search=False):
+        return self.__scaniter(self.__regex.scanner(text, pos=pos, endpos=endpos))
+
+    def scan(self, text, pos=0, endpos=None, search=False):
+        scanner = self.__regex.scanner(text, pos=pos, endpos=endpos)
+        return (list(self.__scaniter(scanner)), scanner.remaining)
+                     
+    def __scaniter(self, scanner):
+        for found in scanner.iter(search):
+            if self.__actions[found.lastindex-1]:
+                yield self.__actions[found.lastindex-1](self, found.group())
+        
+    

@@ -24,13 +24,16 @@ class ParserState(object):
     
     _FLAGS = (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR)
     
-    def __init__(self, alphabet=None, flags=0):
+    def __init__(self, flags=0, alphabet=None):
         
-        # default is unicode
+        self.__new_flags = 0
+        self.__initial_alphabet = alphabet
+        
+        # default, if nothing specified, is unicode
         if alphabet is None and not (flags & (ParserState.ASCII | ParserState.UNICODE)):
-            flags |= ParserState.UNICODE
-        # if alphabet given, set flag
-        if alphabet:
+            alphabet = Unicode()
+        # else, if alphabet given, set flag
+        elif alphabet:
             if isinstance(alphabet, Ascii): flags |= ParserState.ASCII
             elif isinstance(alphabet, Unicode): flags |= ParserState.UNICODE
             elif flags & (ParserState.ASCII | ParserState.UNICODE):
@@ -43,12 +46,19 @@ class ParserState(object):
         if (flags & ParserState.ASCII) and (flags & ParserState.UNICODE):
             raise ParseException('Cannot specify Unicode and ASCII together')
         
-        self.__new_flags = 0
         self.__alphabet = alphabet
         self.__flags = flags
         self.__group_count = 0
         self.__name_to_count = {}
         self.__count_to_name = {}
+        
+    @property
+    def has_new_flags(self):
+        return bool(self.__new_flags & ~self.__flags)
+    
+    def clone_with_new_flags(self):
+        return ParserState(alphabet=self.__initial_alphabet, 
+                           flags=self.__flags | self.__new_flags)
         
     def next_group_count(self, name=None):
         self.__group_count += 1
@@ -69,6 +79,9 @@ class ParserState(object):
         except:
             return self.count_for_name(name)
         
+    def new_flag(self, flag):
+        self.__new_flags |= flag
+        
     @property
     def alphabet(self):
         return self.__alphabet
@@ -76,10 +89,6 @@ class ParserState(object):
     @property
     def flags(self):
         return self.__flags
-    
-    @property
-    def new_flags(self):
-        return self.__new_flags
     
     @property
     def group_names(self):
@@ -106,6 +115,7 @@ class Sequence(_BaseNode):
     def __init__(self, nodes, state):
         self._nodes = nodes
         self._frozen = False
+        assert isinstance(state, ParserState)
         self._state = state
     
     def concatenate(self, next):
@@ -264,6 +274,22 @@ class SequenceBuilder(StatefulBuilder):
         builder = builder.append_character(None)
         if self != builder:
             raise ParseException('Incomplete expression')
+        return self.build_complete()
+    
+    def parse_group(self, text):
+        '''
+        Used to parse a set of groups for the Scanner.
+        '''
+        builder = GroupBuilder(self._state, self)
+        if self._nodes:
+            self.__start_new_alternative()
+        for character in text:
+            builder = builder.append_character(character)
+        builder = builder.append_character(')')
+        if self != builder:
+            raise ParseException('Incomplete expression')
+        
+    def build_complete(self):
         return self.build_dag().concatenate(Match())
     
     def append_character(self, character, escaped=False):
@@ -335,7 +361,7 @@ class RepeatBuilder(StatefulBuilder):
             self.build_optional(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '+':
             self.build_plus(self._parent_sequence, self._latest, lazy,
-                            self._state.alphabet)
+                            self._state)
         elif self._initial_character == '*':
             self.build_star(self._parent_sequence, self._latest, lazy)
         else:
@@ -353,10 +379,10 @@ class RepeatBuilder(StatefulBuilder):
         parent_sequence._nodes.append(Merge(latest, split))
     
     @staticmethod
-    def build_plus(parent_sequence, latest, lazy, alphabet):
+    def build_plus(parent_sequence, latest, lazy, state):
         split = Split('...+', lazy)
         # this (frozen) sequence protects "latest" from coalescing 
-        seq = Sequence([latest, split], alphabet)
+        seq = Sequence([latest, split], state)
         split.next = [seq.start]
         parent_sequence._nodes.append(seq)
         
@@ -387,7 +413,7 @@ class GroupEscapeBuilder(StatefulBuilder):
                 return GroupBuilder(self._state, self._parent_sequence, 
                                     binding=False)
             elif character in ParserStateBuilder.INITIAL:
-                return ParserStateBuilder(self._state, self._parent_sequence)
+                return ParserStateBuilder(self._state, self._parent_sequence).append_character(character)
             elif character == 'P':
                 return NamedGroupBuilder(self._state, self._parent_sequence)
             elif character == '#':
@@ -429,10 +455,13 @@ class ParserStateBuilder(StatefulBuilder):
             self.__escape = True
             return self
         elif self.__escape and character in 'sb':
-            self._state.new_flag(self.__table('_' + character))
+            self._state.new_flag(self.__table['_' + character])
+            self.__escape = False
             return self
-        elif not self.__escape and character in 'iLmsuxa':
-            self.flags |= self.__table(character)
+        elif not self.__escape and character == 'L':
+            raise ParseException('Locale based classes unsupported')
+        elif not self.__escape and character in self.__table:
+            self._state.new_flag(self.__table[character])
             return self
         elif not self.__escape and character == ')':
             return self.__parent
@@ -472,12 +501,11 @@ class GroupBuilder(BaseGroupBuilder):
     def _build_group(self):
         contents = self.build_dag()
         if self._start:
-            contents = Sequence([self._start, contents, 
-                                 EndGroup(self._start.number)],
-                                 self._state.alphabet)
+            contents = Sequence([self._start, contents, EndGroup(self._start.number)],
+                                 self._state)
         self._parent_sequence._nodes.append(contents)
         return self._parent_sequence
-        
+    
 
 class LookbackBuilder(StatefulBuilder):
     
@@ -962,25 +990,36 @@ class CountBuilder(StatefulBuilder):
         parent_sequence._nodes.append(count)
                         
         
-def _parse(text, alphabet=None, flags=0, state=None, class_=SequenceBuilder):
-    if state is None:
-        state = ParserState(alphabet=alphabet, flags=flags)
-    else:
-        alphabet = state.alphabet
-        flags = state.flags
+def _parse(text, state, class_=SequenceBuilder, mutable_flags=True):
+    '''
+    Parse the text using the given builder (SequenceBuilder by default).
+    
+    If the expression sets flags then it is parsed again.  If it changes flags
+    on the second parse then an error is raised.
+    '''
     graph = class_(state).parse(text)
-    if state.new_flags & ~flags:
-        state = ParserState(alphabet=alphabet, flags=flags | state.new_flags)
+    if mutable_flags and state.has_new_flags:
+        state = state.clone_with_new_flags()
         graph = SequenceBuilder(state).parse(text)
-    if state.new_flags & ~flags:
+    if state.has_new_flags:
         raise ParseException('Inconsistent flags')
     return (state, graph)
 
-def parse(text, alphabet=None, flags=0):
-    return _parse(text, alphabet=alphabet, flags=flags)
+def parse(text, flags=0, alphabet=None):
+    state = ParserState(flags=flags, alphabet=alphabet)
+    return _parse(text, state)
 
 def parse_repl(text, state):
-    return _parse(text, state=state, class_=ReplacementBuilder)
+    return _parse(text, state, class_=ReplacementBuilder, mutable_flags=False)
+
+def parse_groups(texts, flags=0, alphabet=None):
+    state = ParserState(flags=flags, alphabet=alphabet)
+    sequence = SequenceBuilder(state)
+    for text in texts:
+        sequence.parse_group(text)
+    if state.has_new_flags:
+        raise ParseException('Inconsistent flags')
+    return (state, sequence.build_complete())
 
 
 class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
@@ -1079,5 +1118,5 @@ class ReplacementBuilder(StatefulBuilder):
         return self
     
     def build_dag(self):
-        return Sequence(self._nodes)
+        return Sequence(self._nodes, self._state)
 

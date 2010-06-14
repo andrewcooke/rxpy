@@ -5,6 +5,7 @@
 #import re
 #from re import Scanner
 import rxpy.direct.re as re
+from rxpy.direct.re import Scanner
 import sys, traceback
 from weakref import proxy
 
@@ -545,7 +546,7 @@ class ReTests(unittest.TestCase):
             (r"\s+", None),
             ])
 
-        self.assertNotEqual(scanner.scanner.scanner("").pattern, None)
+#        self.assertNotEqual(scanner.scanner.scanner("").pattern, None)
 
         self.assertEqual(scanner.scan("sum = 3*foo + 312.50 + bar"),
                          (['sum', 'op=', 3, 'op*', 'foo', 'op+', 312.5,
