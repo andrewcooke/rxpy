@@ -30,6 +30,7 @@ class State(object):
         if self.__stream:
             self.__offset += 1
             self.__groups.start_group(0, self.__offset)
+            self.__previous = self.__stream[0]
             self.__stream = self.__stream[1:]
             return True
         else:
@@ -433,22 +434,23 @@ class Visitor(_Visitor):
 class ReplVisitor(_Visitor):
     
     def __init__(self, repl, state):
-        (_state, self.__graph) = parse_repl(repl, state)
+        (self.__state, self.__graph) = parse_repl(repl, state)
     
     def evaluate(self, match):
-        self.__result = ''
+        self.__result = self.__state.alphabet.join()
         graph = self.__graph
         while graph:
             (graph, match) = graph.visit(self, match)
         return self.__result
     
     def string(self, next, text, match):
-        self.__result += text
+        self.__result = self.__state.alphabet.join(self.__result, text)
         return (next[0], match)
     
     def group_reference(self, next, number, match):
         try:
-            self.__result += match.group(number)
+            self.__result = self.__state.alphabet.join(self.__result, 
+                                                       match.group(number))
             return (next[0], match)
         # raised when match.group returns None
         except TypeError:

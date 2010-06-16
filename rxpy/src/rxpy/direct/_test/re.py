@@ -2,6 +2,7 @@
 from unittest import TestCase
 
 from rxpy.direct.re import compile, escape, findall, search, sub
+from rxpy.parser.parser import ParserState
 
 
 class GroupsTest(TestCase):
@@ -114,3 +115,22 @@ class EscapeTest(TestCase):
         result = compile(esc).match(text)
         assert result
 
+
+class SubStringsTest(TestCase):
+    
+    def test_types(self):
+        '''
+        In general, you get out whatever alphabet you used.  However, when the
+        text is Unicode that forces the output to Unicode (because Unicode + 
+        ASCII = Unicode).
+        '''
+        for pattern in ('.', 'a', u'u'):
+            for text in ('a', 'u', u'a', u'u'):
+                for repl in ('A', u'U'):
+                    for flags in (0, ParserState.ASCII, ParserState.UNICODE):
+                        s = sub(pattern, repl, text, flags=flags)
+                        print(pattern, text, repl, flags, s)
+                        if flags == ParserState.ASCII and type(text) != unicode:
+                            assert type(s) == str, type(s)
+                        else:
+                            assert type(s) == unicode, type(s)

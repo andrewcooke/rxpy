@@ -17,13 +17,13 @@ class Ascii(Alphabet):
         super(Ascii, self).__init__(0, 127)
         
     def code_to_char(self, code):
-        return unichr(code)
+        return chr(code % 256)
     
     def char_to_code(self, char):
         return ord(char)
         
     def coerce(self, char):
-        return unicode(char)
+        return str(char)
     
     def join(self, *strings):
         return self.coerce('').join(strings)
@@ -35,10 +35,7 @@ class Ascii(Alphabet):
         Note - this is the basis of hash and equality for intervals, so must
         be unique, repeatable, etc.
         '''
-        text = repr(unicode(char))
-        if text[0] == 'u':
-            text = text[1:]
-        return text[1:-1]
+        return repr(char)[1:-1]
 
     def digit(self, char):
         return char in digits
@@ -49,12 +46,13 @@ class Ascii(Alphabet):
     def word(self, char):
         return char in WORD
     
-    def unpack(self, char, nocase):
+    def unpack(self, char, flags):
         '''
         Return either (True, CharSet) or (False, char)
         '''
+        from rxpy.parser.parser import ParserState
         char = self.join(self.coerce(char))
-        if nocase:
+        if flags & ParserState.IGNORECASE:
             lo = char.lower()
             hi = char.upper()
             if lo != hi:

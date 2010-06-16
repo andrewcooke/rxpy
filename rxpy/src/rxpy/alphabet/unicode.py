@@ -53,12 +53,13 @@ class Unicode(Alphabet):
         # http://bugs.python.org/issue1693050
         return char and category(self.coerce(char)) in WORD
     
-    def unpack(self, char, nocase):
+    def unpack(self, char, flags):
         '''
         Return either (True, CharSet) or (False, char)
         '''
+        from rxpy.parser.parser import ParserState
         char = self.join(self.coerce(char))
-        if nocase:
+        if flags & ParserState.IGNORECASE:
             lo = char.lower()
             hi = char.upper()
             if lo != hi:

@@ -7,31 +7,30 @@ from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
     Repeat, Conditional, WordBoundary, Word, Space, Digit, Or
+from rxpy.lib import _FLAGS, ParseException
 
 
 OCTAL = '01234567'
 ALPHANUMERIC = digits + ascii_letters
 
 
-class ParseException(Exception):
-    pass
-
-
 class ParserState(object):
     
-    (I, M, S, U, X, A, _S, _B) = map(lambda x: 2**x, range(8))
-    (IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = (I, M, S, U, X, A, _S, _B)
+    (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _FLAGS
     
-    _FLAGS = (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR)
-    
-    def __init__(self, flags=0, alphabet=None):
+    def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
+                 group_count=0, name_to_count=None, count_to_name=None):
+        '''
+        hint_alphabet is used to help adapt between ASCII and Unicode in 2.6
+        '''
         
         self.__new_flags = 0
         self.__initial_alphabet = alphabet
+        self.__hint_alphabet = hint_alphabet
         
         # default, if nothing specified, is unicode
         if alphabet is None and not (flags & (ParserState.ASCII | ParserState.UNICODE)):
-            alphabet = Unicode()
+            alphabet = hint_alphabet if hint_alphabet else Unicode()
         # else, if alphabet given, set flag
         elif alphabet:
             if isinstance(alphabet, Ascii): flags |= ParserState.ASCII
@@ -48,17 +47,24 @@ class ParserState(object):
         
         self.__alphabet = alphabet
         self.__flags = flags
-        self.__group_count = 0
-        self.__name_to_count = {}
-        self.__count_to_name = {}
+        self.__group_count = group_count
+        self.__name_to_count = name_to_count if name_to_count else {}
+        self.__count_to_name = count_to_name if count_to_name else {}
         
     @property
     def has_new_flags(self):
         return bool(self.__new_flags & ~self.__flags)
     
-    def clone_with_new_flags(self):
-        return ParserState(alphabet=self.__initial_alphabet, 
-                           flags=self.__flags | self.__new_flags)
+    def clone_with_new_flags(self, alphabet=None, flags=None):
+        if alphabet is None:
+            alphabet = self.__initial_alphabet
+        if flags is None:
+            flags = self.__flags | self.__new_flags
+        return ParserState(alphabet=alphabet, flags=flags, 
+                           hint_alphabet=self.__hint_alphabet,
+                           group_count=self.__group_count,
+                           name_to_count=dict(self.__name_to_count),
+                           count_to_name=dict(self.__count_to_name))
         
     def next_group_count(self, name=None):
         self.__group_count += 1
@@ -295,9 +301,7 @@ class SequenceBuilder(StatefulBuilder):
         return self.build_dag().concatenate(Match())
     
     def append_character(self, character, escaped=False):
-        if not escaped and character and character in ')]}':
-            raise ParseException('Unexpected ' + character)
-        elif not escaped and character == '\\':
+        if not escaped and character == '\\':
             return ComplexEscapeBuilder(self._state, self)
         elif not escaped and character == '{':
             return CountBuilder(self._state, self)
@@ -316,9 +320,8 @@ class SequenceBuilder(StatefulBuilder):
         elif character and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
         elif character:
-            (is_charset, value) = self._state.alphabet.unpack(
-                                    character, 
-                                    self._state.flags & ParserState.IGNORECASE)
+            (is_charset, value) = self._state.alphabet.unpack(character, 
+                                                              self._state.flags)
             if is_charset:
                 self._nodes.append(value)
             else:
@@ -760,16 +763,20 @@ class SimpleEscapeBuilder(StatefulBuilder):
         if not character:
             raise ParseException('Incomplete character escape')
         elif character in 'xuU':
-            return UnicodeEscapeBuilder(self._parent_builder, character)
+            return UnicodeEscapeBuilder(self._state, self._parent_builder, character)
         elif character in digits:
-            return OctalEscapeBuilder(self._parent_builder, character)
+            return OctalEscapeBuilder(self._state, self._parent_builder, character)
         elif character in self.__std_escapes:
             return self._parent_builder.append_character(
                         self.__std_escapes[character], escaped=True)
         elif character not in ascii_letters: # matches re.escape
             return self._parent_builder.append_character(character, escaped=True)
         else:
-            raise ParseException('Unexpected escape: ' + character)
+            return self._unexpected_character(character)
+            
+    def _unexpected_character(self, character):
+        self._parent_builder.append_character(character, escaped=True)
+        return self._parent_builder
     
 
 class IntermediateEscapeBuilder(SimpleEscapeBuilder):
@@ -781,7 +788,7 @@ class IntermediateEscapeBuilder(SimpleEscapeBuilder):
         if not character:
             raise ParseException('Incomplete character escape')
         elif character in digits and character != '0':
-            return GroupReferenceBuilder(self._parent_builder, character)
+            return GroupReferenceBuilder(self._state, self._parent_builder, character)
         else:
             return super(IntermediateEscapeBuilder, self).append_character(character)
         
@@ -795,7 +802,7 @@ class ComplexEscapeBuilder(IntermediateEscapeBuilder):
         if not character:
             raise ParseException('Incomplete character escape')
         elif character in digits and character != '0':
-            return GroupReferenceBuilder(self._parent_builder, character)
+            return GroupReferenceBuilder(self._state, self._parent_builder, character)
         elif character == 'A':
             self._parent_builder._nodes.append(StartOfLine(False))
             return self._parent_builder
@@ -818,12 +825,12 @@ class ComplexEscapeBuilder(IntermediateEscapeBuilder):
             return super(ComplexEscapeBuilder, self).append_character(character)
         
 
-class UnicodeEscapeBuilder(Builder):
+class UnicodeEscapeBuilder(StatefulBuilder):
     
     LENGTH = {'x': 2, 'u': 4, 'U': 8}
     
-    def __init__(self, parent, initial):
-        super(UnicodeEscapeBuilder, self).__init__()
+    def __init__(self, state, parent, initial):
+        super(UnicodeEscapeBuilder, self).__init__(state)
         self.__parent_builder = parent
         self.__buffer = ''
         self.__remaining = self.LENGTH[initial]
@@ -837,22 +844,23 @@ class UnicodeEscapeBuilder(Builder):
             return self
         try:
             return self.__parent_builder.append_character(
-                        unichr(int(self.__buffer, 16)), escaped=True)
+                    self._state.alphabet.code_to_char(int(self.__buffer, 16)), 
+                    escaped=True)
         except:
             raise ParseException('Bad unicode escape: ' + self.__buffer)
     
 
-class OctalEscapeBuilder(Builder):
+class OctalEscapeBuilder(StatefulBuilder):
     
-    def __init__(self, parent, initial=0):
-        super(OctalEscapeBuilder, self).__init__()
+    def __init__(self, state, parent, initial=0):
+        super(OctalEscapeBuilder, self).__init__(state)
         self.__parent_builder = parent
         self.__buffer = initial
         
     @staticmethod
-    def decode(buffer):
+    def decode(buffer, alphabet):
         try:
-            return unichr(int(buffer, 8))
+            return alphabet.code_to_char(int(buffer, 8))
         except:
             raise ParseException('Bad octal escape: ' + buffer)
         
@@ -861,19 +869,21 @@ class OctalEscapeBuilder(Builder):
             self.__buffer += character
             if len(self.__buffer) == 3:
                 return self.__parent_builder.append_character(
-                            self.decode(self.__buffer), escaped=True)
+                            self.decode(self.__buffer, self._state.alphabet), 
+                            escaped=True)
             else:
                 return self
         else:
             chain = self.__parent_builder.append_character(
-                            self.decode(self.__buffer), escaped=True)
+                            self.decode(self.__buffer, self._state.alphabet), 
+                            escaped=True)
             return chain.append_character(character)
     
 
-class GroupReferenceBuilder(Builder):
+class GroupReferenceBuilder(StatefulBuilder):
     
-    def __init__(self, parent, initial):
-        super(GroupReferenceBuilder, self).__init__()
+    def __init__(self, state, parent, initial):
+        super(GroupReferenceBuilder, self).__init__(state)
         self.__parent_sequence = parent
         self.__buffer = initial
         
@@ -887,16 +897,21 @@ class GroupReferenceBuilder(Builder):
     
     def __decode(self):
         try:
-            return GroupReference(int(self.__buffer))
+            index = int(self.__buffer)
+            assert index <= self._state.group_count
+            return GroupReference(index)
         except:
             raise ParseException('Bad group reference: ' + self.__buffer)
         
     def append_character(self, character):
-        if character and character in digits:
+        if character and (
+                (character in digits and len(self.__buffer) < 2) or 
+                (character in OCTAL and len(self.__buffer) < 3)):
             self.__buffer += character
             if self.__octal():
                 return self.__parent_sequence.append_character(
-                            OctalEscapeBuilder.decode(self.__buffer), 
+                            OctalEscapeBuilder.decode(self.__buffer, 
+                                                      self._state.alphabet), 
                             escaped=True)
             else:
                 return self
@@ -1012,8 +1027,9 @@ def _parse(text, state, class_=SequenceBuilder, mutable_flags=True):
         raise ParseException('Inconsistent flags')
     return (state, graph)
 
-def parse(text, flags=0, alphabet=None):
-    state = ParserState(flags=flags, alphabet=alphabet)
+def parse(text, flags=0, alphabet=None, hint_alphabet=None):
+    state = ParserState(flags=flags, alphabet=alphabet, 
+                        hint_alphabet=hint_alphabet)
     return _parse(text, state)
 
 def parse_repl(text, state):
@@ -1039,6 +1055,14 @@ class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
                                                     self._parent_builder)
         else:
             return super(ReplacementEscapeBuilder, self).append_character(character)
+        
+    def _unexpected_character(self, character):
+        '''
+        Unexpected escapes are preserved during substitution.
+        '''
+        self._parent_builder.append_character('\\', escaped=True)
+        self._parent_builder.append_character(character, escaped=True)
+        return self._parent_builder
         
         
 class ReplacementGroupReferenceBuilder(StatefulBuilder):
@@ -1105,6 +1129,8 @@ class ReplacementBuilder(StatefulBuilder):
     '''
     
     def __init__(self, state):
+        # we want to preserve the type of the output in python2.6; that means
+        # switching between ASCII and Unicode depending on the input.
         super(ReplacementBuilder, self).__init__(state)
         self._nodes = []
         

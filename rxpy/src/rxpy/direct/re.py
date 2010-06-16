@@ -1,11 +1,14 @@
 
 
-from rxpy.parser.parser import parse, ParserState, ParseException, parse_groups
+from rxpy.parser.parser import parse, ParseException, parse_groups
 from rxpy.direct.visitor import Visitor, compile_repl
 from string import ascii_letters, digits
+from rxpy.lib import _FLAGS
+from rxpy.alphabet.ascii import Ascii
+from rxpy.alphabet.unicode import Unicode
 
 
-(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = ParserState._FLAGS
+(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _FLAGS
 
 _ALPHANUMERICS = ascii_letters + digits
 
@@ -15,7 +18,14 @@ def compile(pattern, flags=0, alphabet=None):
         if flags or alphabet:
             raise ValueError('Precompiled pattern')
     else:
-        pattern = RegexObject(parse(pattern, flags=flags, alphabet=alphabet),
+        if isinstance(pattern, str):
+            hint_alphabet = Ascii()
+        elif isinstance(pattern, unicode):
+            hint_alphabet = Unicode()
+        else:
+            hint_alphabet = None
+        pattern = RegexObject(parse(pattern, flags=flags, alphabet=alphabet,
+                                    hint_alphabet=hint_alphabet),
                               pattern)
     return pattern
 
@@ -120,7 +130,7 @@ class RegexObject(object):
             n += 1
             pos = found.end()
         results += text[pos:]
-        return (type(text)('').join(results), n)
+        return (self.__state.alphabet.join(*results), n)
     
     def findall(self, text, pos=0, endpos=None):
         def expand(match):
@@ -251,32 +261,42 @@ class MatchObject(object):
         return tuple(groups)
     
     
-def match(pattern, text, flags=0):
-    return compile(pattern, flags=flags).match(text)
+def match(pattern, text, flags=0, alphabet=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).match(text)
 
 
-def search(pattern, text, flags=0):
+def search(pattern, text, flags=0, alphabet=None):
     return compile(pattern, flags=flags).search(text)
 
 
-def findall(pattern, text, flags=0):
-    return compile(pattern, flags=flags).findall(text)
+def findall(pattern, text, flags=0, alphabet=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).findall(text)
 
 
-def finditer(pattern, text, flags=0):
-    return compile(pattern, flags=flags).finditer(text)
+def finditer(pattern, text, flags=0, alphabet=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).finditer(text)
 
 
-def sub(pattern, repl, text, count=0):
-    return compile(pattern).sub(repl, text, count=count)
+def sub(pattern, repl, text, count=0, flags=0, alphabet=None):
+    '''
+    Find `pattern` in `text` and replace it with `repl`; limit this to
+    `count` replacements (from left) if `count > 0`.
+    '''
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).sub(repl, text, count=count)
 
 
-def subn(pattern, repl, text, count=0):
-    return compile(pattern).subn(repl, text, count=count)
+def subn(pattern, repl, text, count=0, flags=0, alphabet=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).subn(repl, text, count=count)
 
 
-def split(pattern, text, maxsplit=0):
-    return compile(pattern).split(text, maxsplit=maxsplit)
+def split(pattern, text, maxsplit=0, flags=0, alphabet=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet).split(text, maxsplit=maxsplit)
 
 
 error = ParseException
