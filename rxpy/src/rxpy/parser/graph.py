@@ -234,22 +234,6 @@ class Split(_BaseSplit):
         return visitor.split(self.next, state)
 
 
-class Or(_BaseSplit):
-    '''
-    Used only when alternatives do not backtrack.
-    '''
-    
-    def __init__(self, label, lazy=True):
-        super(Or, self).__init__(lazy=lazy)
-        self.label = label
-        
-    def __str__(self):
-        return self.label
-
-    def visit(self, visitor, state=None):
-        return visitor.or_(self.next, state)
-
-
 class Match(_BaseNode):
     
     def __str__(self):

@@ -124,7 +124,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_non_matching_complex_group(self):
-        self.assert_graphs(parse('a(?:p+q|r)c', flags=ParserState._BACKTRACK_OR), 
+        self.assert_graphs(parse('a(?:p+q|r)c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...|..."]
@@ -143,29 +143,6 @@ class ParserTest(GraphTest):
  6 -> 2
  6 -> 7
  7 -> 4
-}""")
-        self.assert_graphs(parse('a(?:p+q|r)c'), 
-"""strict digraph {
- 0 [label="a"]
- 1 [label="...|..."]
- 2 [label="c"]
- 3 [label="p"]
- 4 [label="r"]
- 5 [label="Match"]
- 6 [label="...+"]
- 7 [label="q"]
- 8 [label="Match"]
- 9 [label="Match"]
- 0 -> 1
- 1 -> 2
- 1 -> 3
- 1 -> 4
- 4 -> 5
- 3 -> 6
- 6 -> 3
- 6 -> 7
- 7 -> 8
- 2 -> 9
 }""")
 
     def test_character_plus(self):
@@ -471,7 +448,16 @@ r"""strict digraph {
 }""")
         
     def test_alternatives(self):
-        self.assert_graphs(parse('a|b|cd', flags=ParserState._BACKTRACK_OR), 
+        self.assert_graphs(parse('a|'), 
+"""strict digraph {
+ 0 [label="...|..."]
+ 1 [label="a"]
+ 2 [label="Match"]
+ 0 -> 1
+ 0 -> 2
+ 1 -> 2
+}""")
+        self.assert_graphs(parse('a|b|cd'), 
 """strict digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -485,27 +471,9 @@ r"""strict digraph {
  2 -> 4
  1 -> 4
 }""")
-        self.assert_graphs(parse('a|b|cd'), 
-"""strict digraph {
- 0 [label="...|..."]
- 1 [label="Match"]
- 2 [label="a"]
- 3 [label="b"]
- 4 [label="cd"]
- 5 [label="Match"]
- 6 [label="Match"]
- 7 [label="Match"]
- 0 -> 1
- 0 -> 2
- 0 -> 3
- 0 -> 4
- 4 -> 5
- 3 -> 6
- 2 -> 7
-}""")
 
     def test_group_alternatives(self):
-        self.assert_graphs(parse('(a|b|cd)', flags=ParserState._BACKTRACK_OR),
+        self.assert_graphs(parse('(a|b|cd)'),
 """strict digraph {
  0 [label="("]
  1 [label="...|..."]
@@ -523,31 +491,22 @@ r"""strict digraph {
  3 -> 5
  2 -> 5
 }""")
-        self.assert_graphs(parse('(a|b|cd)'),
+        self.assert_graphs(parse('(a|)'),
 """strict digraph {
  0 [label="("]
  1 [label="...|..."]
- 2 [label=")"]
- 3 [label="a"]
- 4 [label="b"]
- 5 [label="cd"]
- 6 [label="Match"]
- 7 [label="Match"]
- 8 [label="Match"]
- 9 [label="Match"]
+ 2 [label="a"]
+ 3 [label=")"]
+ 4 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3
- 1 -> 4
- 1 -> 5
- 5 -> 6
- 4 -> 7
- 3 -> 8
- 2 -> 9
+ 3 -> 4
+ 2 -> 3
 }""")
         
     def test_nested_groups(self):
-        self.assert_graphs(parse('a|(b|cd)', flags=ParserState._BACKTRACK_OR),
+        self.assert_graphs(parse('a|(b|cd)'),
 """strict digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -566,32 +525,6 @@ r"""strict digraph {
  6 -> 7
  4 -> 6
  1 -> 7
-}""")
-        self.assert_graphs(parse('a|(b|cd)'),
-"""strict digraph {
- 0 [label="...|..."]
- 1 [label="Match"]
- 2 [label="a"]
- 3 [label="("]
- 4 [label="...|..."]
- 5 [label=")"]
- 6 [label="b"]
- 7 [label="cd"]
- 8 [label="Match"]
- 9 [label="Match"]
- 10 [label="Match"]
- 11 [label="Match"]
- 0 -> 1
- 0 -> 2
- 0 -> 3
- 3 -> 4
- 4 -> 5
- 4 -> 6
- 4 -> 7
- 7 -> 8
- 6 -> 9
- 5 -> 10
- 2 -> 11
 }""")
 
     def test_named_groups(self):
@@ -1016,14 +949,14 @@ r"""strict digraph {
         self.assert_flags('(?x)', ParserState.VERBOSE)
         self.assert_flags('(?a)', ParserState.ASCII)
         self.assert_flags('(?_s)', ParserState._STATEFUL)
-        self.assert_flags('(?_b)', ParserState._BACKTRACK_OR)
+        self.assert_flags('(?_g)', ParserState._GREEDY_OR)
         try:
-            self.assert_flags('(?imsuxa_s_b)', 0)
+            self.assert_flags('(?imsuxa_s_g)', 0)
             assert False
         except ParseException:
             pass
-        self.assert_flags('(?imsux_s_b)', 
+        self.assert_flags('(?imsux_s_g)', 
                           ParserState.IGNORECASE | ParserState.MULTILINE | 
                           ParserState.DOTALL | ParserState.UNICODE |
                           ParserState.VERBOSE |
-                          ParserState._STATEFUL | ParserState._BACKTRACK_OR)
+                          ParserState._STATEFUL | ParserState._GREEDY_OR)

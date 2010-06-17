@@ -191,11 +191,7 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(parse('a|b'), 'a')
         assert Visitor.from_parse_results(parse('a|b'), 'b')
         assert not Visitor.from_parse_results(parse('a|b'), 'c')
-        assert not Visitor.from_parse_results(parse('(a|ac)$'), 'ac')
-        assert Visitor.from_parse_results(parse('a|b', flags=ParserState._BACKTRACK_OR), 'a')
-        assert Visitor.from_parse_results(parse('a|b', flags=ParserState._BACKTRACK_OR), 'b')
-        assert not Visitor.from_parse_results(parse('a|b', flags=ParserState._BACKTRACK_OR), 'c')
-        assert Visitor.from_parse_results(parse('(a|ac)$', flags=ParserState._BACKTRACK_OR), 'ac')
+        assert Visitor.from_parse_results(parse('(a|ac)$'), 'ac')
 
     def test_search(self):
         assert Visitor.from_parse_results(parse('a'), 'ab', search=True)

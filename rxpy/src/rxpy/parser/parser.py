@@ -6,7 +6,7 @@ from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
-    Repeat, Conditional, WordBoundary, Word, Space, Digit, Or
+    Repeat, Conditional, WordBoundary, Word, Space, Digit
 from rxpy.lib import _FLAGS, ParseException
 
 
@@ -16,7 +16,7 @@ ALPHANUMERIC = digits + ascii_letters
 
 class ParserState(object):
     
-    (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _FLAGS
+    (I, M, S, U, X, A, _S, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _GREEDY_OR) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
                  group_count=0, name_to_count=None, count_to_name=None):
@@ -187,20 +187,18 @@ class Alternatives(_BaseNode):
     they become "side branches" on concatenation.
     '''
     
-    def __init__(self, sequences, split, join=True):
+    def __init__(self, sequences, split):
         self.__sequences = sequences
         self.__split = split
-        self.__join = join
         
     def concatenate(self, next):
-        self.__split.next = list(map(lambda s: s.start, self.__sequences))
-        if self.__join:
-            merge = Merge(*self.__sequences)
-            merge.concatenate(next)
-        else:
-            for sequence in self.__sequences:
-                sequence.concatenate(Match())
-            self.__split.concatenate(next)
+        # be careful here to handle empty sequences correctly
+        for sequence in self.__sequences:
+            if sequence:
+                self.__split.next.append(sequence.start)
+                sequence.concatenate(next)
+            else:
+                self.__split.next.append(next.start)
         return self.__split
     
     def clone(self, cache=None):
@@ -336,10 +334,7 @@ class SequenceBuilder(StatefulBuilder):
         self.__start_new_alternative()
         sequences = map(lambda x: Sequence(x, self._state), self._alternatives)
         if len(sequences) > 1:
-            backtrack = self._state.flags & ParserState._BACKTRACK_OR
-            return Alternatives(sequences,
-                                Split('...|...') if backtrack else Or('...|...'), 
-                                join=backtrack)
+            return Alternatives(sequences, Split('...|...'))
         else:
             return sequences[0]
 
@@ -458,13 +453,13 @@ class ParserStateBuilder(StatefulBuilder):
                         'x': ParserState.X,
                         'a': ParserState.A,
                         '_s': ParserState._S,
-                        '_b': ParserState._B}
+                        '_g': ParserState._G}
         
     def append_character(self, character):
         if not self.__escape and character == '_':
             self.__escape = True
             return self
-        elif self.__escape and character in 'sb':
+        elif self.__escape and character in 'sg':
             self._state.new_flag(self.__table['_' + character])
             self.__escape = False
             return self
@@ -860,7 +855,7 @@ class OctalEscapeBuilder(StatefulBuilder):
     @staticmethod
     def decode(buffer, alphabet):
         try:
-            return alphabet.code_to_char(int(buffer, 8))
+            return alphabet.unescape(int(buffer, 8))
         except:
             raise ParseException('Bad octal escape: ' + buffer)
         

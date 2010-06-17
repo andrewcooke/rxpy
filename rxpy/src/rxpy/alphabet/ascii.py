@@ -2,6 +2,7 @@
 from string import digits, ascii_letters
 
 from rxpy.alphabet.base import Alphabet, CharSet
+from rxpy.lib import ParseException
 
 
 WORD = set(ascii_letters + digits + '_')
@@ -17,7 +18,7 @@ class Ascii(Alphabet):
         super(Ascii, self).__init__(0, 127)
         
     def code_to_char(self, code):
-        return chr(code % 256)
+        return chr(code)
     
     def char_to_code(self, char):
         return ord(char)
@@ -58,3 +59,10 @@ class Ascii(Alphabet):
             if lo != hi:
                 return (True, CharSet([(lo,lo),(hi,hi)]))
         return (False, char)
+    
+    def unescape(self, code):
+        # for compatability with python...
+        if code < 512:
+            return self.code_to_char(code % 256)
+        else:
+            raise ParseException('Unexpected character code for ASCII: ' + str(code)) 

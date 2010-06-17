@@ -97,6 +97,12 @@ class Alphabet(object):
         if flags & ParserState.IGNORECASE:
             raise ParseException('Default alphabet does not handle case')
         return (False, self.join(self.coerce(char)))
+    
+    def unescape(self, code):
+        '''
+        By default, assume escape codes map to character codes.
+        '''
+        return self.code_to_char(code)
         
         
 class CharSet(_BaseNode):
