@@ -126,8 +126,8 @@ class CharSet(_BaseNode):
         super(CharSet, self).__init__()
         if alphabet is None:
             alphabet = Unicode()
-        self.__alphabet = alphabet
-        self.__intervals = deque()
+        self.alphabet = alphabet
+        self.intervals = deque()
         for interval in intervals:
             self.append(interval)
         self.__index = None
@@ -137,22 +137,22 @@ class CharSet(_BaseNode):
         '''
         Add an interval to the existing intervals.
         
-        This maintains self.__intervals in the normalized form described above.
+        This maintains self.intervals in the normalized form described above.
         '''
         self.__index = None
         self.__str = None
         
-        (a1, b1) = map(self.__alphabet.coerce, interval)
+        (a1, b1) = map(self.alphabet.coerce, interval)
         if b1 < a1:
             (a1, b1) = (b1, a1)
         intervals = deque()
         done = False
-        while self.__intervals:
+        while self.intervals:
             # pylint: disable-msg=E1103
             # (pylint fails to infer type)
-            (a0, b0) = self.__intervals.popleft()
+            (a0, b0) = self.intervals.popleft()
             if a0 <= a1:
-                if b0 < a1 and b0 != self.__alphabet.before(a1):
+                if b0 < a1 and b0 != self.alphabet.before(a1):
                     # old interval starts and ends before new interval
                     # so keep old interval and continue
                     intervals.append((a0, b0))
@@ -168,7 +168,7 @@ class CharSet(_BaseNode):
                     # (since it may overlap more intervals...)
                     (a1, b1) = (a0, b1)
             else:
-                if b1 < a0 and b1 != self.__alphabet.before(a0):
+                if b1 < a0 and b1 != self.alphabet.before(a0):
                     # new interval starts and ends before old, so add both
                     # and slurp
                     intervals.append((a1, b1))
@@ -187,47 +187,47 @@ class CharSet(_BaseNode):
                     break
         if not done:
             intervals.append((a1, b1))
-        intervals.extend(self.__intervals) # slurp remaining
-        self.__intervals = intervals
+        intervals.extend(self.intervals) # slurp remaining
+        self.intervals = intervals
         
     def __len__(self):
         '''
         The number of intervals in the range.
         '''
-        return len(self.__intervals)
+        return len(self.intervals)
     
     def __getitem__(self, index):
-        return self.__intervals[index]
+        return self.intervals[index]
     
     def __iter__(self):
-        return iter(self.__intervals)
+        return iter(self.intervals)
     
     def __contains__(self, c):
         '''
         Does the value lie within the intervals?
         '''
         if self.__index is None:
-            self.__index = [interval[1] for interval in self.__intervals]
+            self.__index = [interval[1] for interval in self.intervals]
         if self.__index:
             index = bisect_left(self.__index, c)
-            if index < len(self.__intervals):
-                (a, b) = self.__intervals[index]
+            if index < len(self.intervals):
+                (a, b) = self.intervals[index]
                 return a <= c <= b
         return False
     
     def __format_interval(self, interval):
         (a, b) = interval
         if a == b:
-            return self.__alphabet.to_str(a)
-        elif a == self.__alphabet.before(b):
-            return self.__alphabet.to_str(a) + self.__alphabet.to_str(b)
+            return self.alphabet.to_str(a)
+        elif a == self.alphabet.before(b):
+            return self.alphabet.to_str(a) + self.alphabet.to_str(b)
         else:
-            return self.__alphabet.to_str(a) + '-' + self.__alphabet.to_str(b)
+            return self.alphabet.to_str(a) + '-' + self.alphabet.to_str(b)
 
     def __str__(self):
         if self.__str is None:
             self.__str = \
-                '[' + ''.join(map(self.__format_interval, self.__intervals)) + ']'
+                '[' + ''.join(map(self.__format_interval, self.intervals)) + ']'
         return self.__str
 
     def __hash__(self):
@@ -239,35 +239,35 @@ class CharSet(_BaseNode):
         return isinstance(other, CharSet) and str(self) == str(other)
 
     def invert(self):
-        if not self.__intervals:
-            inverted = deque([(self.__alphabet.min, self.__alphabet.max)])
+        if not self.intervals:
+            inverted = deque([(self.alphabet.min, self.alphabet.max)])
         else:
             inverted = deque()
-            (a, last) = self.__intervals[0]
-            if a != self.__alphabet.min:
+            (a, last) = self.intervals[0]
+            if a != self.alphabet.min:
                 inverted.append(
-                    (self.__alphabet.code_to_char(self.__alphabet.min), 
-                     self.__alphabet.before(a)))
-            for (a, b) in list(self.__intervals)[1:]:
+                    (self.alphabet.code_to_char(self.alphabet.min), 
+                     self.alphabet.before(a)))
+            for (a, b) in list(self.intervals)[1:]:
                 inverted.append(
-                    (self.__alphabet.after(last), self.__alphabet.before(a)))
+                    (self.alphabet.after(last), self.alphabet.before(a)))
                 last = b
-            if last != self.__alphabet.max:
+            if last != self.alphabet.max:
                 inverted.append(
-                    (self.__alphabet.after(last), 
-                     self.__alphabet.code_to_char(self.__alphabet.max)))
-        self.__intervals = inverted
+                    (self.alphabet.after(last), 
+                     self.alphabet.code_to_char(self.alphabet.max)))
+        self.intervals = inverted
         self.__index = None
         self.__str = None
     
     def simplify(self):
-        if len(self.__intervals) == 0:
+        if len(self.intervals) == 0:
             raise ParseException('Empty range')
-        elif len(self.__intervals) == 1:
-            if self.__intervals[0][0] == self.__intervals[0][1]:
-                return String(self.__intervals[0][0])
-            elif self.__intervals[0][0] == self.__alphabet.min and \
-                    self.__intervals[0][1] == self.__alphabet.max:
+        elif len(self.intervals) == 1:
+            if self.intervals[0][0] == self.intervals[0][1]:
+                return String(self.intervals[0][0])
+            elif self.intervals[0][0] == self.alphabet.min and \
+                    self.intervals[0][1] == self.alphabet.max:
                 return Dot()
         return self
     

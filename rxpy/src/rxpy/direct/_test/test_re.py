@@ -352,10 +352,10 @@ class ReTests(unittest.TestCase):
                                    "abcd abc bcd bx").group(1), "bx")
         self.assertEqual(re.search(r"\B(b.)\B",
                                    "abc bcd bc abxd").group(1), "bx")
-        self.assertEqual(re.search(r"\b(b.)\b",
-                                   "abcd abc bcd bx", re.LOCALE).group(1), "bx")
-        self.assertEqual(re.search(r"\B(b.)\B",
-                                   "abc bcd bc abxd", re.LOCALE).group(1), "bx")
+#        self.assertEqual(re.search(r"\b(b.)\b",
+#                                   "abcd abc bcd bx", re.LOCALE).group(1), "bx")
+#        self.assertEqual(re.search(r"\B(b.)\B",
+#                                   "abc bcd bc abxd", re.LOCALE).group(1), "bx")
         self.assertEqual(re.search(r"\b(b.)\b",
                                    "abcd abc bcd bx", re.UNICODE).group(1), "bx")
         self.assertEqual(re.search(r"\B(b.)\B",
@@ -372,8 +372,8 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.search(r"^\Aabc\Z$", u"\nabc\n", re.M), None)
         self.assertEqual(re.search(r"\d\D\w\W\s\S",
                                    "1aa! a").group(0), "1aa! a")
-        self.assertEqual(re.search(r"\d\D\w\W\s\S",
-                                   "1aa! a", re.LOCALE).group(0), "1aa! a")
+#        self.assertEqual(re.search(r"\d\D\w\W\s\S",
+#                                   "1aa! a", re.LOCALE).group(0), "1aa! a")
         self.assertEqual(re.search(r"\d\D\w\W\s\S",
                                    "1aa! a", re.UNICODE).group(0), "1aa! a")
 

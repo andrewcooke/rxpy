@@ -202,11 +202,7 @@ class VisitorTest(TestCase):
         assert Visitor.from_parse_results(self.parse('1|2'), [1])
         assert Visitor.from_parse_results(self.parse('1|2'), [2])
         assert not Visitor.from_parse_results(self.parse('1|2'), 'c')
-        assert not Visitor.from_parse_results(self.parse('(1|13)$'), [1,3])
-        assert Visitor.from_parse_results(self.parse('1|2', flags=ParserState._BACKTRACK_OR), [1])
-        assert Visitor.from_parse_results(self.parse('1|2', flags=ParserState._BACKTRACK_OR), [2])
-        assert not Visitor.from_parse_results(self.parse('1|2', flags=ParserState._BACKTRACK_OR), [3])
-        assert Visitor.from_parse_results(self.parse('(1|13)$', flags=ParserState._BACKTRACK_OR), [1,3])
+        assert Visitor.from_parse_results(self.parse('(1|13)$'), [1,3])
 
     def test_search(self):
         assert Visitor.from_parse_results(self.parse('1'), [1,2], search=True)

@@ -114,6 +114,16 @@ class ParserTest(GraphTest):
  2 -> 3
  3 -> 4
 }""")
+        self.assert_graphs(parse('()a'), 
+"""strict digraph {
+ 0 [label="("]
+ 1 [label=")"]
+ 2 [label="a"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+}""")
         
     def test_non_matching_group(self):
         self.assert_graphs(parse('a(?:b)c'), 
@@ -188,6 +198,21 @@ class ParserTest(GraphTest):
  1 -> 3
  3 -> 4
  2 -> 3
+}""")
+        # this was a bug
+        self.assert_graphs(parse('x|a?'),
+"""strict digraph {
+ 0 [label="...|..."]
+ 1 [label="x"]
+ 2 [label="...?"]
+ 3 [label="a"]
+ 4 [label="Match"]
+ 0 -> 1
+ 0 -> 2
+ 2 -> 3
+ 2 -> 4
+ 3 -> 4
+ 1 -> 4
 }""")
         
     def test_multiple_character_question(self):

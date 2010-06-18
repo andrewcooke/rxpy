@@ -49,7 +49,7 @@ class Ascii(Alphabet):
     
     def unpack(self, char, flags):
         '''
-        Return either (True, CharSet) or (False, char)
+        Return either (True, (lo, hi)) or (False, char)
         '''
         from rxpy.parser.parser import ParserState
         char = self.join(self.coerce(char))
@@ -57,7 +57,7 @@ class Ascii(Alphabet):
             lo = char.lower()
             hi = char.upper()
             if lo != hi:
-                return (True, CharSet([(lo,lo),(hi,hi)]))
+                return (True, (lo, hi))
         return (False, char)
     
     def unescape(self, code):

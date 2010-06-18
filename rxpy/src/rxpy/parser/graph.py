@@ -1,3 +1,4 @@
+from rxpy.lib import ParseException
 
 
 class GraphException(Exception):
@@ -119,7 +120,11 @@ class _BaseNode(object):
         '''
         if cache is None:
             cache = {}
-        copy = self.__class__(**self.__kargs())
+        try:
+            copy = self.__class__(**self.__kargs())
+        except TypeError as e:
+            raise ParseException('Error cloning {0}: {1}'.format(
+                                        self.__class__.__name__, e))
         cache[self] = copy
         copy.next = list(self.__clone_next(cache))
         return cache[self]

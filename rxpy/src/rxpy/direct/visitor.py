@@ -321,14 +321,6 @@ class Visitor(_Visitor):
             self.__stack.append((graph, clone))
         return (next[0], state)
     
-    def or_(self, next, state):
-        for alternative in next[1:]:
-            clone = self.__run(alternative, state.clone())
-            if self.__match:
-                self.__match = False
-                return (next[0], clone)
-        raise Fail
-
     def match(self, state):
         self.__match = True
         return (None, state)

@@ -18,8 +18,7 @@ class ParserState(object):
     
     (I, M, S, U, X, A, _S, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _GREEDY_OR) = _FLAGS
     
-    def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
-                 group_count=0, name_to_count=None, count_to_name=None):
+    def __init__(self, flags=0, alphabet=None, hint_alphabet=None):
         '''
         hint_alphabet is used to help adapt between ASCII and Unicode in 2.6
         '''
@@ -47,24 +46,26 @@ class ParserState(object):
         
         self.__alphabet = alphabet
         self.__flags = flags
-        self.__group_count = group_count
-        self.__name_to_count = name_to_count if name_to_count else {}
-        self.__count_to_name = count_to_name if count_to_name else {}
+        self.__group_count = 0
+        self.__name_to_count = {}
+        self.__count_to_name = {}
+        self.__comment = False
         
     @property
     def has_new_flags(self):
         return bool(self.__new_flags & ~self.__flags)
     
     def clone_with_new_flags(self, alphabet=None, flags=None):
+        '''
+        This discards group information because the expression will be parsed
+        again with new flags.
+        '''
         if alphabet is None:
             alphabet = self.__initial_alphabet
         if flags is None:
             flags = self.__flags | self.__new_flags
         return ParserState(alphabet=alphabet, flags=flags, 
-                           hint_alphabet=self.__hint_alphabet,
-                           group_count=self.__group_count,
-                           name_to_count=dict(self.__name_to_count),
-                           count_to_name=dict(self.__count_to_name))
+                           hint_alphabet=self.__hint_alphabet)
         
     def next_group_count(self, name=None):
         self.__group_count += 1
@@ -87,6 +88,24 @@ class ParserState(object):
         
     def new_flag(self, flag):
         self.__new_flags |= flag
+        
+    def significant(self, character):
+        '''
+        Returns false if character should be ignored (extended syntax). 
+        '''
+        if self.__flags & self.VERBOSE:
+            if character == '#':
+                self.__comment = True
+                return False
+            elif self.__comment:
+                self.__comment = character != '\n'
+                return False
+            elif self.__alphabet.space(character):
+                return False
+            else:
+                return True
+        else:
+            return True
         
     @property
     def alphabet(self):
@@ -206,10 +225,10 @@ class Alternatives(_BaseNode):
             cache = {}
         return Alternatives([sequence.clone(cache) 
                              for sequence in self.__sequences],
-                             self.__split.clone(cache), self.__join)
+                             self.__split.clone(cache))
 
 
-class Merge(object):
+class Merge(_BaseNode):
     '''
     Another temporary node, supporting the merge of several different arcs.
     
@@ -224,6 +243,10 @@ class Merge(object):
         for node in self._nodes:
             last = node.concatenate(next.start)
         return last
+    
+    @property
+    def start(self):
+        return self._nodes[-1].start
     
     
 class Builder(object):
@@ -315,13 +338,14 @@ class SequenceBuilder(StatefulBuilder):
             self._nodes.append(EndOfLine(self._state.flags & ParserState.MULTILINE))
         elif not escaped and character == '|':
             self.__start_new_alternative()
-        elif character and (not escaped and character in '+?*'):
+        elif character and self._nodes and (not escaped and character in '+?*'):
             return RepeatBuilder(self._state, self, self._nodes.pop(), character)
-        elif character:
-            (is_charset, value) = self._state.alphabet.unpack(character, 
-                                                              self._state.flags)
-            if is_charset:
-                self._nodes.append(value)
+        elif character and (escaped or self._state.significant(character)):
+            (is_pair, value) = self._state.alphabet.unpack(character, 
+                                                           self._state.flags)
+            if is_pair:
+                self._nodes.append(CharSet([(value[0], value[0]), 
+                                            (value[1], value[1])]))
             else:
                 self._nodes.append(String(value))
         return self
@@ -354,14 +378,9 @@ class RepeatBuilder(StatefulBuilder):
         
         lazy = character == '?'
         
-        # The idea here was to make explicit loop counting increment save less
-        # on the stack, but currently I can't see how it would work.
-        if False and self._state.flags & ParserState._STATEFUL and \
-                self._initial_character in '?+*':
-            CountBuilder.build_count(self._parent_sequence, self._latest,
-                                     1 if self._initial_character == '+' else 0,
-                                     1 if self._initial_character == '?' else None,
-                                     lazy)
+        if character and character in '+*':
+            raise ParseException('Compound repeat: ' + 
+                                 self._initial_character + character)
         elif self._initial_character == '?':
             self.build_optional(self._parent_sequence, self._latest, lazy)
         elif self._initial_character == '+':
@@ -695,17 +714,29 @@ class CharSetBuilder(StatefulBuilder):
     
     def append_character(self, character, escaped=False):
         
-        def append():
+        def unpack(character):
+            (is_charset, value) = self._state.alphabet.unpack(character, 
+                                                              self._state.flags)
+            if not is_charset:
+                value = (character, character)
+            return value
+        
+        def append(character=character):
             if self._range:
                 if self._queue is None:
                     raise ParseException('Incomplete range')
                 else:
-                    self._charset.append((self._queue, character))
+                    (alo, ahi) = unpack(self._queue)
+                    (blo, bhi) = unpack(character)
+                    self._charset.append((alo, blo))
+                    self._charset.append((ahi, bhi))
                     self._queue = None
                     self._range = False
             else:
                 if self._queue:
-                    self._charset.append((self._queue, self._queue))
+                    (lo, hi) = unpack(self._queue)
+                    self._charset.append((lo, lo))
+                    self._charset.append((hi, hi))
                 self._queue = character
 
         if self._invert is None and character == '^':
@@ -726,9 +757,10 @@ class CharSetBuilder(StatefulBuilder):
         elif character == ']':
             if self._queue:
                 if self._range:
-                    raise ParseException('Open range')
-                else:
-                    self._charset.append((self._queue, self._queue))
+                    self._range = False
+                    # convert open range to '-'
+                    append('-')
+                append(None)
             if self._invert:
                 self._charset.invert()
             self._parent_sequence._nodes.append(self._charset.simplify())

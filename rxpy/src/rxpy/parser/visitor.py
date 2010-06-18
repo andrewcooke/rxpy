@@ -25,9 +25,6 @@ class Visitor(object):
     def split(self, next, state=None):
         raise UnsupportedOperation('split')
 
-    def or_(self, next, state=None):
-        raise UnsupportedOperation('or')
-
     def match(self, state=None):
         raise UnsupportedOperation('match')
 
