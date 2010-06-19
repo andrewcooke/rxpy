@@ -1,7 +1,7 @@
 
 from string import digits, ascii_letters
 
-from rxpy.alphabet.base import Alphabet, CharSet
+from rxpy.alphabet.base import Alphabet
 from rxpy.lib import ParseException
 
 

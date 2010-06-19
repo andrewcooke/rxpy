@@ -221,7 +221,8 @@ class Visitor(_Visitor):
                              Groups(stream=stream, count=pstate.group_count, 
                                     names=pstate.group_names, 
                                     indices=pstate.group_indices),
-                             offset=pos),
+                             offset=pos,
+                             previous=stream[pos-1] if pos else None),
                        search=search)
     
     def __init__(self, alphabet, flags, stream, graph, state, search=False):

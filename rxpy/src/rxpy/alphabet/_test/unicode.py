@@ -3,12 +3,13 @@
 from unittest import TestCase
 
 from rxpy.alphabet.base import CharSet
+from rxpy.alphabet.ascii import Ascii
 
 
 class CharSetTest(TestCase):
     
     def do_test_str(self, intervals, target):
-        result = str(CharSet(intervals))
+        result = str(CharSet(intervals, Ascii()))
         assert result == target, result
     
     def test_str(self):
@@ -36,18 +37,18 @@ class CharSetTest(TestCase):
         self.do_test_str([('b','a'), ('b', 'c')], '[a-c]')
     
     def test_contains(self):
-        assert 'a' not in CharSet([('b', 'b')])
-        assert 'b' in CharSet([('b', 'b')])
-        assert 'c' not in CharSet([('b', 'b')])
-        assert 'a' in CharSet([('a', 'b')])
-        assert 'b' in CharSet([('a', 'b')])
-        assert 'c' not in CharSet([('a', 'b')])
-        assert 'a' in CharSet([('a', 'c')])
-        assert 'b' in CharSet([('a', 'c')])
-        assert 'c' in CharSet([('a', 'c')])
-        assert 'a' in CharSet([('a', 'b'), ('b', 'c')])
-        assert 'b' in CharSet([('a', 'b'), ('b', 'c')])
-        assert 'c' in CharSet([('a', 'b'), ('b', 'c')])
-        assert 'a' in CharSet([('a', 'a'), ('c', 'c')])
-        assert 'b' not in CharSet([('a', 'a'), ('c', 'c')])
-        assert 'c' in CharSet([('a', 'a'), ('c', 'c')])
+        assert 'a' not in CharSet([('b', 'b')], Ascii())
+        assert 'b' in CharSet([('b', 'b')], Ascii())
+        assert 'c' not in CharSet([('b', 'b')], Ascii())
+        assert 'a' in CharSet([('a', 'b')], Ascii())
+        assert 'b' in CharSet([('a', 'b')], Ascii())
+        assert 'c' not in CharSet([('a', 'b')], Ascii())
+        assert 'a' in CharSet([('a', 'c')], Ascii())
+        assert 'b' in CharSet([('a', 'c')], Ascii())
+        assert 'c' in CharSet([('a', 'c')], Ascii())
+        assert 'a' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'b' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'c' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'a' in CharSet([('a', 'a'), ('c', 'c')], Ascii())
+        assert 'b' not in CharSet([('a', 'a'), ('c', 'c')], Ascii())
+        assert 'c' in CharSet([('a', 'a'), ('c', 'c')], Ascii())

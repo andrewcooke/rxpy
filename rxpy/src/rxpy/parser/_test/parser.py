@@ -334,7 +334,7 @@ class ParserTest(GraphTest):
     def test_inverted_range(self):
         self.assert_graphs(parse('[^apz]'), 
 r"""strict digraph {
- 0 [label="[\\x00-`b-oq-y{-\\U0010ffff]"]
+ 0 [label="[^apz]"]
  1 [label="Match"]
  0 -> 1
 }""")

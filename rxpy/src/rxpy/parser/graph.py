@@ -49,12 +49,17 @@ class _BaseNode(object):
     individual sub-nodes.
     '''
     
-    def __init__(self):
+    def __init__(self, consumer=True):
         '''
         Subclasses should pay attention to the relationship between 
         constructor kargs and attributes assumed in `.clone`.
         '''
         self.next = []
+        self.__consumer = consumer
+        
+    @property
+    def consumer(self):
+        return self.__consumer
         
     @property
     def start(self):
@@ -121,7 +126,7 @@ class _BaseNode(object):
         if cache is None:
             cache = {}
         try:
-            copy = self.__class__(**self.__kargs())
+            copy = self.__class__(**self._kargs())
         except TypeError as e:
             raise ParseException('Error cloning {0}: {1}'.format(
                                         self.__class__.__name__, e))
@@ -135,7 +140,7 @@ class _BaseNode(object):
                 next.clone(cache=cache)
             yield cache[next]
         
-    def __kargs(self):
+    def _kargs(self):
         return dict((name, getattr(self, name))
                      for name in self.__dict__ 
                      if not name.startswith('_') and name != 'next')
@@ -248,15 +253,27 @@ class Match(_BaseNode):
         return visitor.match(state)
 
 
+class NoMatch(_BaseNode):
+    
+    def __str__(self):
+        return 'NoMatch'
+
+    def visit(self, visitor, state=None):
+        return visitor.no_match(state)
+
+
 class _LineNode(_BaseNode):
 
-    def __init__(self, multiline):
-        super(_LineNode, self).__init__()
+    def __init__(self, multiline, consumer=False):
+        super(_LineNode, self).__init__(consumer=consumer)
         self.multiline = multiline
     
 
 class Dot(_LineNode):
     
+    def __init__(self, multiline):
+        super(Dot, self).__init__(multiline, consumer=True)
+
     def __str__(self):
         return '.'
 
@@ -373,8 +390,8 @@ class Conditional(_BaseSplit):
 
 class _EscapedNode(_BaseNode):
     
-    def __init__(self, character, inverted=False):
-        super(_EscapedNode, self).__init__()
+    def __init__(self, character, inverted=False, consumer=True):
+        super(_EscapedNode, self).__init__(consumer=consumer)
         self._character = character
         self.inverted = inverted
         
@@ -386,7 +403,7 @@ class _EscapedNode(_BaseNode):
 class WordBoundary(_EscapedNode):
     
     def __init__(self, inverted=False):
-        super(WordBoundary, self).__init__('b', inverted)
+        super(WordBoundary, self).__init__('b', inverted, consumer=False)
 
     def visit(self, visitor, state=None):
         return visitor.word_boundary(self.next, self.inverted, state)

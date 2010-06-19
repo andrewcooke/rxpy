@@ -3,7 +3,7 @@ from bisect import bisect_left
 from collections import deque
 
 from rxpy.lib import UnsupportedOperation, unimplemented, ParseException
-from rxpy.parser.graph import String, Dot, _BaseNode
+from rxpy.parser.graph import String, Dot, _BaseNode, NoMatch
 
 
 class Alphabet(object):
@@ -103,9 +103,90 @@ class Alphabet(object):
         By default, assume escape codes map to character codes.
         '''
         return self.code_to_char(code)
-        
-        
+    
+    
 class CharSet(_BaseNode):
+    '''
+    Combine a `SimpleCharSet` with character classes.
+    '''
+    
+    def __init__(self, intervals, alphabet, classes=None, 
+                 inverted=False, complete=False):
+        super(CharSet, self).__init__()
+        self.__simple = SimpleCharSet(intervals, alphabet)
+        self.alphabet = alphabet
+        self.classes = classes if classes else []
+        self.inverted = inverted
+        self.complete = complete
+        
+    def _kargs(self):
+        kargs = super(CharSet, self)._kargs()
+        kargs['intervals'] = self.__simple.intervals
+        return kargs
+        
+    def append_interval(self, interval):
+        self.__simple.append(interval, self.alphabet)
+        
+    def append_class(self, class_, label, inverted=False):
+        for (class2, _, inverted2) in self.classes:
+            if class_ == class2:
+                self.complete = self.complete or inverted != inverted2
+                # if inverted matches, complete, else we already have it
+                return
+        self.classes.append((class_, label, inverted))
+    
+    def visit(self, visitor, state=None):
+        return visitor.character(self.next, self, state)
+    
+    def invert(self):
+        self.inverted = not self.inverted
+
+    def __contains__(self, character):
+        result = self.complete
+        if not result:
+            for (class_, _, invert) in self.classes:
+                result = class_(character) != invert
+                if result:
+                    break
+        if not result:
+            result = character in self.__simple
+        if self.inverted:
+            result = not result
+        return result
+    
+    def __str__(self):
+        '''
+        This returns (the illegal) [^] for all and [] for none.
+        '''
+        if self.complete:
+            return '[]' if self.inverted else '[^]'
+        contents = ''.join('\\' + label for (_, label, _) in self.classes)
+        contents += self.__simple.to_str(self.alphabet)
+        return '[' + ('^' if self.inverted else '') + contents + ']'
+        
+    def __hash__(self):
+        return hash(str(self))
+    
+    def __bool__(self):
+        return bool(self.classes or self.__simple)
+    
+    def __nonzero__(self):
+        return self.__bool__()
+    
+    def simplify(self):
+        if self.complete:
+            if self.inverted:
+                return NoMatch()
+            else:
+                return Dot(True)
+        else:
+            if self.classes or self.inverted:
+                return self
+            else:
+                return self.__simple.simplify(self.alphabet, self)
+    
+        
+class SimpleCharSet(object):
     '''
     A set of possible values for a character, described as a collection of 
     intervals.  Each interval is [a, b] (ie a <= x <= b, where x is a character 
@@ -121,19 +202,14 @@ class CharSet(_BaseNode):
     # pylint: disable-msg=C0103 
     # (use (a,b) variables consistently)
     
-    def __init__(self, intervals, alphabet=None):
-        from rxpy.alphabet.unicode import Unicode
-        super(CharSet, self).__init__()
-        if alphabet is None:
-            alphabet = Unicode()
-        self.alphabet = alphabet
+    def __init__(self, intervals, alphabet):
         self.intervals = deque()
-        for interval in intervals:
-            self.append(interval)
         self.__index = None
         self.__str = None
+        for interval in intervals:
+            self.append(interval, alphabet)
         
-    def append(self, interval):
+    def append(self, interval, alphabet):
         '''
         Add an interval to the existing intervals.
         
@@ -142,7 +218,7 @@ class CharSet(_BaseNode):
         self.__index = None
         self.__str = None
         
-        (a1, b1) = map(self.alphabet.coerce, interval)
+        (a1, b1) = map(alphabet.coerce, interval)
         if b1 < a1:
             (a1, b1) = (b1, a1)
         intervals = deque()
@@ -152,7 +228,7 @@ class CharSet(_BaseNode):
             # (pylint fails to infer type)
             (a0, b0) = self.intervals.popleft()
             if a0 <= a1:
-                if b0 < a1 and b0 != self.alphabet.before(a1):
+                if b0 < a1 and b0 != alphabet.before(a1):
                     # old interval starts and ends before new interval
                     # so keep old interval and continue
                     intervals.append((a0, b0))
@@ -168,7 +244,7 @@ class CharSet(_BaseNode):
                     # (since it may overlap more intervals...)
                     (a1, b1) = (a0, b1)
             else:
-                if b1 < a0 and b1 != self.alphabet.before(a0):
+                if b1 < a0 and b1 != alphabet.before(a0):
                     # new interval starts and ends before old, so add both
                     # and slurp
                     intervals.append((a1, b1))
@@ -190,18 +266,6 @@ class CharSet(_BaseNode):
         intervals.extend(self.intervals) # slurp remaining
         self.intervals = intervals
         
-    def __len__(self):
-        '''
-        The number of intervals in the range.
-        '''
-        return len(self.intervals)
-    
-    def __getitem__(self, index):
-        return self.intervals[index]
-    
-    def __iter__(self):
-        return iter(self.intervals)
-    
     def __contains__(self, c):
         '''
         Does the value lie within the intervals?
@@ -215,62 +279,33 @@ class CharSet(_BaseNode):
                 return a <= c <= b
         return False
     
-    def __format_interval(self, interval):
+    def __format_interval(self, interval, alphabet):
         (a, b) = interval
         if a == b:
-            return self.alphabet.to_str(a)
-        elif a == self.alphabet.before(b):
-            return self.alphabet.to_str(a) + self.alphabet.to_str(b)
+            return alphabet.to_str(a)
+        elif a == alphabet.before(b):
+            return alphabet.to_str(a) + alphabet.to_str(b)
         else:
-            return self.alphabet.to_str(a) + '-' + self.alphabet.to_str(b)
+            return alphabet.to_str(a) + '-' + alphabet.to_str(b)
 
-    def __str__(self):
+    def to_str(self, alphabet):
         if self.__str is None:
-            self.__str = \
-                '[' + ''.join(map(self.__format_interval, self.intervals)) + ']'
+            self.__str = ''.join(map(lambda x: self.__format_interval(x, alphabet), 
+                                     self.intervals))
         return self.__str
 
-    def __hash__(self):
-        return hash(str(self))
-    
-    def __eq__(self, other):
-        # pylint: disable-msg=W0212
-        # (test for same class)
-        return isinstance(other, CharSet) and str(self) == str(other)
-
-    def invert(self):
-        if not self.intervals:
-            inverted = deque([(self.alphabet.min, self.alphabet.max)])
-        else:
-            inverted = deque()
-            (a, last) = self.intervals[0]
-            if a != self.alphabet.min:
-                inverted.append(
-                    (self.alphabet.code_to_char(self.alphabet.min), 
-                     self.alphabet.before(a)))
-            for (a, b) in list(self.intervals)[1:]:
-                inverted.append(
-                    (self.alphabet.after(last), self.alphabet.before(a)))
-                last = b
-            if last != self.alphabet.max:
-                inverted.append(
-                    (self.alphabet.after(last), 
-                     self.alphabet.code_to_char(self.alphabet.max)))
-        self.intervals = inverted
-        self.__index = None
-        self.__str = None
-    
-    def simplify(self):
-        if len(self.intervals) == 0:
-            raise ParseException('Empty range')
-        elif len(self.intervals) == 1:
+    def simplify(self, alphabet, default):
+        if len(self.intervals) == 1:
             if self.intervals[0][0] == self.intervals[0][1]:
                 return String(self.intervals[0][0])
-            elif self.intervals[0][0] == self.alphabet.min and \
-                    self.intervals[0][1] == self.alphabet.max:
-                return Dot()
-        return self
+            elif self.intervals[0][0] == alphabet.min and \
+                    self.intervals[0][1] == alphabet.max:
+                return Dot(True)
+        return default
     
-    def visit(self, visitor, state=None):
-        return visitor.character(self.next, self, state)
-
+    def __bool__(self):
+        return bool(self.intervals)
+    
+    def __nonzero__(self):
+        return self.__bool__()
+    

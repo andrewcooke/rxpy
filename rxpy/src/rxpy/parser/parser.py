@@ -178,6 +178,13 @@ class Sequence(_BaseNode):
         return ''.join(map(str, self._nodes))
     
     @property
+    def consumer(self):
+        for node in self._nodes:
+            if node.consumer:
+                return True
+        return False
+    
+    @property
     def start(self):
         if self._nodes:
             self.__freeze()
@@ -210,6 +217,13 @@ class Alternatives(_BaseNode):
         self.__sequences = sequences
         self.__split = split
         
+    @property
+    def consumer(self):
+        for sequence in self.__sequences:
+            if sequence.consumer:
+                return True
+        return False
+    
     def concatenate(self, next):
         # be careful here to handle empty sequences correctly
         for sequence in self.__sequences:
@@ -345,7 +359,8 @@ class SequenceBuilder(StatefulBuilder):
                                                            self._state.flags)
             if is_pair:
                 self._nodes.append(CharSet([(value[0], value[0]), 
-                                            (value[1], value[1])]))
+                                            (value[1], value[1])], 
+                                            self._state.alphabet))
             else:
                 self._nodes.append(String(value))
         return self
@@ -397,6 +412,11 @@ class RepeatBuilder(StatefulBuilder):
             return self._parent_sequence.append_character(character)
         
     @staticmethod
+    def assert_consumer(latest):
+        if not latest.consumer:
+            raise ParseException('Cannot repeat ' + str(latest))
+        
+    @staticmethod
     def build_optional(parent_sequence, latest, lazy):
         split = Split('...?', lazy)
         split.next = [latest.start]
@@ -404,6 +424,7 @@ class RepeatBuilder(StatefulBuilder):
     
     @staticmethod
     def build_plus(parent_sequence, latest, lazy, state):
+        RepeatBuilder.assert_consumer(latest)
         split = Split('...+', lazy)
         # this (frozen) sequence protects "latest" from coalescing 
         seq = Sequence([latest, split], state)
@@ -412,6 +433,7 @@ class RepeatBuilder(StatefulBuilder):
         
     @staticmethod
     def build_star(parent_sequence, latest, lazy):
+        RepeatBuilder.assert_consumer(latest)
         split = Split('...*', lazy)
         split.next = [latest.concatenate(split)]
         parent_sequence._nodes.append(split)
@@ -728,21 +750,30 @@ class CharSetBuilder(StatefulBuilder):
                 else:
                     (alo, ahi) = unpack(self._queue)
                     (blo, bhi) = unpack(character)
-                    self._charset.append((alo, blo))
-                    self._charset.append((ahi, bhi))
+                    self._charset.append_interval((alo, blo))
+                    self._charset.append_interval((ahi, bhi))
                     self._queue = None
                     self._range = False
             else:
                 if self._queue:
                     (lo, hi) = unpack(self._queue)
-                    self._charset.append((lo, lo))
-                    self._charset.append((hi, hi))
+                    self._charset.append_interval((lo, lo))
+                    self._charset.append_interval((hi, hi))
                 self._queue = character
 
         if self._invert is None and character == '^':
             self._invert = True 
         elif not escaped and character == '\\':
             return SimpleEscapeBuilder(self._state, self)
+        elif escaped and character in 'dD':
+            self._charset.append_class(self._state.alphabet.digit,
+                                       character, character=='D')
+        elif escaped and character in 'wW':
+            self._charset.append_class(self._state.alphabet.word,
+                                       character, character=='W')
+        elif escaped and character in 'sS':
+            self._charset.append_class(self._state.alphabet.space,
+                                       character, character=='S')
         # not charset allows first character to be unescaped - or ]
         elif character and \
                 ((not self._charset and not self._queue)
