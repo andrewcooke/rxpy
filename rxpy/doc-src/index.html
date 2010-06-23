@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+    <meta name="description" 
+          content="Andrew Cooke's RXPY Python regular expression engine." >
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/combo?3.0.0/build/cssreset/reset-min.css&3.0.0/build/cssfonts/fonts-min.css&3.0.0/build/cssgrids/grids-min.css"> 
+    <title>RXPY</title>
+    <link rel="stylesheet" type="text/css" href="index.css" title="default">
+  </head>
+  <body>
+
+  <div id="yui-d4">
+
+    <div id="hd" class="yui-t3">
+      <div id="hd-left" class="yui-b">
+<h1>RXPY 0.0</h1>
+      </div>
+      <div id="hd-right" class="yui-main">
+        <div class="yui-b">
+
+<p>A pure-Python regular expression library.  RXPY is almost completely
+backwards compatible with Python's re package, but much more flexible and 
+extensible.</p>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="body" class="yui-t3">
+      <div id="body-left" class="yui-b">
+
+<h2>Resources</h2>
+
+<ul>
+<li><a href="overview.html">Overview</a></li>
+<li><a href="support.html">Support</a></li>
+<li><a href="licence.html">Licence</a></li>
+</ul>
+<ul>
+<li><a href="contents.html">Full Contents</a> 
+(<a href="genindex.html">Index</a>)</li>
+</ul>
+
+      </div>
+      <div id="body-right" class="yui-main">
+        <div class="yui-b"><div class="yui-g"><div class="yui-u first">
+
+<h2>Alphabets</h2>
+
+<p>RXPY includes the concept of "alphabets".  These let you define a regular
+  expression for types other than strings.  The initial code includes a
+  proof-of-concept that matches lists of integer digits.</p>
+
+<h2>Engines</h2>
+
+<p>RXPY allows different engines to be used during matching.  The initial code
+  includes a simple, recursive matcher, but the aim is to eventually support a
+  DFA-based matcher, modelled on 
+  <a href="http://code.google.com/p/re2/">re2</a>.</p>
+
+        </div>
+        <div class="yui-u">
+
+<h2>Graph</h2>
+
+<p>The regular expression is represented internally as a graph, parameterised
+  by the alphabet and interpreted by the engine.</p>
+
+<h2>Disadvantages</h2>
+
+<p>The main disadvantage with the current (C-based) Python interpreter is
+  speed.  To address this, engines written in C could be supported.
+  Alternatively, progress with PyPy or Unladen Swallow could make Python code
+  competitive with C.  Also, locale-based character groups are not 
+  supported.</p>
+
+        </div></div></div>
+      </div>
+    </div>
+
+    <div id="ft" class="yui-t3">
+      <div id="ft-left" class="yui-b">
+
+<h2>Installation</h2>
+<pre>
+&gt; easy_install rxpy
+</pre>
+
+      </div>
+      <div id="ft-right" class="yui-main">
+        <div class="yui-b"><div class="yui-g"><div class="yui-u first">
+
+<p>The <code>easy_install</code> command is provided by the
+<a href="http://pypi.python.org/pypi/distribute">distribute</a>  package.
+Please see distribute's 
+<a href="http://pypi.python.org/pypi/distribute#installation-instructions">installation
+instructions</a>.</p>
+
+        </div>
+        <div class="yui-u">
+<!--
+<p class="warn">Be careful with Python 3: setuptools and distribute both
+provide a command called easy_install, but only distribute works correctly.</p>
+-->
+        </div></div></div>
+      </div>
+    </div>
+
+    <div id="copyright">
+<p>Everything here my own work, unless attributed otherwise, (c) 2010 
+<a href="..">Andrew Cooke</a>.</p>
+    </div>
+
+  </body>
+</html>

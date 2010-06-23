@@ -1,4 +1,33 @@
 
+# The contents of this file are subject to the Mozilla Public License
+# (MPL) Version 1.1 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License
+# at http://www.mozilla.org/MPL/                                      
+#                                                                     
+# Software distributed under the License is distributed on an "AS IS" 
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See 
+# the License for the specific language governing rights and          
+# limitations under the License.                                      
+#                                                                     
+# The Original Code is RXPY (http://www.acooke.org/rxpy)              
+# The Initial Developer of the Original Code is Andrew Cooke.         
+# Portions created by the Initial Developer are Copyright (C) 2010
+# Andrew Cooke (andrew@acooke.org). All Rights Reserved.               
+#                                                                      
+# Alternatively, the contents of this file may be used under the terms 
+# of the LGPL license (the GNU Lesser General Public License,          
+# http://www.gnu.org/licenses/lgpl.html), in which case the provisions 
+# of the LGPL License are applicable instead of those above.           
+#                                                                      
+# If you wish to allow use of your version of this file only under the 
+# terms of the LGPL License and not to allow others to use your version
+# of this file under the MPL, indicate your decision by deleting the   
+# provisions above and replace them with the notice and other provisions
+# required by the LGPL License.  If you do not delete the provisions    
+# above, a recipient may use your version of this file under either the 
+# MPL or the LGPL License.                                              
+
+
 from string import digits, ascii_letters
 
 from rxpy.alphabet.base import CharSet
@@ -7,7 +36,7 @@ from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
     Repeat, Conditional, WordBoundary, Word, Space, Digit
-from rxpy.lib import _FLAGS, ParseException
+from rxpy.lib import _FLAGS, RxpyException
 
 
 OCTAL = '01234567'
@@ -35,14 +64,14 @@ class ParserState(object):
             if isinstance(alphabet, Ascii): flags |= ParserState.ASCII
             elif isinstance(alphabet, Unicode): flags |= ParserState.UNICODE
             elif flags & (ParserState.ASCII | ParserState.UNICODE):
-                raise ParseException('The alphabet is inconsistent with the parser flags')
+                raise RxpyException('The alphabet is inconsistent with the parser flags')
         # if alphabet missing, set from flag
         else:
             if flags & ParserState.ASCII: alphabet = Ascii()
             if flags & ParserState.UNICODE: alphabet = Unicode()
         # check contradictions
         if (flags & ParserState.ASCII) and (flags & ParserState.UNICODE):
-            raise ParseException('Cannot specify Unicode and ASCII together')
+            raise RxpyException('Cannot specify Unicode and ASCII together')
         
         self.__alphabet = alphabet
         self.__flags = flags
@@ -78,7 +107,7 @@ class ParserState(object):
         if name in self.__name_to_count:
             return self.__name_to_count[name]
         else:
-            raise ParseException('Unknown name: ' + name)
+            raise RxpyException('Unknown name: ' + name)
         
     def count_for_name_or_count(self, name):
         try:
@@ -314,7 +343,7 @@ class SequenceBuilder(StatefulBuilder):
             builder = builder.append_character(character)
         builder = builder.append_character(None)
         if self != builder:
-            raise ParseException('Incomplete expression')
+            raise RxpyException('Incomplete expression')
         return self.build_complete()
     
     def parse_group(self, text):
@@ -330,7 +359,7 @@ class SequenceBuilder(StatefulBuilder):
             builder = builder.append_character(')')
             assert builder == self
         except:
-            raise ParseException('Incomplete group')
+            raise RxpyException('Incomplete group')
         
     def build_complete(self):
         return self.build_dag().concatenate(Match())
@@ -394,7 +423,7 @@ class RepeatBuilder(StatefulBuilder):
         lazy = character == '?'
         
         if character and character in '+*':
-            raise ParseException('Compound repeat: ' + 
+            raise RxpyException('Compound repeat: ' + 
                                  self._initial_character + character)
         elif self._initial_character == '?':
             self.build_optional(self._parent_sequence, self._latest, lazy)
@@ -404,7 +433,7 @@ class RepeatBuilder(StatefulBuilder):
         elif self._initial_character == '*':
             self.build_star(self._parent_sequence, self._latest, lazy)
         else:
-            raise ParseException('Bad initial character for RepeatBuilder')
+            raise RxpyException('Bad initial character for RepeatBuilder')
             
         if lazy:
             return self._parent_sequence
@@ -414,7 +443,7 @@ class RepeatBuilder(StatefulBuilder):
     @staticmethod
     def assert_consumer(latest):
         if not latest.consumer:
-            raise ParseException('Cannot repeat ' + str(latest))
+            raise RxpyException('Cannot repeat ' + str(latest))
         
     @staticmethod
     def build_optional(parent_sequence, latest, lazy):
@@ -475,7 +504,7 @@ class GroupEscapeBuilder(StatefulBuilder):
             elif character == '(':
                 return ConditionalBuilder(self._state, self._parent_sequence)
             else:
-                raise ParseException(
+                raise RxpyException(
                     'Unexpected qualifier after (? - ' + character)
                 
                 
@@ -505,16 +534,16 @@ class ParserStateBuilder(StatefulBuilder):
             self.__escape = False
             return self
         elif not self.__escape and character == 'L':
-            raise ParseException('Locale based classes unsupported')
+            raise RxpyException('Locale based classes unsupported')
         elif not self.__escape and character in self.__table:
             self._state.new_flag(self.__table[character])
             return self
         elif not self.__escape and character == ')':
             return self.__parent
         elif self.__escape:
-            raise ParseException('Unexpected characters after (? - _' + character)
+            raise RxpyException('Unexpected characters after (? - _' + character)
         else:
-            raise ParseException('Unexpected character after (? - ' + character)
+            raise RxpyException('Unexpected character after (? - ' + character)
         
 
 class BaseGroupBuilder(SequenceBuilder):
@@ -565,7 +594,7 @@ class LookbackBuilder(StatefulBuilder):
         elif character == '!':
             return LookaheadBuilder(self._state, self._parent_sequence, False, False)
         else:
-            raise ParseException(
+            raise RxpyException(
                 'Unexpected qualifier after (?< - ' + character)
             
 
@@ -655,7 +684,7 @@ class YesNoBuilder(BaseGroupBuilder):
         
     def append_character(self, character, escaped=False):
         if character is None:
-            raise ParseException('Incomplete conditional match')
+            raise RxpyException('Incomplete conditional match')
         elif not escaped and character in self.__terminals:
             return self.__conditional.callback(self, character)
         else:
@@ -683,13 +712,13 @@ class NamedGroupBuilder(StatefulBuilder):
             elif character == '=':
                 self._create = False
             else:
-                raise ParseException(
+                raise RxpyException(
                     'Unexpected qualifier after (?P - ' + character)
                 
         else:
             if self._create and not escaped and character == '>':
                 if not self._name:
-                    raise ParseException('Empty name for group')
+                    raise RxpyException('Empty name for group')
                 return GroupBuilder(self._state, self._parent_sequence, 
                                     True, self._name)
             elif not self._create and not escaped and character == ')':
@@ -702,7 +731,7 @@ class NamedGroupBuilder(StatefulBuilder):
             elif character:
                 self._name += character
             else:
-                raise ParseException('Incomplete named group')
+                raise RxpyException('Incomplete named group')
 
         return self
     
@@ -721,7 +750,7 @@ class CommentGroupBuilder(StatefulBuilder):
         elif character:
             return self
         else:
-            raise ParseException('Incomplete comment')
+            raise RxpyException('Incomplete comment')
 
 
 class CharSetBuilder(StatefulBuilder):
@@ -746,7 +775,7 @@ class CharSetBuilder(StatefulBuilder):
         def append(character=character):
             if self._range:
                 if self._queue is None:
-                    raise ParseException('Incomplete range')
+                    raise RxpyException('Incomplete range')
                 else:
                     (alo, ahi) = unpack(self._queue)
                     (blo, bhi) = unpack(character)
@@ -797,7 +826,7 @@ class CharSetBuilder(StatefulBuilder):
             self._parent_sequence._nodes.append(self._charset.simplify())
             return self._parent_sequence
         else:
-            raise ParseException('Syntax error in character set')
+            raise RxpyException('Syntax error in character set')
         
         # after first character this must be known
         if self._invert is None:
@@ -819,7 +848,7 @@ class SimpleEscapeBuilder(StatefulBuilder):
         
     def append_character(self, character):
         if not character:
-            raise ParseException('Incomplete character escape')
+            raise RxpyException('Incomplete character escape')
         elif character in 'xuU':
             return UnicodeEscapeBuilder(self._state, self._parent_builder, character)
         elif character in digits:
@@ -844,7 +873,7 @@ class IntermediateEscapeBuilder(SimpleEscapeBuilder):
     
     def append_character(self, character):
         if not character:
-            raise ParseException('Incomplete character escape')
+            raise RxpyException('Incomplete character escape')
         elif character in digits and character != '0':
             return GroupReferenceBuilder(self._state, self._parent_builder, character)
         else:
@@ -858,7 +887,7 @@ class ComplexEscapeBuilder(IntermediateEscapeBuilder):
     
     def append_character(self, character):
         if not character:
-            raise ParseException('Incomplete character escape')
+            raise RxpyException('Incomplete character escape')
         elif character in digits and character != '0':
             return GroupReferenceBuilder(self._state, self._parent_builder, character)
         elif character == 'A':
@@ -895,7 +924,7 @@ class UnicodeEscapeBuilder(StatefulBuilder):
         
     def append_character(self, character):
         if not character:
-            raise ParseException('Incomplete unicode escape')
+            raise RxpyException('Incomplete unicode escape')
         self.__buffer += character
         self.__remaining -= 1
         if self.__remaining:
@@ -905,7 +934,7 @@ class UnicodeEscapeBuilder(StatefulBuilder):
                     self._state.alphabet.code_to_char(int(self.__buffer, 16)), 
                     escaped=True)
         except:
-            raise ParseException('Bad unicode escape: ' + self.__buffer)
+            raise RxpyException('Bad unicode escape: ' + self.__buffer)
     
 
 class OctalEscapeBuilder(StatefulBuilder):
@@ -920,7 +949,7 @@ class OctalEscapeBuilder(StatefulBuilder):
         try:
             return alphabet.unescape(int(buffer, 8))
         except:
-            raise ParseException('Bad octal escape: ' + buffer)
+            raise RxpyException('Bad octal escape: ' + buffer)
         
     def append_character(self, character):
         if character and character in '01234567':
@@ -959,7 +988,7 @@ class GroupReferenceBuilder(StatefulBuilder):
             assert index <= self._state.group_count
             return GroupReference(index)
         except:
-            raise ParseException('Bad group reference: ' + self.__buffer)
+            raise RxpyException('Bad group reference: ' + self.__buffer)
         
     def append_character(self, character):
         if character and (
@@ -1013,36 +1042,36 @@ class CountBuilder(StatefulBuilder):
         elif character:
             self._acc += character
         else:
-            raise ParseException('Incomplete count specification')
+            raise RxpyException('Incomplete count specification')
         return self
             
     def __store_value(self):
         if self._begin is None:
             if not self._acc:
-                raise ParseException('Missing lower limit for repeat')
+                raise RxpyException('Missing lower limit for repeat')
             else:
                 try:
                     self._begin = int(self._acc)
                 except ValueError:
-                    raise ParseException(
+                    raise RxpyException(
                             'Bad lower limit for repeat: ' + self._acc)
         else:
             if self._range:
-                raise ParseException('Too many values in repeat')
+                raise RxpyException('Too many values in repeat')
             self._range = True
             if self._acc:
                 try:
                     self._end = int(self._acc)
                 except ValueError:
-                    raise ParseException(
+                    raise RxpyException(
                             'Bad upper limit for repeat: ' + self._acc)
                 if self._begin > self._end:
-                    raise ParseException('Inconsistent repeat range')
+                    raise RxpyException('Inconsistent repeat range')
         self._acc = ''
         
     def __build(self):
         if not self._parent_sequence._nodes:
-            raise ParseException('Nothing to repeat')
+            raise RxpyException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
         if self._state.flags & ParserState._STATEFUL:
             self.build_count(self._parent_sequence, latest, self._begin, 
@@ -1082,7 +1111,7 @@ def _parse(text, state, class_=SequenceBuilder, mutable_flags=True):
         state = state.clone_with_new_flags()
         graph = SequenceBuilder(state).parse(text)
     if state.has_new_flags:
-        raise ParseException('Inconsistent flags')
+        raise RxpyException('Inconsistent flags')
     return (state, graph)
 
 def parse(text, flags=0, alphabet=None, hint_alphabet=None):
@@ -1099,7 +1128,7 @@ def parse_groups(texts, flags=0, alphabet=None):
     for text in texts:
         sequence.parse_group(text)
     if state.has_new_flags:
-        raise ParseException('Inconsistent flags')
+        raise RxpyException('Inconsistent flags')
     return (state, sequence.build_complete())
 
 
@@ -1107,7 +1136,7 @@ class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
     
     def append_character(self, character):
         if not character:
-            raise ParseException('Incomplete character escape')
+            raise RxpyException('Incomplete character escape')
         elif character == 'g':
             return ReplacementGroupReferenceBuilder(self._state, 
                                                     self._parent_builder)
@@ -1134,7 +1163,7 @@ class ReplacementGroupReferenceBuilder(StatefulBuilder):
         try:
             return GroupReference(
                     self._state.count_for_name_or_count(self.__buffer[1:]))
-        except ParseException:
+        except RxpyException:
             raise IndexError('Bad group reference: ' + self.__buffer[1:])
         
     @property
@@ -1175,9 +1204,9 @@ class ReplacementGroupReferenceBuilder(StatefulBuilder):
             self.__buffer += character
             return self
         elif character:
-            raise ParseException('Unexpected character in group escape: ' + character)
+            raise RxpyException('Unexpected character in group escape: ' + character)
         else:
-            raise ParseException('Incomplete group escape')
+            raise RxpyException('Incomplete group escape')
         
 
 class ReplacementBuilder(StatefulBuilder):
@@ -1198,7 +1227,7 @@ class ReplacementBuilder(StatefulBuilder):
             builder = builder.append_character(character)
         builder = builder.append_character(None)
         if self != builder:
-            raise ParseException('Incomplete expression')
+            raise RxpyException('Incomplete expression')
         return self.build_dag().concatenate(Match())
     
     def append_character(self, character, escaped=False):
