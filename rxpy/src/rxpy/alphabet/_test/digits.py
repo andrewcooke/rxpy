@@ -30,8 +30,8 @@
 
 from unittest import TestCase
 
-from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.digits import Digits
+from rxpy.parser.graph import CharSet
 
 
 class CharSetTest(TestCase):

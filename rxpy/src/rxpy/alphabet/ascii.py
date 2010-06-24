@@ -27,6 +27,9 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+Logic related to ASCII input.
+'''
 
 from string import digits, ascii_letters
 
@@ -39,10 +42,12 @@ WORD = set(ascii_letters + digits + '_')
 
 class Ascii(Alphabet):
     '''
-    Note that this uses Unicode to encode the ASCII data (in other words,
-    it's just the Unicode points 0-127).
-    '''
+    Define character sets etc for ASCII strings.  We could maybe extend or
+    subclass this for Locale-dependent logic.
     
+    See base class for full documentation.
+    '''
+        
     def __init__(self):
         super(Ascii, self).__init__(0, 127)
         

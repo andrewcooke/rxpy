@@ -27,11 +27,20 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+Logic related to input consiting of lists of digits (this is a proof of
+concept used to test non-string inputs).
+'''
 
 from rxpy.alphabet.base import Alphabet
 
 
 class Digits(Alphabet):
+    '''
+    Define character sets etc for lists of single digits.
+    
+    See base class for full documentation.
+    '''
     
     def __init__(self):
         super(Digits, self).__init__(0, 9)

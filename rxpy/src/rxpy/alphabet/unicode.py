@@ -27,17 +27,26 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+Logic related to Unicode input.
+'''
+
 
 from sys import maxunicode
 from unicodedata import category
 
-from rxpy.alphabet.base import Alphabet, CharSet
+from rxpy.alphabet.base import Alphabet
 
 
 WORD = set(['Ll', 'Lo', 'Lt', 'Lu', 'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc'])
 
 
 class Unicode(Alphabet):
+    '''
+    Define character sets etc for Unicode strings.
+    
+    See base class for full documentation.
+    '''
     
     def __init__(self):
         super(Unicode, self).__init__(0, maxunicode)

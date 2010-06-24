@@ -30,12 +30,11 @@
 
 from string import digits, ascii_letters
 
-from rxpy.alphabet.base import CharSet
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.graph import String, StartGroup, EndGroup, Split, _BaseNode, \
     Match, Dot, StartOfLine, EndOfLine, GroupReference, Lookahead, \
-    Repeat, Conditional, WordBoundary, Word, Space, Digit
+    Repeat, Conditional, WordBoundary, Word, Space, Digit, CharSet
 from rxpy.lib import _FLAGS, RxpyException
 
 
@@ -44,12 +43,22 @@ ALPHANUMERIC = digits + ascii_letters
 
 
 class ParserState(object):
+    '''
+    This encapsulates state needed by the parser.  This includes information 
+    about flags (which may change during processing and is related to 
+    alphabets) and groups.
+    '''
     
     (I, M, S, U, X, A, _S, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _GREEDY_OR) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None):
         '''
-        hint_alphabet is used to help adapt between ASCII and Unicode in 2.6
+        flags - initial flags set by user (bits as int)
+        
+        alphabet - optional alphabet (if given, checked against flags; if not
+        given inferred from flags and hint) 
+        
+        hint_alphabet - used to help auto-detect ASCII and Unicode in 2.6
         '''
         
         self.__new_flags = 0
@@ -76,46 +85,61 @@ class ParserState(object):
         self.__alphabet = alphabet
         self.__flags = flags
         self.__group_count = 0
-        self.__name_to_count = {}
-        self.__count_to_name = {}
-        self.__comment = False
+        self.__name_to_index = {}
+        self.__index_to_name = {}
+        self.__comment = False  # used to track comments with extended syntax
         
     @property
     def has_new_flags(self):
+        '''
+        Have flags change during parsing (possible when flags are embedded in
+        the regular expression)?
+        '''
         return bool(self.__new_flags & ~self.__flags)
     
-    def clone_with_new_flags(self, alphabet=None, flags=None):
+    def clone_with_new_flags(self):
         '''
         This discards group information because the expression will be parsed
         again with new flags.
         '''
-        if alphabet is None:
-            alphabet = self.__initial_alphabet
-        if flags is None:
-            flags = self.__flags | self.__new_flags
-        return ParserState(alphabet=alphabet, flags=flags, 
+        return ParserState(alphabet=self.__initial_alphabet, 
+                           flags=self.__flags | self.__new_flags, 
                            hint_alphabet=self.__hint_alphabet)
         
-    def next_group_count(self, name=None):
+    def next_group_index(self, name=None):
+        '''
+        Get the index number for the next group, possibly associating it with
+        a name.
+        '''
         self.__group_count += 1
         if name:
-            self.__name_to_count[name] = self.__group_count
-            self.__count_to_name[self.__group_count] = name
+            self.__name_to_index[name] = self.__group_count
+            self.__index_to_name[self.__group_count] = name
         return self.__group_count
     
-    def count_for_name(self, name):
-        if name in self.__name_to_count:
-            return self.__name_to_count[name]
+    def index_for_name(self, name):
+        '''
+        Given a group name, return the group index.
+        '''
+        if name in self.__name_to_index:
+            return self.__name_to_index[name]
         else:
             raise RxpyException('Unknown name: ' + name)
         
-    def count_for_name_or_count(self, name):
+    def index_for_name_or_count(self, name):
+        '''
+        Given a group name or index (as text), return the group index (as int).
+        First, we parser as an integer, then we try as a name.
+        '''
         try:
             return int(name)
         except:
-            return self.count_for_name(name)
+            return self.index_for_name(name)
         
     def new_flag(self, flag):
+        '''
+        Add a new flag (called by the parser for embedded flags).
+        '''
         self.__new_flags |= flag
         
     def significant(self, character):
@@ -138,22 +162,38 @@ class ParserState(object):
         
     @property
     def alphabet(self):
+        '''
+        The alphabet to be used.
+        '''
         return self.__alphabet
     
     @property
     def flags(self):
+        '''
+        Current flags (this does not change as new flags are added; instead
+        the entire expression must be reparsed if `has_new_flags` is True.
+        '''
         return self.__flags
     
     @property
     def group_names(self):
-        return dict(self.__name_to_count)
+        '''
+        Map from group names to index.
+        '''
+        return dict(self.__name_to_index)
     
     @property
     def group_indices(self):
-        return dict(self.__count_to_name)
+        '''
+        Map from group index to name.
+        '''
+        return dict(self.__index_to_name)
     
     @property
     def group_count(self):
+        '''
+        Total number of groups.
+        '''
         return self.__group_count
         
         
@@ -169,7 +209,6 @@ class Sequence(_BaseNode):
     def __init__(self, nodes, state):
         self._nodes = nodes
         self._frozen = False
-        assert isinstance(state, ParserState)
         self._state = state
     
     def concatenate(self, next):
@@ -571,7 +610,7 @@ class GroupBuilder(BaseGroupBuilder):
     def __init__(self, state, sequence, binding=True, name=None):
         super(GroupBuilder, self).__init__(state, sequence)
         self._start = \
-            StartGroup(self._state.next_group_count(name)) if binding else None
+            StartGroup(self._state.next_group_index(name)) if binding else None
  
     def _build_group(self):
         contents = self.build_dag()
@@ -647,7 +686,7 @@ class ConditionalBuilder(StatefulBuilder):
             # collect second alternative
             if terminal == '|':
                 return YesNoBuilder(self, self._state, self.__parent_sequence, ')')
-        group = self._state.count_for_name_or_count(self.__name)
+        group = self._state.index_for_name_or_count(self.__name)
         conditional = Conditional(group)
         yes = self.__yes.build_dag()
         no = yesno.build_dag() if yesno else None
@@ -723,7 +762,7 @@ class NamedGroupBuilder(StatefulBuilder):
                                     True, self._name)
             elif not self._create and not escaped and character == ')':
                 self._parent_sequence._nodes.append(
-                    GroupReference(self._state.count_for_name(self._name)))
+                    GroupReference(self._state.index_for_name(self._name)))
                 return self._parent_sequence
             elif not escaped and character == '\\':
                 # this is just for the name
@@ -1162,7 +1201,7 @@ class ReplacementGroupReferenceBuilder(StatefulBuilder):
     def __decode(self):
         try:
             return GroupReference(
-                    self._state.count_for_name_or_count(self.__buffer[1:]))
+                    self._state.index_for_name_or_count(self.__buffer[1:]))
         except RxpyException:
             raise IndexError('Bad group reference: ' + self.__buffer[1:])
         

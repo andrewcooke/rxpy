@@ -30,5 +30,5 @@ That's it.  There is no need to download anything beforehand;
 Source
 ~~~~~~
 
-A publicly readable Mercurial repsository is `available
+A publicly readable Mercurial repository is `available
 <http://code.google.com/p/rxpy/source/checkout>`_.

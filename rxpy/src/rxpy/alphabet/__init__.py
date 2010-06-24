@@ -27,3 +27,7 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+An alphabet encapsulates logic specific to a particular input type.  For 
+example, ASCII and Unicode strings.
+'''

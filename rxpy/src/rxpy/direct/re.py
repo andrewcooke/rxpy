@@ -27,6 +27,12 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+A replacement for the Python re module, using the direct engine.
+
+Eventually much of this will be abstracted over different engines.
+For documentation, see the official Python re module documentation.
+'''
 
 from rxpy.parser.parser import parse, RxpyException, parse_groups
 from rxpy.direct.visitor import Visitor, compile_repl
@@ -41,11 +47,15 @@ from rxpy.alphabet.unicode import Unicode
 _ALPHANUMERICS = ascii_letters + digits
 
 
-def compile(pattern, flags=0, alphabet=None):
+def compile(pattern, flags=None, alphabet=None):
     if isinstance(pattern, RegexObject):
-        if flags or alphabet:
-            raise ValueError('Precompiled pattern')
+        if flags is not None and flags != pattern.flags:
+            raise ValueError('Changed flags')
+        if alphabet is not None and alphabet != pattern.alphabet:
+            raise ValueError('Changed alphabet')
     else:
+        if flags is None:
+            flags = 0
         if isinstance(pattern, str):
             hint_alphabet = Ascii()
         elif isinstance(pattern, unicode):
@@ -65,12 +75,12 @@ class RegexObject(object):
         self.__pattern = pattern
         
     @property
-    def __state(self):
+    def __parser_state(self):
         return self.__parsed[0]
 
     @property
     def flags(self):
-        return self.__state.flags
+        return self.__parser_state.flags
         
     @property
     def pattern(self):
@@ -78,11 +88,11 @@ class RegexObject(object):
     
     @property
     def groups(self):
-        return self.__state.group_count
+        return self.__parser_state.group_count
     
     @property
     def groupindex(self):
-        return self.__state.group_names
+        return self.__parser_state.group_names
     
     def scanner(self, text, pos=0, endpos=None):
         return MatchIterator(self, self.__parsed, text, pos, endpos)
@@ -148,7 +158,7 @@ class RegexObject(object):
             yield pending_empty
             
     def subn(self, repl, text, count=0):
-        replacement = compile_repl(repl, self.__state)
+        replacement = compile_repl(repl, self.__parser_state)
         n = 0
         pos = 0
         results = []
@@ -158,7 +168,7 @@ class RegexObject(object):
             n += 1
             pos = found.end()
         results += text[pos:]
-        return (self.__state.alphabet.join(*results), n)
+        return (self.__parser_state.alphabet.join(*results), n)
     
     def findall(self, text, pos=0, endpos=None):
         def expand(match):
@@ -198,6 +208,10 @@ class MatchIterator(object):
         self.__pos = pos
         self.__endpos = endpos if endpos else len(text)
     
+    @property
+    def __parser_state(self):
+        return self.__parsed[0]
+
     def next(self, search):
         if self.__pos <= self.__endpos:
             visitor = Visitor.from_parse_results(
@@ -205,7 +219,8 @@ class MatchIterator(object):
                         pos=self.__pos, search=search)
             if visitor:
                 found = MatchObject(visitor.groups, self.__re, self.__text, 
-                                    self.__pos, self.__endpos, self.__parsed[0])
+                                    self.__pos, self.__endpos, 
+                                    self.__parser_state)
                 offset = found.end()
                 self.__pos = offset if offset > self.__pos else offset + 1 
                 return found

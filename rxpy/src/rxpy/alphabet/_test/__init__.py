@@ -27,3 +27,6 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+Tests for the rxpy.alphabet package.
+'''
