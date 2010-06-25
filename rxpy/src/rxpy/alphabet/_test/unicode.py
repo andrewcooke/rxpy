@@ -30,13 +30,13 @@
 from unittest import TestCase
 
 from rxpy.alphabet.ascii import Ascii
-from rxpy.parser.graph import CharSet
+from rxpy.graph.opcode import Character
 
 
-class CharSetTest(TestCase):
+class CharacterTest(TestCase):
     
     def do_test_str(self, intervals, target):
-        result = str(CharSet(intervals, Ascii()))
+        result = str(Character(intervals, Ascii()))
         assert result == target, result
     
     def test_str(self):
@@ -64,18 +64,18 @@ class CharSetTest(TestCase):
         self.do_test_str([('b','a'), ('b', 'c')], '[a-c]')
     
     def test_contains(self):
-        assert 'a' not in CharSet([('b', 'b')], Ascii())
-        assert 'b' in CharSet([('b', 'b')], Ascii())
-        assert 'c' not in CharSet([('b', 'b')], Ascii())
-        assert 'a' in CharSet([('a', 'b')], Ascii())
-        assert 'b' in CharSet([('a', 'b')], Ascii())
-        assert 'c' not in CharSet([('a', 'b')], Ascii())
-        assert 'a' in CharSet([('a', 'c')], Ascii())
-        assert 'b' in CharSet([('a', 'c')], Ascii())
-        assert 'c' in CharSet([('a', 'c')], Ascii())
-        assert 'a' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
-        assert 'b' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
-        assert 'c' in CharSet([('a', 'b'), ('b', 'c')], Ascii())
-        assert 'a' in CharSet([('a', 'a'), ('c', 'c')], Ascii())
-        assert 'b' not in CharSet([('a', 'a'), ('c', 'c')], Ascii())
-        assert 'c' in CharSet([('a', 'a'), ('c', 'c')], Ascii())
+        assert 'a' not in Character([('b', 'b')], Ascii())
+        assert 'b' in Character([('b', 'b')], Ascii())
+        assert 'c' not in Character([('b', 'b')], Ascii())
+        assert 'a' in Character([('a', 'b')], Ascii())
+        assert 'b' in Character([('a', 'b')], Ascii())
+        assert 'c' not in Character([('a', 'b')], Ascii())
+        assert 'a' in Character([('a', 'c')], Ascii())
+        assert 'b' in Character([('a', 'c')], Ascii())
+        assert 'c' in Character([('a', 'c')], Ascii())
+        assert 'a' in Character([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'b' in Character([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'c' in Character([('a', 'b'), ('b', 'c')], Ascii())
+        assert 'a' in Character([('a', 'a'), ('c', 'c')], Ascii())
+        assert 'b' not in Character([('a', 'a'), ('c', 'c')], Ascii())
+        assert 'c' in Character([('a', 'a'), ('c', 'c')], Ascii())

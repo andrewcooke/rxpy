@@ -34,7 +34,7 @@ Eventually much of this will be abstracted over different engines.
 For documentation, see the official Python re module documentation.
 '''
 
-from rxpy.parser.parser import parse, RxpyException, parse_groups
+from rxpy.parser.pattern import parse_pattern, RxpyException, parse_groups
 from rxpy.direct.visitor import Visitor, compile_repl
 from string import ascii_letters, digits
 from rxpy.lib import _FLAGS
@@ -62,7 +62,7 @@ def compile(pattern, flags=None, alphabet=None):
             hint_alphabet = Unicode()
         else:
             hint_alphabet = None
-        pattern = RegexObject(parse(pattern, flags=flags, alphabet=alphabet,
+        pattern = RegexObject(parse_pattern(pattern, flags=flags, alphabet=alphabet,
                                     hint_alphabet=hint_alphabet),
                               pattern)
     return pattern

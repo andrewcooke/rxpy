@@ -133,7 +133,7 @@ class Alphabet(object):
         '''
         Return either (True, CharSet) or (False, char)
         '''
-        from rxpy.parser.parser import ParserState
+        from rxpy.parser.support import ParserState
         if flags & ParserState.IGNORECASE:
             raise RxpyException('Default alphabet does not handle case')
         return (False, self.join(self.coerce(char)))

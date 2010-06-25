@@ -32,15 +32,15 @@ from unittest import TestCase
 
 from rxpy.alphabet.digits import Digits
 from rxpy.direct.visitor import Visitor
-from rxpy.parser._test.parser import parse
-from rxpy.parser.parser import ParserState, RxpyException
 from rxpy.lib import UnsupportedOperation
+from rxpy.parser.pattern import parse_pattern
+from rxpy.parser.support import ParserState, RxpyException
 
 
 class VisitorTest(TestCase):
     
     def parse(self, regexp, flags=0):
-        return parse(regexp, alphabet=Digits(), flags=flags)
+        return parse_pattern(regexp, alphabet=Digits(), flags=flags)
     
     def test_string(self):
         assert Visitor.from_parse_results(self.parse('1'), [1])

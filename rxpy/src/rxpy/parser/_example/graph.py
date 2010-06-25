@@ -30,11 +30,11 @@
 
 from gv import readstring, render, layout
 
-from rxpy.parser.parser import parse
+from rxpy.parser.pattern import parse_pattern
 
 
 if __name__ == '__main__':
-    (state, graph) = parse(r'(?P<number>[0-9]+)|\w*')
+    (state, graph) = parse_pattern(r'(?P<number>[0-9]+)|\w*')
     graph = repr(graph)
     graph = readstring(graph)
     layout(graph, 'neato')

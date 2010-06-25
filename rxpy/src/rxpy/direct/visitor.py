@@ -28,8 +28,8 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.parser.visitor import Visitor as _Visitor
-from rxpy.parser.parser import parse_repl, RxpyException
+from rxpy.graph.visitor import Visitor as _Visitor
+from rxpy.parser.replace import parse_replace, RxpyException
 
 
 class Fail(Exception):
@@ -456,7 +456,7 @@ class Visitor(_Visitor):
 class ReplVisitor(_Visitor):
     
     def __init__(self, repl, state):
-        (self.__state, self.__graph) = parse_repl(repl, state)
+        (self.__state, self.__graph) = parse_replace(repl, state)
     
     def evaluate(self, match):
         self.__result = self.__state.alphabet.join()

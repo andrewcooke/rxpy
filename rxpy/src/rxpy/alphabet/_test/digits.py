@@ -31,13 +31,13 @@
 from unittest import TestCase
 
 from rxpy.alphabet.digits import Digits
-from rxpy.parser.graph import CharSet
+from rxpy.graph.opcode import Character
 
 
-class CharSetTest(TestCase):
+class CharacterTest(TestCase):
     
     def do_test_str(self, intervals, target):
-        result = str(CharSet(intervals, alphabet=Digits()))
+        result = str(Character(intervals, alphabet=Digits()))
         assert result == target, result
     
     def test_str(self):
@@ -65,18 +65,18 @@ class CharSetTest(TestCase):
         self.do_test_str([('1','0'), ('1', '2')], '[0-2]')
     
     def test_contains(self):
-        assert 0 not in CharSet([('1', '1')], Digits())
-        assert 1 in CharSet([('1', '1')], Digits())
-        assert 2 not in CharSet([('1', '1')], Digits())
-        assert 0 in CharSet([('0', '1')], Digits())
-        assert 1 in CharSet([('0', '1')], Digits())
-        assert 2 not in CharSet([('0', '1')], Digits())
-        assert 0 in CharSet([('0', '2')], Digits())
-        assert 1 in CharSet([('0', '2')], Digits())
-        assert 2 in CharSet([('0', '2')], Digits())
-        assert 0 in CharSet([('0', '1'), ('1', '2')], Digits())
-        assert 1 in CharSet([('0', '1'), ('1', '2')], Digits())
-        assert 2 in CharSet([('0', '1'), ('1', '2')], Digits())
-        assert 0 in CharSet([('0', '0'), ('2', '2')], Digits())
-        assert 1 not in CharSet([('0', '0'), ('2', '2')], Digits())
-        assert 2 in CharSet([('0', '0'), ('2', '2')], Digits())
+        assert 0 not in Character([('1', '1')], Digits())
+        assert 1 in Character([('1', '1')], Digits())
+        assert 2 not in Character([('1', '1')], Digits())
+        assert 0 in Character([('0', '1')], Digits())
+        assert 1 in Character([('0', '1')], Digits())
+        assert 2 not in Character([('0', '1')], Digits())
+        assert 0 in Character([('0', '2')], Digits())
+        assert 1 in Character([('0', '2')], Digits())
+        assert 2 in Character([('0', '2')], Digits())
+        assert 0 in Character([('0', '1'), ('1', '2')], Digits())
+        assert 1 in Character([('0', '1'), ('1', '2')], Digits())
+        assert 2 in Character([('0', '1'), ('1', '2')], Digits())
+        assert 0 in Character([('0', '0'), ('2', '2')], Digits())
+        assert 1 not in Character([('0', '0'), ('2', '2')], Digits())
+        assert 2 in Character([('0', '0'), ('2', '2')], Digits())

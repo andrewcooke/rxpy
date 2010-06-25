@@ -35,8 +35,7 @@ from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
     EndOfLine, Dot, StartGroup, EndGroup, Conditional, WordBoundary, Digit, Word,\
     Space, Lookahead, GroupReference, Repeat
 from rxpy.graph.temp import Sequence, Alternatives, Merge
-from rxpy.parser.support import StatefulBuilder, ParserState, OCTAL,\
-    ALPHANUMERIC
+from rxpy.parser.support import StatefulBuilder, ParserState, OCTAL, parse
 
 
 class SequenceBuilder(StatefulBuilder):
@@ -808,8 +807,17 @@ class CountBuilder(StatefulBuilder):
         parent_sequence._nodes.append(count)
                         
         
-def parse(text, flags=0, alphabet=None, hint_alphabet=None):
-    from rxpy.parser.support import parse as parse_
+def parse_pattern(text, flags=0, alphabet=None, hint_alphabet=None):
     state = ParserState(flags=flags, alphabet=alphabet, 
                         hint_alphabet=hint_alphabet)
-    return parse_(text, state, SequenceBuilder)
+    return parse(text, state, SequenceBuilder)
+
+def parse_groups(texts, flags=0, alphabet=None):
+    state = ParserState(flags=flags, alphabet=alphabet)
+    sequence = SequenceBuilder(state)
+    for text in texts:
+        sequence.parse_group(text)
+    if state.has_new_flags:
+        raise RxpyException('Inconsistent flags')
+    return (state, sequence.build_complete())
+

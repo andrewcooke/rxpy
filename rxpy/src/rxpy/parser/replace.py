@@ -31,14 +31,11 @@
 from string import digits
 
 from rxpy.lib import RxpyException
-from rxpy.graph.temp import Sequence
-from rxpy.parser.parser import IntermediateEscapeBuilder
-from rxpy.parser.support import parse, StatefulBuilder, ALPHANUMERIC
 from rxpy.graph.opcode import GroupReference, Match, String
+from rxpy.graph.temp import Sequence
+from rxpy.parser.support import parse, StatefulBuilder, ALPHANUMERIC
+from rxpy.parser.pattern import IntermediateEscapeBuilder
 
-
-def parse_repl(text, state):
-    return parse(text, state, class_=ReplacementBuilder, mutable_flags=False)
 
 class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
     
@@ -150,4 +147,8 @@ class ReplacementBuilder(StatefulBuilder):
     
     def build_dag(self):
         return Sequence(self._nodes, self._state)
+
+
+def parse_replace(text, state):
+    return parse(text, state, ReplacementBuilder, mutable_flags=False)
 

@@ -85,7 +85,7 @@ class Ascii(Alphabet):
         '''
         Return either (True, (lo, hi)) or (False, char)
         '''
-        from rxpy.parser.parser import ParserState
+        from rxpy.parser.support import ParserState
         char = self.join(self.coerce(char))
         if flags & ParserState.IGNORECASE:
             lo = char.lower()

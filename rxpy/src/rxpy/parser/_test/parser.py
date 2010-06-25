@@ -28,14 +28,16 @@
 # MPL or the LGPL License.                                              
 
 
+from rxpy.lib import RxpyException
 from rxpy.parser._test.lib import GraphTest
-from rxpy.parser.parser import parse, ParserState, RxpyException
+from rxpy.parser.pattern import parse_pattern
+from rxpy.parser.support import ParserState
 
 
 class ParserTest(GraphTest):
     
     def test_sequence(self):
-        self.assert_graphs(parse('abc'), 
+        self.assert_graphs(parse_pattern('abc'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -43,7 +45,7 @@ class ParserTest(GraphTest):
 }""")
     
     def test_matching_group(self):
-        self.assert_graphs(parse('a(b)c'), 
+        self.assert_graphs(parse_pattern('a(b)c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -59,7 +61,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_nested_matching_group(self):
-        self.assert_graphs(parse('a(b(c)d)e'), 
+        self.assert_graphs(parse_pattern('a(b(c)d)e'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -83,7 +85,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_nested_matching_close(self):
-        self.assert_graphs(parse('a((b))c'), 
+        self.assert_graphs(parse_pattern('a((b))c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -103,7 +105,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_matching_group_late_close(self):
-        self.assert_graphs(parse('a(b)'), 
+        self.assert_graphs(parse_pattern('a(b)'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -117,7 +119,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_matching_group_early_open(self):
-        self.assert_graphs(parse('(a)b'), 
+        self.assert_graphs(parse_pattern('(a)b'), 
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -131,7 +133,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_empty_matching_group(self):
-        self.assert_graphs(parse('a()b'), 
+        self.assert_graphs(parse_pattern('a()b'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -143,7 +145,7 @@ class ParserTest(GraphTest):
  2 -> 3
  3 -> 4
 }""")
-        self.assert_graphs(parse('()a'), 
+        self.assert_graphs(parse_pattern('()a'), 
 """strict digraph {
  0 [label="("]
  1 [label=")"]
@@ -155,7 +157,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_non_matching_group(self):
-        self.assert_graphs(parse('a(?:b)c'), 
+        self.assert_graphs(parse_pattern('a(?:b)c'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -163,7 +165,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_non_matching_complex_group(self):
-        self.assert_graphs(parse('a(?:p+q|r)c'), 
+        self.assert_graphs(parse_pattern('a(?:p+q|r)c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...|..."]
@@ -185,7 +187,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_character_plus(self):
-        self.assert_graphs(parse('ab+c'), 
+        self.assert_graphs(parse_pattern('ab+c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
@@ -200,7 +202,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_character_star(self):
-        self.assert_graphs(parse('ab*c'), 
+        self.assert_graphs(parse_pattern('ab*c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...*"]
@@ -215,7 +217,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_character_question(self):
-        self.assert_graphs(parse('ab?c'), 
+        self.assert_graphs(parse_pattern('ab?c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...?"]
@@ -229,7 +231,7 @@ class ParserTest(GraphTest):
  2 -> 3
 }""")
         # this was a bug
-        self.assert_graphs(parse('x|a?'),
+        self.assert_graphs(parse_pattern('x|a?'),
 """strict digraph {
  0 [label="...|..."]
  1 [label="x"]
@@ -245,7 +247,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_multiple_character_question(self):
-        self.assert_graphs(parse('ab?c?de?'), 
+        self.assert_graphs(parse_pattern('ab?c?de?'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...?"]
@@ -270,7 +272,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_plus(self):
-        self.assert_graphs(parse('a(bc)+d'), 
+        self.assert_graphs(parse_pattern('a(bc)+d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -289,7 +291,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_star(self):
-        self.assert_graphs(parse('a(bc)*d'), 
+        self.assert_graphs(parse_pattern('a(bc)*d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...*"]
@@ -308,7 +310,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_question(self):
-        self.assert_graphs(parse('a(bc)?d'), 
+        self.assert_graphs(parse_pattern('a(bc)?d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...?"]
@@ -327,7 +329,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_simple_range(self):
-        self.assert_graphs(parse('[a-z]'), 
+        self.assert_graphs(parse_pattern('[a-z]'), 
 """strict digraph {
  0 [label="[a-z]"]
  1 [label="Match"]
@@ -335,7 +337,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_double_range(self):
-        self.assert_graphs(parse('[a-c][p-q]'), 
+        self.assert_graphs(parse_pattern('[a-c][p-q]'), 
 """strict digraph {
  0 [label="[a-c]"]
  1 [label="[pq]"]
@@ -345,7 +347,7 @@ class ParserTest(GraphTest):
 }""")    
 
     def test_single_range(self):
-        self.assert_graphs(parse('[a]'), 
+        self.assert_graphs(parse_pattern('[a]'), 
 """strict digraph {
  0 [label="a"]
  1 [label="Match"]
@@ -353,7 +355,7 @@ class ParserTest(GraphTest):
 }""")
 
     def test_autoescaped_range(self):
-        self.assert_graphs(parse('[]]'), 
+        self.assert_graphs(parse_pattern('[]]'), 
 """strict digraph {
  0 [label="]"]
  1 [label="Match"]
@@ -361,7 +363,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_inverted_range(self):
-        self.assert_graphs(parse('[^apz]'), 
+        self.assert_graphs(parse_pattern('[^apz]'), 
 r"""strict digraph {
  0 [label="[^apz]"]
  1 [label="Match"]
@@ -369,7 +371,7 @@ r"""strict digraph {
 }""")
         
     def test_escaped_range(self):
-        self.assert_graphs(parse(r'[\x00-`b-oq-y{-\U0010ffff]'), 
+        self.assert_graphs(parse_pattern(r'[\x00-`b-oq-y{-\U0010ffff]'), 
 r"""strict digraph {
  0 [label="[\\x00-`b-oq-y{-\\U0010ffff]"]
  1 [label="Match"]
@@ -377,7 +379,7 @@ r"""strict digraph {
 }""")
 
     def test_x_escape(self):
-        self.assert_graphs(parse('a\\x62c'), 
+        self.assert_graphs(parse_pattern('a\\x62c'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -385,7 +387,7 @@ r"""strict digraph {
 }""")
 
     def test_u_escape(self):
-        self.assert_graphs(parse('a\\u0062c'), 
+        self.assert_graphs(parse_pattern('a\\u0062c'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -393,7 +395,7 @@ r"""strict digraph {
 }""")
         
     def test_U_escape(self):
-        self.assert_graphs(parse('a\\U00000062c'), 
+        self.assert_graphs(parse_pattern('a\\U00000062c'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -401,7 +403,7 @@ r"""strict digraph {
 }""")
 
     def test_escaped_escape(self):
-        self.assert_graphs(parse('\\\\'), 
+        self.assert_graphs(parse_pattern('\\\\'), 
 # unsure about this...
 """strict digraph {
  0 [label="\\\\"]
@@ -410,7 +412,7 @@ r"""strict digraph {
 }""")
         
     def test_dot(self):
-        self.assert_graphs(parse('.'), 
+        self.assert_graphs(parse_pattern('.'), 
 """strict digraph {
  0 [label="."]
  1 [label="Match"]
@@ -418,7 +420,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_character_plus(self):
-        self.assert_graphs(parse('ab+?c'), 
+        self.assert_graphs(parse_pattern('ab+?c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="b"]
@@ -434,7 +436,7 @@ r"""strict digraph {
 
 
     def test_lazy_character_star(self):
-        self.assert_graphs(parse('ab*?c'), 
+        self.assert_graphs(parse_pattern('ab*?c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...*?"]
@@ -449,7 +451,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_character_question(self):
-        self.assert_graphs(parse('ab??c'), 
+        self.assert_graphs(parse_pattern('ab??c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...??"]
@@ -464,7 +466,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_group_plus(self):
-        self.assert_graphs(parse('a(bc)+?d'), 
+        self.assert_graphs(parse_pattern('a(bc)+?d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -483,7 +485,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_group_star(self):
-        self.assert_graphs(parse('a(bc)*?d'), 
+        self.assert_graphs(parse_pattern('a(bc)*?d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="...*?"]
@@ -502,7 +504,7 @@ r"""strict digraph {
 }""")
         
     def test_alternatives(self):
-        self.assert_graphs(parse('a|'), 
+        self.assert_graphs(parse_pattern('a|'), 
 """strict digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -511,7 +513,7 @@ r"""strict digraph {
  0 -> 2
  1 -> 2
 }""")
-        self.assert_graphs(parse('a|b|cd'), 
+        self.assert_graphs(parse_pattern('a|b|cd'), 
 """strict digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -527,7 +529,7 @@ r"""strict digraph {
 }""")
 
     def test_group_alternatives(self):
-        self.assert_graphs(parse('(a|b|cd)'),
+        self.assert_graphs(parse_pattern('(a|b|cd)'),
 """strict digraph {
  0 [label="("]
  1 [label="...|..."]
@@ -545,7 +547,7 @@ r"""strict digraph {
  3 -> 5
  2 -> 5
 }""")
-        self.assert_graphs(parse('(a|)'),
+        self.assert_graphs(parse_pattern('(a|)'),
 """strict digraph {
  0 [label="("]
  1 [label="...|..."]
@@ -560,7 +562,7 @@ r"""strict digraph {
 }""")
         
     def test_nested_groups(self):
-        self.assert_graphs(parse('a|(b|cd)'),
+        self.assert_graphs(parse_pattern('a|(b|cd)'),
 """strict digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -582,7 +584,7 @@ r"""strict digraph {
 }""")
 
     def test_named_groups(self):
-        self.assert_graphs(parse('a(?P<foo>b)c(?P=foo)d'), 
+        self.assert_graphs(parse_pattern('a(?P<foo>b)c(?P=foo)d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -602,7 +604,7 @@ r"""strict digraph {
 }""")
         
     def test_comment(self):
-        self.assert_graphs(parse('a(?#hello world)b'), 
+        self.assert_graphs(parse_pattern('a(?#hello world)b'), 
 """strict digraph {
  0 [label="ab"]
  1 [label="Match"]
@@ -610,7 +612,7 @@ r"""strict digraph {
 }""")
         
     def test_lookahead(self):
-        self.assert_graphs(parse('a(?=b+)c'),
+        self.assert_graphs(parse_pattern('a(?=b+)c'),
 """strict digraph {
  0 [label="a"]
  1 [label="(?=...)"]
@@ -629,7 +631,7 @@ r"""strict digraph {
 }""")
         
     def test_lookback(self):
-        self.assert_graphs(parse('a(?<=b+)c'),
+        self.assert_graphs(parse_pattern('a(?<=b+)c'),
 """strict digraph {
  0 [label="a"]
  1 [label="(?<=...)"]
@@ -655,7 +657,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_count(self):
-        self.assert_graphs(parse('ab{1,2}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,2}c', flags=ParserState._STATEFUL), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -670,7 +672,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateful_count(self):
-        self.assert_graphs(parse('ab{1,2}?c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,2}?c', flags=ParserState._STATEFUL), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}?"]
@@ -685,7 +687,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_open_count(self):
-        self.assert_graphs(parse('ab{1,}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,}c', flags=ParserState._STATEFUL), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,}"]
@@ -700,7 +702,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_fixed_count(self):
-        self.assert_graphs(parse('ab{2}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{2}c', flags=ParserState._STATEFUL), 
 """strict digraph {
  0 [label="a"]
  1 [label="{2}"]
@@ -715,7 +717,7 @@ r"""strict digraph {
 }""")
 
     def test_stateful_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}d', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('a(?:bc){1,2}d', flags=ParserState._STATEFUL), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -730,7 +732,7 @@ r"""strict digraph {
 }""")
         
     def test_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}c'), 
+        self.assert_graphs(parse_pattern('ab{1,2}c'), 
 """strict digraph {
  0 [label="ab"]
  1 [label="...?"]
@@ -745,7 +747,7 @@ r"""strict digraph {
 }""")
         
     def test_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}c'), 
+        self.assert_graphs(parse_pattern('ab{3,}c'), 
 """strict digraph {
  0 [label="abbb"]
  1 [label="...*"]
@@ -760,7 +762,7 @@ r"""strict digraph {
 }""")
         
     def test_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}c'), 
+        self.assert_graphs(parse_pattern('ab{2}c'), 
 """strict digraph {
  0 [label="abbc"]
  1 [label="Match"]
@@ -768,7 +770,7 @@ r"""strict digraph {
 }""")
         
     def test_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}d'), 
+        self.assert_graphs(parse_pattern('a(?:bc){1,2}d'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="...?"]
@@ -783,7 +785,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}?c'), 
+        self.assert_graphs(parse_pattern('ab{1,2}?c'), 
 """strict digraph {
  0 [label="ab"]
  1 [label="...??"]
@@ -798,7 +800,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}?c'), 
+        self.assert_graphs(parse_pattern('ab{3,}?c'), 
 """strict digraph {
  0 [label="abbb"]
  1 [label="...*?"]
@@ -813,7 +815,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}?c'), 
+        self.assert_graphs(parse_pattern('ab{2}?c'), 
 """strict digraph {
  0 [label="abbc"]
  1 [label="Match"]
@@ -821,7 +823,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}?d'), 
+        self.assert_graphs(parse_pattern('a(?:bc){1,2}?d'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="...??"]
@@ -836,13 +838,13 @@ r"""strict digraph {
 }""")
 
     def test_octal_escape(self):
-        self.assert_graphs(parse('a\\075c'), 
+        self.assert_graphs(parse_pattern('a\\075c'), 
 """strict digraph {
  0 [label="a=c"]
  1 [label="Match"]
  0 -> 1
 }""")
-        self.assert_graphs(parse('a\\142c'), 
+        self.assert_graphs(parse_pattern('a\\142c'), 
 """strict digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -850,7 +852,7 @@ r"""strict digraph {
 }""")
 
     def test_numbered_groups(self):
-        self.assert_graphs(parse('a(b)c\\1d'), 
+        self.assert_graphs(parse_pattern('a(b)c\\1d'), 
 """strict digraph {
  0 [label="a"]
  1 [label="("]
@@ -870,7 +872,7 @@ r"""strict digraph {
 }""")
         
     def test_simple_escape(self):
-        self.assert_graphs(parse('a\\nc'), 
+        self.assert_graphs(parse_pattern('a\\nc'), 
 """strict digraph {
  0 [label="a\\\\nc"]
  1 [label="Match"]
@@ -879,7 +881,7 @@ r"""strict digraph {
 
     def test_conditional(self):
         # in all cases, "no" is the first alternative
-        self.assert_graphs(parse('(a)(?(1)b)'),
+        self.assert_graphs(parse_pattern('(a)(?(1)b)'),
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -894,7 +896,7 @@ r"""strict digraph {
  3 -> 5
  5 -> 4
 }""")
-        self.assert_graphs(parse('(a)(?(1)b|cd)'),
+        self.assert_graphs(parse_pattern('(a)(?(1)b|cd)'),
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -913,7 +915,7 @@ r"""strict digraph {
 }""")
         # so here, 'no' goes to b and is before the direct jump to Match
         # (3->4 before 3->5)
-        self.assert_graphs(parse('(a)(?(1)|b)'),
+        self.assert_graphs(parse_pattern('(a)(?(1)|b)'),
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -928,7 +930,7 @@ r"""strict digraph {
  3 -> 5
  4 -> 5
 }""")
-        self.assert_graphs(parse('(a)(?(1)|)'),
+        self.assert_graphs(parse_pattern('(a)(?(1)|)'),
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -938,7 +940,7 @@ r"""strict digraph {
  1 -> 2
  2 -> 3
 }""")
-        self.assert_graphs(parse('(a)(?(1))'),
+        self.assert_graphs(parse_pattern('(a)(?(1))'),
 """strict digraph {
  0 [label="("]
  1 [label="a"]
@@ -950,7 +952,7 @@ r"""strict digraph {
 }""")
         
     def test_character_escape(self):
-        self.assert_graphs(parse(r'\A\b\B\d\D\s\S\w\W\Z'), 
+        self.assert_graphs(parse_pattern(r'\A\b\B\d\D\s\S\w\W\Z'), 
 """strict digraph {
  0 [label="^"]
  1 [label="\\\\b"]
@@ -976,7 +978,7 @@ r"""strict digraph {
 }""")
 
     def test_named_group_bug(self):
-        self.assert_graphs(parse('(?P<quote>)(?(quote))'), 
+        self.assert_graphs(parse_pattern('(?P<quote>)(?(quote))'), 
 """strict digraph {
  0 [label="("]
  1 [label=")"]
@@ -986,7 +988,7 @@ r"""strict digraph {
 }""")
 
     def assert_flags(self, regexp, flags):
-        (state, _graph) = parse(regexp)
+        (state, _graph) = parse_pattern(regexp)
         assert state.flags == flags, state.flags 
         
     def test_flags(self):

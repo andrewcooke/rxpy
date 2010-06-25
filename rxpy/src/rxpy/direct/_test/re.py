@@ -31,7 +31,7 @@
 from unittest import TestCase
 
 from rxpy.direct.re import compile, escape, findall, search, sub
-from rxpy.parser.parser import ParserState
+from rxpy.parser.support import ParserState
 
 
 class GroupsTest(TestCase):
