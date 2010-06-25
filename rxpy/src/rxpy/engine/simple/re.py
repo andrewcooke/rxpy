@@ -27,12 +27,6 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-'''
-A replacement for the Python re module, using the simple engine.
-
-Eventually much of this will be abstracted over different engines.
-For documentation, see the official Python re module documentation.
-'''
 
 from rxpy.compat.re import Module
 from rxpy.engine.simple.visitor import engine
@@ -54,3 +48,4 @@ escape = _module.escape
 Scanner = _module.Scanner    
 
 (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _module.FLAGS
+
