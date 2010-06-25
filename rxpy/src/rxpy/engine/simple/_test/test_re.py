@@ -4,8 +4,8 @@
 #from rxpy._test.test_support import verbose, run_unittest, import_module
 #import re
 #from re import Scanner
-import rxpy.engine.simple.re as re
-from rxpy.engine.simple.re import Scanner
+import rxpy.re as re
+from rxpy.re import Scanner
 import sys, traceback
 from weakref import proxy
 

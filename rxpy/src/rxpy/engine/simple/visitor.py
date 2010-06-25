@@ -28,8 +28,8 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.graph.visitor import Visitor as _Visitor
-from rxpy.parser.replace import parse_replace, RxpyException
+from rxpy.graph.visitor import BaseVisitor
+from rxpy.compat.groups import Groups
 
 
 class Fail(Exception):
@@ -147,71 +147,6 @@ class State(object):
         return self.__previous
 
 
-class Groups(object):
-    
-    def __init__(self, stream=None, groups=None, offsets=None, count=0, 
-                 names=None, indices=None, lastindex=None):
-        self.__stream = stream
-        self.__groups = groups if groups else {}
-        self.__offsets = offsets if offsets else {}
-        self.__count = count
-        self.__names = names if names else {}
-        self.__indices = indices if indices else {}
-        self.__lastindex = lastindex
-        
-    def start_group(self, number, offset):
-        self.__offsets[number] = offset
-        
-    def end_group(self, number, offset):
-        assert isinstance(number, int)
-        assert number in self.__offsets, 'Unopened group'
-        self.__groups[number] = (self.__stream[self.__offsets[number]:offset],
-                                 self.__offsets[number], offset)
-        del self.__offsets[number]
-        if number: # avoid group 0
-            self.__lastindex = number
-    
-    def __len__(self):
-        return self.__count
-    
-    def clone(self):
-        return Groups(stream=self.__stream, groups=dict(self.__groups), 
-                      offsets=dict(self.__offsets), count=self.__count, 
-                      names=self.__names, indices=self.__indices,
-                      lastindex=self.__lastindex)
-    
-    def __getitem__(self, number):
-        if number in self.__names:
-            index = self.__names[number]
-        else:
-            index = number
-        try:
-            return self.__groups[index]
-        except KeyError:
-            if isinstance(index, int) and index <= self.__count:
-                return [None, -1, -1]
-            else:
-                raise IndexError(number)
-    
-    def group(self, number, default=None):
-        group = self[number][0]
-        return default if group is None else group
-        
-    def start(self, number):
-        return self[number][1]
-    
-    def end(self, number):
-        return self[number][2]
-
-    @property
-    def lastindex(self):
-        return self.__lastindex
-    
-    @property
-    def lastgroup(self):
-        return self.__indices.get(self.lastindex, None)
-    
-    
 class Loops(object):
     '''
     Manage a nested set of indices (loops *must* be nested).
@@ -241,18 +176,7 @@ class Loops(object):
         return Loops(list(self.__counts), dict(self.__order))
     
 
-class Visitor(_Visitor):
-    
-    @staticmethod
-    def from_parse_results((pstate, graph), stream, pos=0, search=False):
-        return Visitor(pstate.alphabet, pstate.flags, stream, graph,
-                       State(stream[pos:],
-                             Groups(stream=stream, count=pstate.group_count, 
-                                    names=pstate.group_names, 
-                                    indices=pstate.group_indices),
-                             offset=pos,
-                             previous=stream[pos-1] if pos else None),
-                       search=search)
+class Visitor(BaseVisitor):
     
     def __init__(self, alphabet, flags, stream, graph, state, search=False):
         self.__alphabet = alphabet
@@ -453,43 +377,13 @@ class Visitor(_Visitor):
         raise Fail
     
     
-class ReplVisitor(_Visitor):
-    
-    def __init__(self, repl, state):
-        (self.__state, self.__graph) = parse_replace(repl, state)
-    
-    def evaluate(self, match):
-        self.__result = self.__state.alphabet.join()
-        graph = self.__graph
-        while graph:
-            (graph, match) = graph.visit(self, match)
-        return self.__result
-    
-    def string(self, next, text, match):
-        self.__result = self.__state.alphabet.join(self.__result, text)
-        return (next[0], match)
-    
-    def group_reference(self, next, number, match):
-        try:
-            self.__result = self.__state.alphabet.join(self.__result, 
-                                                       match.group(number))
-            return (next[0], match)
-        # raised when match.group returns None
-        except TypeError:
-            raise RxpyException('No match for group ' + str(number))
-
-    def match(self, match):
-        return (None, match)
-
-
-def compile_repl(repl, state):
-    cache = []
-    def compiled(match):
-        try:
-            return repl(match)
-        except:
-            if not cache:
-                cache.append(ReplVisitor(repl, state))
-        return cache[0].evaluate(match)
-    return compiled
-
+def engine((parser_state, graph), stream, pos=0, search=False):
+    visitor = Visitor(parser_state.alphabet, parser_state.flags, stream, graph,
+                      State(stream[pos:],
+                            Groups(stream=stream, count=parser_state.group_count, 
+                                   names=parser_state.group_names, 
+                                   indices=parser_state.group_indices),
+                            offset=pos,
+                            previous=stream[pos-1] if pos else None),
+                      search=search)
+    return visitor.groups

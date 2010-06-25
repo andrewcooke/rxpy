@@ -28,58 +28,47 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.lib import UnsupportedOperation
+from rxpy.graph.visitor import BaseVisitor
+from rxpy.parser.replace import parse_replace, RxpyException
 
 
-class BaseVisitor(object):
+class ReplVisitor(BaseVisitor):
     
-    def string(self, next, text, state=None):
-        raise UnsupportedOperation('string')
+    def __init__(self, repl, parser_state):
+        (parser_state, self.__graph) = parse_replace(repl, parser_state)
+        self.__alphabet = parser_state.alphabet
     
-    def character(self, next, charset, state=None):
-        raise UnsupportedOperation('character')
+    def evaluate(self, match):
+        self.__result = self.__alphabet.join()
+        graph = self.__graph
+        while graph:
+            (graph, match) = graph.visit(self, match)
+        return self.__result
     
-    def start_group(self, next, number, state=None):
-        raise UnsupportedOperation('start_group')
+    def string(self, next, text, match):
+        self.__result = self.__alphabet.join(self.__result, text)
+        return (next[0], match)
     
-    def end_group(self, next, number, state=None):
-        raise UnsupportedOperation('end_group')
+    def group_reference(self, next, number, match):
+        try:
+            self.__result = self.__alphabet.join(self.__result, match.group(number))
+            return (next[0], match)
+        # raised when match.group returns None
+        except TypeError:
+            raise RxpyException('No match for group ' + str(number))
 
-    def group_reference(self, next, number, state=None):
-        raise UnsupportedOperation('group_reference')
+    def match(self, match):
+        return (None, match)
 
-    def conditional(self, next, number, state=None):
-        raise UnsupportedOperation('conditional')
 
-    def split(self, next, state=None):
-        raise UnsupportedOperation('split')
+def compile_repl(repl, state):
+    cache = []
+    def compiled(match):
+        try:
+            return repl(match)
+        except:
+            if not cache:
+                cache.append(ReplVisitor(repl, state))
+        return cache[0].evaluate(match)
+    return compiled
 
-    def match(self, state=None):
-        raise UnsupportedOperation('match')
-
-    def dot(self, next, multiline, state=None):
-        raise UnsupportedOperation('dot')
-    
-    def start_of_line(self, next, multiline, state=None):
-        raise UnsupportedOperation('start_of_line')
-    
-    def end_of_line(self, next, multiline, state=None):
-        raise UnsupportedOperation('end_of_line')
-    
-    def lookahead(self, next, node, equal, forwards, state=None):
-        raise UnsupportedOperation('lookahead')
-
-    def repeat(self, next, node, begin, end, lazy, state=None):
-        raise UnsupportedOperation('repeat')
-    
-    def word_boundary(self, next, inverted, state=None):
-        raise UnsupportedOperation('word_boundary')
-
-    def digit(self, next, inverted, state=None):
-        raise UnsupportedOperation('digit')
-    
-    def space(self, next, inverted, state=None):
-        raise UnsupportedOperation('space')
-    
-    def word(self, next, inverted, state=None):
-        raise UnsupportedOperation('word')

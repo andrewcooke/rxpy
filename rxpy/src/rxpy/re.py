@@ -1,3 +1,4 @@
+from rxpy.compat.replace import compile_repl
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -38,7 +39,7 @@ from string import ascii_letters, digits
 
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
-from rxpy.engine.simple.visitor import Visitor, compile_repl
+from rxpy.engine.simple.visitor import engine as simple_engine
 from rxpy.lib import _FLAGS
 from rxpy.parser.pattern import parse_pattern, RxpyException, parse_groups
 
@@ -48,7 +49,7 @@ from rxpy.parser.pattern import parse_pattern, RxpyException, parse_groups
 _ALPHANUMERICS = ascii_letters + digits
 
 
-def compile(pattern, flags=None, alphabet=None):
+def compile(pattern, flags=None, alphabet=None, engine=None):
     if isinstance(pattern, RegexObject):
         if flags is not None and flags != pattern.flags:
             raise ValueError('Changed flags')
@@ -64,16 +65,17 @@ def compile(pattern, flags=None, alphabet=None):
         else:
             hint_alphabet = None
         pattern = RegexObject(parse_pattern(pattern, flags=flags, alphabet=alphabet,
-                                    hint_alphabet=hint_alphabet),
-                              pattern)
+                                            hint_alphabet=hint_alphabet),
+                              pattern, engine=engine)
     return pattern
 
 
 class RegexObject(object):
     
-    def __init__(self, parsed, pattern=None):
+    def __init__(self, parsed, pattern=None, engine=None):
         self.__parsed = parsed
         self.__pattern = pattern
+        self.__engine = engine
         
     @property
     def __parser_state(self):
@@ -202,12 +204,13 @@ class MatchIterator(object):
     None when no more calls will work.
     '''
     
-    def __init__(self, re, parsed, text, pos=0, endpos=None):
+    def __init__(self, re, parsed, text, pos=0, endpos=None, engine=None):
         self.__re = re
         self.__parsed = parsed
         self.__text = text
         self.__pos = pos
         self.__endpos = endpos if endpos else len(text)
+        self.__engine = engine if engine else simple_engine
     
     @property
     def __parser_state(self):
@@ -215,11 +218,10 @@ class MatchIterator(object):
 
     def next(self, search):
         if self.__pos <= self.__endpos:
-            visitor = Visitor.from_parse_results(
-                        self.__parsed, self.__text[:self.__endpos], 
-                        pos=self.__pos, search=search)
-            if visitor:
-                found = MatchObject(visitor.groups, self.__re, self.__text, 
+            groups = self.__engine(self.__parsed, self.__text[:self.__endpos], 
+                                   pos=self.__pos, search=search)
+            if groups:
+                found = MatchObject(groups, self.__re, self.__text, 
                                     self.__pos, self.__endpos, 
                                     self.__parser_state)
                 offset = found.end()
