@@ -34,12 +34,13 @@ Eventually much of this will be abstracted over different engines.
 For documentation, see the official Python re module documentation.
 '''
 
-from rxpy.parser.pattern import parse_pattern, RxpyException, parse_groups
-from rxpy.direct.visitor import Visitor, compile_repl
 from string import ascii_letters, digits
-from rxpy.lib import _FLAGS
+
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
+from rxpy.engine.simple.visitor import Visitor, compile_repl
+from rxpy.lib import _FLAGS
+from rxpy.parser.pattern import parse_pattern, RxpyException, parse_groups
 
 
 (I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _FLAGS

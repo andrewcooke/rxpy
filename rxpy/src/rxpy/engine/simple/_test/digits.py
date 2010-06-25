@@ -31,7 +31,7 @@
 from unittest import TestCase
 
 from rxpy.alphabet.digits import Digits
-from rxpy.direct.visitor import Visitor
+from rxpy.engine.simple.visitor import Visitor
 from rxpy.lib import UnsupportedOperation
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState, RxpyException

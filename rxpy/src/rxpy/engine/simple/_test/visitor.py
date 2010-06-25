@@ -30,7 +30,7 @@
 
 from unittest import TestCase
 
-from rxpy.direct.visitor import Visitor
+from rxpy.engine.simple.visitor import Visitor
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 

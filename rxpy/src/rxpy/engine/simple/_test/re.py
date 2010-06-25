@@ -30,7 +30,7 @@
 
 from unittest import TestCase
 
-from rxpy.direct.re import compile, escape, findall, search, sub
+from rxpy.engine.simple.re import compile, escape, findall, search, sub
 from rxpy.parser.support import ParserState
 
 

@@ -4,8 +4,8 @@
 #from rxpy._test.test_support import verbose, run_unittest, import_module
 #import re
 #from re import Scanner
-import rxpy.direct.re as re
-from rxpy.direct.re import Scanner
+import rxpy.engine.simple.re as re
+from rxpy.engine.simple.re import Scanner
 import sys, traceback
 from weakref import proxy
 
@@ -718,7 +718,7 @@ class ReTests(unittest.TestCase):
         self.assertRaises(OverflowError, _sre.compile, "abc", 0, [long_overflow])
 
 def run_re_tests():
-    from rxpy.direct._test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
+    from rxpy.engine.simple._test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
 #    if verbose:
 #        print 'Running re_tests test suite'
 #    else:
