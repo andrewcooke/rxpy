@@ -31,7 +31,7 @@
 from bisect import bisect_left
 from collections import deque
 
-from rxpy.lib import RxpyException, UnimplementedMethod
+from rxpy.lib import RxpyException, unimplemented
 
 
 class GraphException(Exception):
@@ -65,7 +65,7 @@ def edge_iterator(node):
                 visited.add(edge)
         
 
-class _BaseNode(object):
+class BaseNode(object):
     '''
     Subclasses describe ordered actions (typically, matches) to be made.
     
@@ -154,13 +154,12 @@ class _BaseNode(object):
         return 'strict digraph {{\n{0!s}\n{1!s}\n}}'.format(
                         '\n'.join(nodes), '\n'.join(edges))
         
+    @unimplemented
     def __str__(self):
         '''
         Subclasses must implement something useful here, which will be 
         displayed in the graphviz node (see repr).
         '''
-        raise UnimplementedMethod(format('Missing __str__ in {0}', 
-                                         self.__class__.__name__))
         
     def clone(self, cache=None):
         '''
@@ -199,67 +198,16 @@ class _BaseNode(object):
                      for name in self.__dict__ 
                      if not name.startswith('_') and name != 'next')
         
+    @unimplemented
     def visit(self, visitor, state=None):
         '''
         The visitor pattern - used to evaluate the graph by an interpreter,
         for example.  Calls back to the visitor via the interface described
         in `rxpy.parser.visitor.Visitor`.
         '''
-        raise UnimplementedMethod(format('Missing visit in {0}', 
-                                         self.__class__.__name__))
         
 
-class String(_BaseNode):
-    '''
-    Match a series of literal characters.
-    '''
-    
-    def __init__(self, text):
-        super(String, self).__init__()
-        self.text = text
-        
-    def __str__(self):
-        return self.text
-    
-    def visit(self, visitor, state=None):
-        return visitor.string(self.next, self.text, state)
-
-
-class StartGroup(_BaseNode):
-    '''
-    Mark the start of a group (to be saved).
-    '''
-    
-    def __init__(self, number):
-        super(StartGroup, self).__init__()
-        assert isinstance(number, int)
-        self.number = number
-        
-    def __str__(self):
-        return "("
-        
-    def visit(self, visitor, state=None):
-        return visitor.start_group(self.next, self.number, state)
-
-
-class EndGroup(_BaseNode):
-    '''
-    Mark the end of a group (to be saved).
-    '''
-    
-    def __init__(self, number):
-        super(EndGroup, self).__init__()
-        assert isinstance(number, int)
-        self.number = number
-        
-    def __str__(self):
-        return ")"
-    
-    def visit(self, visitor, state=None):
-        return visitor.end_group(self.next, self.number, state)
-
-
-class _BaseSplit(_BaseNode):
+class BaseSplitNode(BaseNode):
     '''
     Base class for any node that includes a "tee".
     
@@ -277,7 +225,7 @@ class _BaseSplit(_BaseNode):
     '''
     
     def __init__(self, lazy=False):
-        super(_BaseSplit, self).__init__()
+        super(BaseSplitNode, self).__init__()
         self.lazy = lazy
         self.__connected = False
         
@@ -294,167 +242,17 @@ class _BaseSplit(_BaseNode):
         return self
 
 
-class Split(_BaseSplit):
-    
-    def __init__(self, label, lazy=False):
-        super(Split, self).__init__(lazy=lazy)
-        self.label = label + ('?' if lazy else '')
-        
-    def __str__(self):
-        return self.label
-
-    def visit(self, visitor, state=None):
-        return visitor.split(self.next, state)
-
-
-class Match(_BaseNode):
-    
-    def __str__(self):
-        return 'Match'
-
-    def visit(self, visitor, state=None):
-        return visitor.match(state)
-
-
-class NoMatch(_BaseNode):
-    
-    def __str__(self):
-        return 'NoMatch'
-
-    def visit(self, visitor, state=None):
-        return visitor.no_match(state)
-
-
-class _LineNode(_BaseNode):
+class BaseLineNode(BaseNode):
 
     def __init__(self, multiline, consumer=False):
-        super(_LineNode, self).__init__(consumer=consumer)
+        super(BaseLineNode, self).__init__(consumer=consumer)
         self.multiline = multiline
     
 
-class Dot(_LineNode):
-    
-    def __init__(self, multiline):
-        super(Dot, self).__init__(multiline, consumer=True)
-
-    def __str__(self):
-        return '.'
-
-    def visit(self, visitor, state=None):
-        return visitor.dot(self.next, self.multiline, state)
-
-
-class StartOfLine(_LineNode):
-    
-    def __str__(self):
-        return '^'
-    
-    def visit(self, visitor, state=None):
-        return visitor.start_of_line(self.next, self.multiline, state)
-
-    
-class EndOfLine(_LineNode):
-    
-    def __str__(self):
-        return '$'
-    
-    def visit(self, visitor, state=None):
-        return visitor.end_of_line(self.next, self.multiline, state)
-
-
-class GroupReference(_BaseNode):
-    
-    def __init__(self, number):
-        super(GroupReference, self).__init__()
-        assert isinstance(number, int)
-        self.number = number
-        
-    def __str__(self):
-        return '\\' + str(self.number)
-
-    def visit(self, visitor, state=None):
-        return visitor.group_reference(self.next, self.number, state)
-
-
-class Lookahead(_BaseSplit):
-    
-    def __init__(self, equal, forwards):
-        super(Lookahead, self).__init__(lazy=True)
-        self.equal = equal
-        self.forwards = forwards
-        
-    def __str__(self):
-        return '(?' + \
-            ('' if self.forwards else '<') + \
-            ('=' if self.equal else '!') + '...)'
-
-    def visit(self, visitor, state=None):
-        return visitor.lookahead(self.next, self, self.equal, self.forwards, state)
-
-
-class Repeat(_BaseNode):
-    
-    def __init__(self, begin, end, lazy):
-        '''
-        If end is None the range is open.  Note that lazy here is a flag,
-        it doesn't change how the children are ordered.
-        '''
-        super(Repeat, self).__init__()
-        self.begin = begin
-        self.end = end
-        self.lazy = lazy
-        self.__connected = False
-    
-    def concatenate(self, next):
-        if next:
-            if self.__connected:
-                raise GraphException('Node already connected')
-            self.next.insert(0, next.start)
-            self.__connected = True
-        return self
-
-    def __str__(self):
-        text = '{' + str(self.begin)
-        if self.end != self.begin:
-            text += ','
-            if self.end is not None:
-                text += str(self.end)
-        text += '}'
-        if self.lazy:
-            text += '?'
-        return text 
-    
-    def visit(self, visitor, state=None):
-        return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
-                              state)
-    
-    
-class Conditional(_BaseSplit):
-    '''
-    If the group exists, the second child should be followed, otherwise the
-    first.
-    '''
-    
-    def __init__(self, number, lazy=True):
-        super(Conditional, self).__init__(lazy=lazy)
-        assert isinstance(number, int)
-        self.number = number
-        
-    def __str__(self):
-        text = '(?(' + str(self.number) + ')...'
-        if len(self.next) == 3:
-            text += '|...'
-        text += ')'
-        return text 
-    
-    def visit(self, visitor, state=None):
-        return visitor.conditional(self.next, self.number, state)
-
-
-class _EscapedNode(_BaseNode):
+class BaseEscapedNode(BaseNode):
     
     def __init__(self, character, inverted=False, consumer=True):
-        super(_EscapedNode, self).__init__(consumer=consumer)
+        super(BaseEscapedNode, self).__init__(consumer=consumer)
         self._character = character
         self.inverted = inverted
         
@@ -463,124 +261,7 @@ class _EscapedNode(_BaseNode):
                        if self.inverted else self._character.lower())
     
     
-class WordBoundary(_EscapedNode):
-    
-    def __init__(self, inverted=False):
-        super(WordBoundary, self).__init__('b', inverted, consumer=False)
-
-    def visit(self, visitor, state=None):
-        return visitor.word_boundary(self.next, self.inverted, state)
-
-
-class Digit(_EscapedNode):
-    
-    def __init__(self, inverted=False):
-        super(Digit, self).__init__('d', inverted)
-
-    def visit(self, visitor, state=None):
-        return visitor.digit(self.next, self.inverted, state)
-
-
-class Space(_EscapedNode):
-    
-    def __init__(self, inverted=False):
-        super(Space, self).__init__('s', inverted)
-
-    def visit(self, visitor, state=None):
-        return visitor.space(self.next, self.inverted, state)
-
-
-class Word(_EscapedNode):
-    
-    def __init__(self, inverted=False):
-        super(Word, self).__init__('w', inverted)
-
-    def visit(self, visitor, state=None):
-        return visitor.word(self.next, self.inverted, state)
-
-
-class CharSet(_BaseNode):
-    '''
-    Combine a `SimpleCharSet` with character classes.
-    '''
-    
-    def __init__(self, intervals, alphabet, classes=None, 
-                 inverted=False, complete=False):
-        super(CharSet, self).__init__()
-        self.__simple = SimpleCharSet(intervals, alphabet)
-        self.alphabet = alphabet
-        self.classes = classes if classes else []
-        self.inverted = inverted
-        self.complete = complete
-        
-    def _kargs(self):
-        kargs = super(CharSet, self)._kargs()
-        kargs['intervals'] = self.__simple.intervals
-        return kargs
-        
-    def append_interval(self, interval):
-        self.__simple.append(interval, self.alphabet)
-        
-    def append_class(self, class_, label, inverted=False):
-        for (class2, _, inverted2) in self.classes:
-            if class_ == class2:
-                self.complete = self.complete or inverted != inverted2
-                # if inverted matches, complete, else we already have it
-                return
-        self.classes.append((class_, label, inverted))
-    
-    def visit(self, visitor, state=None):
-        return visitor.character(self.next, self, state)
-    
-    def invert(self):
-        self.inverted = not self.inverted
-
-    def __contains__(self, character):
-        result = self.complete
-        if not result:
-            for (class_, _, invert) in self.classes:
-                result = class_(character) != invert
-                if result:
-                    break
-        if not result:
-            result = character in self.__simple
-        if self.inverted:
-            result = not result
-        return result
-    
-    def __str__(self):
-        '''
-        This returns (the illegal) [^] for all and [] for none.
-        '''
-        if self.complete:
-            return '[]' if self.inverted else '[^]'
-        contents = ''.join('\\' + label for (_, label, _) in self.classes)
-        contents += self.__simple.to_str(self.alphabet)
-        return '[' + ('^' if self.inverted else '') + contents + ']'
-        
-    def __hash__(self):
-        return hash(str(self))
-    
-    def __bool__(self):
-        return bool(self.classes or self.__simple)
-    
-    def __nonzero__(self):
-        return self.__bool__()
-    
-    def simplify(self):
-        if self.complete:
-            if self.inverted:
-                return NoMatch()
-            else:
-                return Dot(True)
-        else:
-            if self.classes or self.inverted:
-                return self
-            else:
-                return self.__simple.simplify(self.alphabet, self)
-    
-        
-class SimpleCharSet(object):
+class CharSet(object):
     '''
     A set of possible values for a character, described as a collection of 
     intervals.  Each interval is [a, b] (ie a <= x <= b, where x is a character 
@@ -689,6 +370,7 @@ class SimpleCharSet(object):
         return self.__str
 
     def simplify(self, alphabet, default):
+        from rxpy.graph.opcode import String, Dot
         if len(self.intervals) == 1:
             if self.intervals[0][0] == self.intervals[0][1]:
                 return String(self.intervals[0][0])
@@ -702,4 +384,3 @@ class SimpleCharSet(object):
     
     def __nonzero__(self):
         return self.__bool__()
-    
