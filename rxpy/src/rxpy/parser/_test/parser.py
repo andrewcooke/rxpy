@@ -901,7 +901,7 @@ r"""strict digraph {
  0 [label="("]
  1 [label="a"]
  2 [label=")"]
- 3 [label="(?(1)...)"]
+ 3 [label="(?(1)...|...)"]
  4 [label="cd"]
  5 [label="b"]
  6 [label="Match"]
@@ -920,7 +920,7 @@ r"""strict digraph {
  0 [label="("]
  1 [label="a"]
  2 [label=")"]
- 3 [label="(?(1)...)"]
+ 3 [label="(?(1)|...)"]
  4 [label="b"]
  5 [label="Match"]
  0 -> 1

@@ -263,7 +263,7 @@ class Visitor(BaseVisitor):
         except KeyError:
             raise Fail
 
-    def conditional(self, next, number, state):
+    def group_conditional(self, next, number, state):
         if state.groups.group(number):
             return (next[1], state)
         else:

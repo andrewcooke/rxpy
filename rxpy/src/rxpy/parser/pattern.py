@@ -32,7 +32,7 @@ from string import digits, ascii_letters
 
 from rxpy.lib import RxpyException
 from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
-    EndOfLine, Dot, StartGroup, EndGroup, Conditional, WordBoundary, Digit, Word,\
+    EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, Digit, Word,\
     Space, Lookahead, GroupReference, Repeat
 from rxpy.graph.temp import Sequence, Alternatives, Merge
 from rxpy.parser.support import StatefulBuilder, ParserState, OCTAL, parse
@@ -210,7 +210,7 @@ class GroupEscapeBuilder(StatefulBuilder):
             elif character == '<':
                 return LookbackBuilder(self._state, self._parent_sequence)
             elif character == '(':
-                return ConditionalBuilder(self._state, self._parent_sequence)
+                return GroupConditionalBuilder(self._state, self._parent_sequence)
             else:
                 raise RxpyException(
                     'Unexpected qualifier after (? - ' + character)
@@ -328,13 +328,13 @@ class LookaheadBuilder(BaseGroupBuilder):
         return self._parent_sequence
         
 
-class ConditionalBuilder(StatefulBuilder):
+class GroupConditionalBuilder(StatefulBuilder):
     '''
     Handle (?(id/name)yes-pattern|optional-no-pattern)
     '''
     
     def __init__(self, state, sequence):
-        super(ConditionalBuilder, self).__init__(state)
+        super(GroupConditionalBuilder, self).__init__(state)
         self.__parent_sequence = sequence
         self.__name = ''
         self.__yes = None
@@ -349,29 +349,35 @@ class ConditionalBuilder(StatefulBuilder):
             return self
         
     def callback(self, yesno, terminal):
+        
         # first callback - have 'yes', possibly terminated by '|'
         if self.__yes is None:
             (self.__yes, yesno) = (yesno, None)
             # collect second alternative
             if terminal == '|':
                 return YesNoBuilder(self, self._state, self.__parent_sequence, ')')
+            
+        # final callback - build yes and no (if present)
         group = self._state.index_for_name_or_count(self.__name)
-        conditional = Conditional(group)
         yes = self.__yes.build_dag()
         no = yesno.build_dag() if yesno else None
+        
         # Various possibilities here, depending on what is empty
+        # (does this really need to be so complex?  alternative handles
+        # empty sequences i think...)
         if yes:
             if no:
-                alternatives = Alternatives([no, yes], conditional)
+                alternatives = Alternatives([no, yes], GroupConditional(group, '...|...'))
                 self.__parent_sequence._nodes.append(alternatives)
             else:
                 # Single alternative, which will be second child once connected
-                # in graph (Conditional is lazy Split)
+                # in graph (GroupConditional is lazy Split)
+                conditional = GroupConditional(group, '...')
                 conditional.next = [yes.start]
                 self.__parent_sequence._nodes.append(Merge(yes, conditional))
         else:
             if no:
-                conditional = Conditional(group, False)
+                conditional = GroupConditional(group, '|...', False)
                 conditional.next = [no.start]
                 self.__parent_sequence._nodes.append(Merge(no, conditional))
             else:

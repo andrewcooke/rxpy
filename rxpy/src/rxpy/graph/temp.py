@@ -111,9 +111,8 @@ class Sequence(BaseNode):
 class Alternatives(BaseNode):
     '''
     A temporary node that does the wiring necessary to connect various
-    alternatives together within the same Split().  If `join` is true then
-    the alternatives all connect back at the exit of the node, otherwise
-    they become "side branches" on concatenation.
+    alternatives together within the same Split().  The alternatives all 
+    connect back at the exit of the node.
     '''
     
     def __init__(self, sequences, split):

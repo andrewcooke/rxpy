@@ -10,6 +10,14 @@ RXPY is available for Python 2.6+.  It will soon support 3+ too.
 Installation With Distribute / Setuptools (easy_install)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. warning::
+
+   The source is more likely to be up-to-date (and consistent with the web
+   documentation) than the current release.  I am not making regular releases
+   until the project is a little more mature.
+
+   However, the 0.0.0 release `does` work correctly as a regexp engine.
+
 `Distribute <http://pypi.python.org/pypi/distribute>`_ and `setuptools
 <http://pypi.python.org/pypi/setuptools>`_ are very similar, and either will
 install RXPY on Python 2.6.  However, I recommend using `distribute

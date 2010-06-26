@@ -27,6 +27,13 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+Nodes in this module are present in the final output from the parser.  They 
+assume a context within the engine (a particular "current" position in the
+input) and implicitly advance the position (if appropriate) on success.
+
+See `BaseNode` for a general description of nodes.
+'''
 
 from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
     GraphException, BaseEscapedNode, CharSet
@@ -35,6 +42,12 @@ from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
 class String(BaseNode):
     '''
     Match a series of literal characters.
+    
+    - `text` will contain the characters (in the form appropriate for the
+      alphabet)
+    
+    - `next` will contain a single value, which is the opcode to use if the
+      match is successful. 
     '''
     
     def __init__(self, text):
@@ -51,6 +64,10 @@ class String(BaseNode):
 class StartGroup(BaseNode):
     '''
     Mark the start of a group (to be saved).
+    
+    - `number` is the index for the group.
+
+    - `next` will contain a single value, which is the following opcode.
     '''
     
     def __init__(self, number):
@@ -68,6 +85,10 @@ class StartGroup(BaseNode):
 class EndGroup(BaseNode):
     '''
     Mark the end of a group (to be saved).
+    
+    - `number` is the index for the group.
+
+    - `next` will contain a single value, which is the following opcode.
     '''
     
     def __init__(self, number):
@@ -83,6 +104,21 @@ class EndGroup(BaseNode):
 
 
 class Split(BaseSplitNode):
+    '''
+    Branch the graph, providing alternative matches for the current context
+    (eg via backtracking on failure).
+    
+    - `label` is a string for display (since this node represents many
+      different parts of a regexp, like `|` and `*`).
+    
+    - `lazy` is used during graph construction.
+      
+    - `next` contains the alternatives, in ordered priority (`next[0]` first).  
+      There should be more than 1, but only `|` should give more than 2. 
+      However, the number of alternatives is not something the engine should 
+      assume (I may be wrong, or there may be a "bug" that generates a single 
+      entry in some cases, for example).
+    '''
     
     def __init__(self, label, lazy=False):
         super(Split, self).__init__(lazy=lazy)
@@ -96,6 +132,12 @@ class Split(BaseSplitNode):
 
 
 class Match(BaseNode):
+    '''
+    The terminal node.  If the engine "reaches" here then the match was a
+    success.
+    
+    - `next` is undefined.
+    '''
     
     def __str__(self):
         return 'Match'
@@ -105,6 +147,15 @@ class Match(BaseNode):
 
 
 class NoMatch(BaseNode):
+    '''
+    The current match has failed.  Currently this is generated when an attempt
+    is made to match the complement of `.` (since `.` matches everything, the
+    complement matches nothing). 
+    
+    TODO - remove the need for this by graph rewriting.
+    
+    - `next` is undefined.
+    '''
     
     def __str__(self):
         return 'NoMatch'
@@ -114,6 +165,16 @@ class NoMatch(BaseNode):
 
 
 class Dot(BaseLineNode):
+    '''
+    Match "any" single character.  The exact behaviour will depend on the
+    alphabet and `multiline` (see the Python `re` documentation).
+    
+    - `multiline` indicates whether multiline mode is enabled (see the Python
+      `re` documentation).
+      
+    - `next` will contain a single value, which is the opcode to use if the
+      match is successful. 
+    '''
     
     def __init__(self, multiline):
         super(Dot, self).__init__(multiline, consumer=True)
@@ -126,6 +187,16 @@ class Dot(BaseLineNode):
 
 
 class StartOfLine(BaseLineNode):
+    '''
+    Match the start of a line.  The exact behaviour will depend on the
+    alphabet and `multiline` (see the Python `re` documentation).
+    
+    - `multiline` indicates whether multiline mode is enabled (see the Python
+      `re` documentation).
+      
+    - `next` will contain a single value, which is the opcode to use if the
+      match is successful. 
+    '''
     
     def __str__(self):
         return '^'
@@ -135,6 +206,16 @@ class StartOfLine(BaseLineNode):
 
     
 class EndOfLine(BaseLineNode):
+    '''
+    Match the end of a line.  The exact behaviour will depend on the
+    alphabet and `multiline` (see the Python `re` documentation).
+    
+    - `multiline` indicates whether multiline mode is enabled (see the Python
+      `re` documentation).
+      
+    - `next` will contain a single value, which is the opcode to use if the
+      match is successful. 
+    '''
     
     def __str__(self):
         return '$'
@@ -144,6 +225,14 @@ class EndOfLine(BaseLineNode):
 
 
 class GroupReference(BaseNode):
+    '''
+    Match the text previously matched by the given group.
+    
+    - `number` is the group index.
+    
+    - `next` will contain a single value, which is the opcode to use if the
+      match is successful. 
+    '''
     
     def __init__(self, number):
         super(GroupReference, self).__init__()
@@ -158,6 +247,18 @@ class GroupReference(BaseNode):
 
 
 class Lookahead(BaseSplitNode):
+    '''
+    Lookahead match (one that does not consume any input).
+    
+    - `equal` is `True` if the lookahead should succeed for the match to 
+      continue and `False` if the lookahead should fail.
+      
+    - `forwards` is `True` if the lookahead should start from the current
+      position and `False` if it should end there.
+      
+    - `next` contains two values.  `next[1]` is the lookahead expression;
+      `next[0]` is the continuation of the normal match on success. 
+    '''
     
     def __init__(self, equal, forwards):
         super(Lookahead, self).__init__(lazy=True)
@@ -174,12 +275,22 @@ class Lookahead(BaseSplitNode):
 
 
 class Repeat(BaseNode):
+    '''
+    A numerical repeat.  This node is only present if the `_STATEFUL` flag was
+    used during compilation (otherwise numerical repeats are rewritten as 
+    appropriate splits/loops).
+    
+    - `begin` is the minimum count value.
+    
+    - `end` is the maximum count value (None for open ranges).
+    
+    - `lazy` indicates that matching should be lazy if `True`.
+    
+    - `next` contains two values.  `next[1]` is the expression to repeat;
+      `next[0]` is the continuation of the match after repetition has finished.
+    '''
     
     def __init__(self, begin, end, lazy):
-        '''
-        If end is None the range is open.  Note that lazy here is a flag,
-        it doesn't change how the children are ordered.
-        '''
         super(Repeat, self).__init__()
         self.begin = begin
         self.end = end
@@ -210,29 +321,41 @@ class Repeat(BaseNode):
                               state)
     
     
-class Conditional(BaseSplitNode):
+class GroupConditional(BaseSplitNode):
     '''
-    If the group exists, the second child should be followed, otherwise the
-    first.
+    Branch the graph, depending on the existence of a group.
+
+    - `number` is the group index.
+    
+    - `label` is used to generate an informative graph plot.
+    
+    - `lazy` is used during graph construction.
+    
+    - `next` contains two nodes.  If the group exists, matching should continue
+      with `next[1]`, otherwise with `next[0]`. 
     '''
     
-    def __init__(self, number, lazy=True):
-        super(Conditional, self).__init__(lazy=lazy)
+    def __init__(self, number, label, lazy=True):
+        super(GroupConditional, self).__init__(lazy=lazy)
         assert isinstance(number, int)
         self.number = number
+        self.label = label
         
     def __str__(self):
-        text = '(?(' + str(self.number) + ')...'
-        if len(self.next) == 3:
-            text += '|...'
-        text += ')'
-        return text 
+        return '(?(' + str(self.number) + ')' + self.label + ')'
     
     def visit(self, visitor, state=None):
-        return visitor.conditional(self.next, self.number, state)
+        return visitor.group_conditional(self.next, self.number, state)
 
 
 class WordBoundary(BaseEscapedNode):
+    '''
+    Match a word boundary.  See Python `re` documentation and `Alphabet.word`.
+    
+    - `inverted` indicates whether the test should succeed.  If `inverted` is
+      `False` then the match should continue if the test succeeds; if `False`
+      then the test should fail. 
+    '''
     
     def __init__(self, inverted=False):
         super(WordBoundary, self).__init__('b', inverted, consumer=False)
@@ -242,6 +365,13 @@ class WordBoundary(BaseEscapedNode):
 
 
 class Digit(BaseEscapedNode):
+    '''
+    Match a digit.  See `Alphabet.digit`.
+    
+    - `inverted` indicates whether the test should succeed.  If `inverted` is
+      `False` then the match should continue if the test succeeds; if `False`
+      then the test should fail. 
+    '''
     
     def __init__(self, inverted=False):
         super(Digit, self).__init__('d', inverted)
@@ -251,6 +381,13 @@ class Digit(BaseEscapedNode):
 
 
 class Space(BaseEscapedNode):
+    '''
+    Match a space.  See `Alphabet.space`.
+    
+    - `inverted` indicates whether the test should succeed.  If `inverted` is
+      `False` then the match should continue if the test succeeds; if `False`
+      then the test should fail. 
+    '''
     
     def __init__(self, inverted=False):
         super(Space, self).__init__('s', inverted)
@@ -260,6 +397,13 @@ class Space(BaseEscapedNode):
 
 
 class Word(BaseEscapedNode):
+    '''
+    Match a word character.  See `Alphabet.word`.
+    
+    - `inverted` indicates whether the test should succeed.  If `inverted` is
+      `False` then the match should continue if the test succeeds; if `False`
+      then the test should fail. 
+    '''
     
     def __init__(self, inverted=False):
         super(Word, self).__init__('w', inverted)

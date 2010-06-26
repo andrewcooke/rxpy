@@ -29,8 +29,9 @@
 
 '''
 A replacement for the Python re module, using the simple engine.
+Eventually much of this will do something smart to choose an appropriate
+engine.
 
-Eventually much of this will be abstracted over different engines.
 For documentation, see the official Python re module documentation.
 '''
 

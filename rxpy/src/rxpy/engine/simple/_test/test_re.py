@@ -794,8 +794,8 @@ def run_re_tests():
                 else:
                     print '=== Failed incorrectly', t
 
-#                # Try the match on a unicode string, and check that it
-#                # still succeeds.
+                # Try the match on a unicode string, and check that it
+                # still succeeds.
 #                try:
 #                    result = obj.search(unicode(s, "latin-1"))
 #                    if result is None:
@@ -804,13 +804,13 @@ def run_re_tests():
 #                    continue # 1.5.2
 #                except TypeError:
 #                    continue # unicode test case
-#
-#                # Try the match on a unicode pattern, and check that it
-#                # still succeeds.
-#                obj=re.compile(unicode(pattern, "latin-1"))
-#                result = obj.search(s)
-#                if result is None:
-#                    print '=== Fails on unicode pattern match', t
+
+                # Try the match on a unicode pattern, and check that it
+                # still succeeds.
+                obj=re.compile(unicode(pattern, "latin-1"))
+                result = obj.search(s)
+                if result is None:
+                    print '=== Fails on unicode pattern match', t
 
                 # Try the match with the search area limited to the extent
                 # of the match and see if it still succeeds.  \B will
@@ -840,10 +840,10 @@ def run_re_tests():
 
                 # Try the match with UNICODE locale enabled, and check
                 # that it still succeeds.
-#                obj = re.compile(pattern, re.UNICODE)
-#                result = obj.search(s)
-#                if result is None:
-#                    print '=== Fails on unicode-sensitive match', t
+                obj = re.compile(pattern, re.UNICODE)
+                result = obj.search(s)
+                if result is None:
+                    print '=== Fails on unicode-sensitive match', t
 
 class TriggerReTests(unittest.TestCase):
     
