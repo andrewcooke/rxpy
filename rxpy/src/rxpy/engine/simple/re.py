@@ -28,24 +28,23 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.compat.re import Module
+from rxpy.compat.module import Re
 from rxpy.engine.simple.visitor import engine
 
-_module = Module(engine)
+_re = Re(engine)
 
-compile = _module.compile
-RegexObject = _module.RegexObject
-MatchIterator = _module.MatchIterator
-match = _module.match    
-search = _module.search
-findall = _module.findall
-finditer = _module.finditer    
-sub = _module.sub    
-subn = _module.subn    
-split = _module.split    
-error = _module.error
-escape = _module.escape    
-Scanner = _module.Scanner    
+compile = _re.compile
+RegexObject = _re.RegexObject
+MatchIterator = _re.MatchIterator
+match = _re.match    
+search = _re.search
+findall = _re.findall
+finditer = _re.finditer    
+sub = _re.sub    
+subn = _re.subn    
+split = _re.split    
+error = _re.error
+escape = _re.escape    
+Scanner = _re.Scanner    
 
-(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _module.FLAGS
-
+(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _re.FLAGS

@@ -27,20 +27,40 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-
 from string import ascii_letters, digits
 
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.pattern import parse_pattern, parse_groups
 from rxpy.compat.replace import compile_repl
-from rxpy.lib import RxpyException, _FLAGS
+from rxpy.lib import RxpyException
 
 
 _ALPHANUMERICS = ascii_letters + digits
 
 
-class _RegexObject(object):
+def compile(pattern, flags=None, alphabet=None, engine=None):
+    if isinstance(pattern, RegexObject):
+        if flags is not None and flags != pattern.flags:
+            raise ValueError('Changed flags')
+        if alphabet is not None and alphabet != pattern.alphabet:
+            raise ValueError('Changed alphabet')
+    else:
+        if flags is None:
+            flags = 0
+        if isinstance(pattern, str):
+            hint_alphabet = Ascii()
+        elif isinstance(pattern, unicode):
+            hint_alphabet = Unicode()
+        else:
+            hint_alphabet = None
+        pattern = RegexObject(parse_pattern(pattern, flags=flags, alphabet=alphabet,
+                                            hint_alphabet=hint_alphabet),
+                              pattern, engine=engine)
+    return pattern
+
+
+class RegexObject(object):
     
     def __init__(self, parsed, pattern=None, engine=None):
         self.__parsed = parsed
@@ -68,8 +88,8 @@ class _RegexObject(object):
         return self.__parser_state.group_names
     
     def scanner(self, text, pos=0, endpos=None):
-        return _MatchIterator(self, self.__parsed, text, pos, endpos,
-                              engine=self.__engine)
+        return MatchIterator(self, self.__parsed, text, pos=pos, endpos=endpos,
+                             engine=self.__engine)
         
     def match(self, text, pos=0, endpos=None):
         return self.scanner(text, pos=pos, endpos=endpos).match()
@@ -163,7 +183,7 @@ class _RegexObject(object):
         return self.subn(repl, text, count=count)[0]
     
     
-class _MatchIterator(object):
+class MatchIterator(object):
     '''
     A compiled regexp and a string, plus offset state.
     
@@ -278,24 +298,76 @@ class MatchObject(object):
         return tuple(groups)
     
     
-class _Scanner(object):
+def match(pattern, text, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).match(text)
+
+
+def search(pattern, text, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).search(text)
+
+
+def findall(pattern, text, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).findall(text)
+
+
+def finditer(pattern, text, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).finditer(text)
+
+
+def sub(pattern, repl, text, count=0, flags=0, alphabet=None, engine=None):
+    '''
+    Find `pattern` in `text` and replace it with `repl`; limit this to
+    `count` replacements (from left) if `count > 0`.
+    '''
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).sub(repl, text, count=count)
+
+
+def subn(pattern, repl, text, count=0, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).subn(repl, text, count=count)
+
+
+def split(pattern, text, maxsplit=0, flags=0, alphabet=None, engine=None):
+    return compile(pattern, flags=flags, 
+                   alphabet=alphabet, engine=engine).split(text, maxsplit=maxsplit)
+
+
+error = RxpyException
+
+
+def escape(text):
+    def letters():
+        for letter in text:
+            if letter not in _ALPHANUMERICS:
+                yield '\\'
+            yield letter
+    return type(text)('').join(list(letters()))
+
+
+class Scanner(object):
     '''
     Also undocumented in the Python docs.
     http://code.activestate.com/recipes/457664-hidden-scanner-functionality-in-re-module/
     '''
 
     def __init__(self, pairs, flags=0, alphabet=None, engine=None):
-        self.__regex = _RegexObject(parse_groups(map(lambda x: x[0], pairs), 
-                                                 flags=flags, alphabet=alphabet),
-                                    engine=engine)
+        self.__regex = RegexObject(parse_groups(map(lambda x: x[0], pairs), 
+                                                flags=flags, alphabet=alphabet),
+                                   engine=engine)
         self.__actions = list(map(lambda x: x[1], pairs))
     
     def scaniter(self, text, pos=0, endpos=None, search=False):
-        return self.__scaniter(self.__regex.scanner(text, pos=pos, endpos=endpos))
+        return self.__scaniter(self.__regex.scanner(text, pos=pos, endpos=endpos), 
+                               search=search)
 
     def scan(self, text, pos=0, endpos=None, search=False):
         scanner = self.__regex.scanner(text, pos=pos, endpos=endpos)
-        return (list(self.__scaniter(scanner)), scanner.remaining)
+        return (list(self.__scaniter(scanner, search=search)), scanner.remaining)
                      
     def __scaniter(self, scanner, search=False):
         for found in scanner.iter(search):
@@ -303,110 +375,4 @@ class _Scanner(object):
                 yield self.__actions[found.lastindex-1](self, found.group())
         
 
-class Module(object):
-    
-    def __init__(self, engine):
-        self.__engine = engine
-        
-    def _default(self, engine):
-        return engine if engine else self.__engine
-    
-    def compile(self, pattern, flags=None, alphabet=None, engine=None):
-        if isinstance(pattern, _RegexObject):
-            if flags is not None and flags != pattern.flags:
-                raise ValueError('Changed flags')
-            if alphabet is not None and alphabet != pattern.alphabet:
-                raise ValueError('Changed alphabet')
-        else:
-            if flags is None:
-                flags = 0
-            if isinstance(pattern, str):
-                hint_alphabet = Ascii()
-            elif isinstance(pattern, unicode):
-                hint_alphabet = Unicode()
-            else:
-                hint_alphabet = None
-            pattern = _RegexObject(
-                            parse_pattern(pattern, flags=flags, alphabet=alphabet,
-                                          hint_alphabet=hint_alphabet),
-                            pattern, engine=self._default(engine))
-        return pattern
-        
-    @property
-    def RegexObject(self):
-        class RegexObject(_RegexObject):
-            def __init__(inner, parsed, pattern=None, engine=None):
-                super(RegexObject, inner).__init__(parsed, pattern=pattern,
-                                                   engine=self._default(engine))
-        return RegexObject
-
-    @property
-    def MatchIterator(self):
-        class MatchIterator(_MatchIterator):
-            def __init__(inner, re, parsed, text, pos=0, endpos=None, engine=None):
-                super(MatchIterator, inner).__init__(re, parsed, text, 
-                                                     pos=pos, endpos=endpos,
-                                                     engine=self._default(engine))
-        return MatchIterator
-    
-    def match(self, pattern, text, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).match(text)
-    
-    
-    def search(self, pattern, text, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags).search(text)
-    
-    
-    def findall(self, pattern, text, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).findall(text)
-    
-    
-    def finditer(self, pattern, text, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).finditer(text)
-    
-    
-    def sub(self, pattern, repl, text, count=0, flags=0, alphabet=None):
-        '''
-        Find `pattern` in `text` and replace it with `repl`; limit this to
-        `count` replacements (from left) if `count > 0`.
-        '''
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).sub(repl, text, count=count)
-    
-    
-    def subn(self, pattern, repl, text, count=0, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).subn(repl, text, count=count)
-    
-    
-    def split(self, pattern, text, maxsplit=0, flags=0, alphabet=None):
-        return self.compile(pattern, flags=flags, 
-                            alphabet=alphabet).split(text, maxsplit=maxsplit)
-    
-    @property
-    def error(self):
-        return RxpyException
-    
-    def escape(self, text):
-        def letters():
-            for letter in text:
-                if letter not in _ALPHANUMERICS:
-                    yield '\\'
-                yield letter
-        return type(text)('').join(list(letters()))
-    
-    @property
-    def Scanner(self):
-        class Scanner(_Scanner):
-            def __init__(inner, pairs, flags=0, alphabet=None, engine=None):
-                super(Scanner, inner).__init__(pairs, flags=flags, alphabet=alphabet,
-                                               engine=self._default(engine))
-        return Scanner
-
-    @property
-    def FLAGS(self):
-        return _FLAGS
-    
+            
