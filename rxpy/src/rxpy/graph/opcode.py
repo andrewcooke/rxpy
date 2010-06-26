@@ -350,7 +350,7 @@ class GroupConditional(BaseSplitNode):
 
 class WordBoundary(BaseEscapedNode):
     '''
-    Match a word boundary.  See Python `re` documentation and `Alphabet.word`.
+    Match a word boundary.  See Python `re` documentation and `BaseAlphabet.word`.
     
     - `inverted` indicates whether the test should succeed.  If `inverted` is
       `False` then the match should continue if the test succeeds; if `False`
@@ -366,7 +366,7 @@ class WordBoundary(BaseEscapedNode):
 
 class Digit(BaseEscapedNode):
     '''
-    Match a digit.  See `Alphabet.digit`.
+    Match a digit.  See `BaseAlphabet.digit`.
     
     - `inverted` indicates whether the test should succeed.  If `inverted` is
       `False` then the match should continue if the test succeeds; if `False`
@@ -382,7 +382,7 @@ class Digit(BaseEscapedNode):
 
 class Space(BaseEscapedNode):
     '''
-    Match a space.  See `Alphabet.space`.
+    Match a space.  See `BaseAlphabet.space`.
     
     - `inverted` indicates whether the test should succeed.  If `inverted` is
       `False` then the match should continue if the test succeeds; if `False`
@@ -398,7 +398,7 @@ class Space(BaseEscapedNode):
 
 class Word(BaseEscapedNode):
     '''
-    Match a word character.  See `Alphabet.word`.
+    Match a word character.  See `BaseAlphabet.word`.
     
     - `inverted` indicates whether the test should succeed.  If `inverted` is
       `False` then the match should continue if the test succeeds; if `False`
@@ -414,7 +414,24 @@ class Word(BaseEscapedNode):
 
 class Character(BaseNode):
     '''
-    Combine a `CharSet` with character classes.
+    Match a single character.  Currently the `__contains__` method should be
+    used for testing; that will call the `BaseAlphabet` as required.
+    
+    How can this be improved?
+    
+    - `intervals` define simple character ranges (eg. 0-9).
+    
+    - `alphabet` is the alphabet used.
+    
+    - `classes` is a list of `(class_, label, invert)` triplets, where:
+      - `class_` is a method on `alphabet` (eg. `.digit`)
+      - `label` is used for display
+      - `invert` is true if `class_` should fail
+      
+    - `inverted` is a global boolean that inverts the entire result (if `True`
+      the test should fail).
+      
+    - `complete` is True if the test (without `invert`) will always succeed.   
     '''
     
     def __init__(self, intervals, alphabet, classes=None, 

@@ -32,10 +32,10 @@ Logic related to input consiting of lists of digits (this is a proof of
 concept used to test non-string inputs).
 '''
 
-from rxpy.alphabet.base import Alphabet
+from rxpy.alphabet.base import BaseAlphabet
 
 
-class Digits(Alphabet):
+class Digits(BaseAlphabet):
     '''
     Define character sets etc for lists of single digits.
     

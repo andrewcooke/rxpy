@@ -34,7 +34,7 @@ Base class for alphabets.
 from rxpy.lib import UnsupportedOperation, unimplemented, RxpyException
 
 
-class Alphabet(object):
+class BaseAlphabet(object):
     '''
     Defines the interface that all alphabets must implement.
     

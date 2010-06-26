@@ -25,14 +25,24 @@
 # provisions above and replace them with the notice and other provisions
 # required by the LGPL License.  If you do not delete the provisions    
 # above, a recipient may use your version of this file under either the 
-# MPL or the LGPL License.                                              
+# MPL or the LGPL License.          
 
+
+'''
+A matcher implementation using a simple interpreter-based approach with the
+`Visitor` interface.  State (including stacks for backtracking) is 
+encapsulated in `State` while program flow uses trampolining to avoid 
+exhausting the Python stack. 
+'''                                    
 
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.compat.groups import Groups
 
 
 class Fail(Exception):
+    '''
+    Raised on failure.
+    '''
     pass
 
 
@@ -177,6 +187,10 @@ class Loops(object):
     
 
 class Visitor(BaseVisitor):
+    '''
+    The interpreter.  Creating an instance automatically triggers the 
+    evaluation.
+    '''
     
     def __init__(self, alphabet, flags, stream, graph, state, search=False):
         self.__alphabet = alphabet

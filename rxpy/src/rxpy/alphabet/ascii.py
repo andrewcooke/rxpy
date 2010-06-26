@@ -33,14 +33,14 @@ Logic related to ASCII input.
 
 from string import digits, ascii_letters
 
-from rxpy.alphabet.base import Alphabet
+from rxpy.alphabet.base import BaseAlphabet
 from rxpy.lib import RxpyException
 
 
 WORD = set(ascii_letters + digits + '_')
 
 
-class Ascii(Alphabet):
+class Ascii(BaseAlphabet):
     '''
     Define character sets etc for ASCII strings.  We could maybe extend or
     subclass this for Locale-dependent logic.

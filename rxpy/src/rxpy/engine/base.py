@@ -1,3 +1,4 @@
+from rxpy.lib import UnimplementedMethod
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -27,79 +28,33 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-'''
-Logic related to Unicode input.
-'''
 
-
-from sys import maxunicode
-from unicodedata import category
-
-from rxpy.alphabet.base import BaseAlphabet
-
-
-WORD = set(['Ll', 'Lo', 'Lt', 'Lu', 'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc'])
-
-
-class Unicode(BaseAlphabet):
-    '''
-    Define character sets etc for Unicode strings.
+class BaseAlphabet(object):
     
-    See base class for full documentation.
-    '''
-    
-    def __init__(self):
-        super(Unicode, self).__init__(0, maxunicode)
-        
-    def code_to_char(self, code):
-        return unichr(code)
-    
-    def char_to_code(self, char):
-        return ord(char)
-        
-    def coerce(self, char):
-        return unicode(char)
-    
-    def join(self, *strings):
-        return self.coerce('').join(strings)
-        
-    def to_str(self, char):
+    def __init__(self, parser_state, graph):
         '''
-        Display the character.
+        Create an engine instance.
         
-        Note - this is the basis of hash and equality for intervals, so must
-        be unique, repeatable, etc.
+        - `parser_state` is an instance of `ParserState` and contains things
+          like alphabet and flags.
+          
+        - `graph` is the entry node into a graph of opcodes
         '''
-        text = repr(unicode(char))
-        if text[0] == 'u':
-            text = text[1:]
-        return text[1:-1]
-
-    def digit(self, char):
-        # http://bugs.python.org/issue1693050
-        return char and category(self.coerce(char)) == 'Nd'
-
-    def space(self, char):
-        # http://bugs.python.org/issue1693050
-        if char:
-            c = self.coerce(char)
-            return c in u' \t\n\r\f\v' or category(c) == 'Z'
-        else:
-            return False
+        self._parser_state = parser_state
+        self._graph = graph
         
-    def word(self, char):
-        # http://bugs.python.org/issue1693050
-        return char and category(self.coerce(char)) in WORD
-    
-    def unpack(self, char, flags):
+    def match(self, text, pos=0, search=False):
         '''
-        Return either (True, (lo, hi)) or (False, char)
+        Search or match the given text.
+        
+        - `text` is the input to match (terminated appropriately)
+        
+        - `pos` is the initial position to start matching at
+        
+        - `search` is `True` if characters (from `pos` on) can be discarded
+          while searching for a match; if `False` the match must start at
+          `text[pos]`.
+        
+        A `Groups` instance should be returned.
         '''
-        from rxpy.parser.support import ParserState
-        char = self.join(self.coerce(char))
-        if flags & ParserState.IGNORECASE:
-            lo = char.lower()
-            hi = char.upper()
-            if lo != hi:
-                return (True, (lo, hi))
-        return (False, char)
+        raise UnimplementedMethod('Engines must implement match()')
