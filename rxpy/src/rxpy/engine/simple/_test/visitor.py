@@ -30,9 +30,14 @@
 
 from unittest import TestCase
 
-from rxpy.engine.simple.visitor import engine
+from rxpy.engine.simple.engine import Engine
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
+
+
+def engine(parse, text, search=False):
+    engine = Engine(*parse)
+    return engine.run(text, search=search)
 
 
 class VisitorTest(TestCase):

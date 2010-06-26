@@ -29,7 +29,7 @@ from rxpy.lib import UnimplementedMethod
 # MPL or the LGPL License.                                              
 
 
-class BaseAlphabet(object):
+class BaseEngine(object):
     
     def __init__(self, parser_state, graph):
         '''
@@ -43,7 +43,7 @@ class BaseAlphabet(object):
         self._parser_state = parser_state
         self._graph = graph
         
-    def match(self, text, pos=0, search=False):
+    def run(self, text, pos=0, search=False):
         '''
         Search or match the given text.
         

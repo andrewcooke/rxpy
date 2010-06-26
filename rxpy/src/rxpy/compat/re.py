@@ -201,7 +201,7 @@ class MatchIterator(object):
         self.__text = text
         self.__pos = pos
         self.__endpos = endpos if endpos else len(text)
-        self.__engine = engine
+        self.__engine = engine(*parsed)
     
     @property
     def __parser_state(self):
@@ -209,8 +209,8 @@ class MatchIterator(object):
 
     def next(self, search):
         if self.__pos <= self.__endpos:
-            groups = self.__engine(self.__parsed, self.__text[:self.__endpos], 
-                                   pos=self.__pos, search=search)
+            groups = self.__engine.run(self.__text[:self.__endpos], 
+                                       pos=self.__pos, search=search)
             if groups:
                 found = MatchObject(groups, self.__re, self.__text, 
                                     self.__pos, self.__endpos, 

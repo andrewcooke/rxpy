@@ -30,9 +30,9 @@
 
 class Groups(object):
     
-    def __init__(self, stream=None, groups=None, offsets=None, count=0, 
+    def __init__(self, text=None, groups=None, offsets=None, count=0, 
                  names=None, indices=None, lastindex=None):
-        self.__stream = stream
+        self.__text = text
         self.__groups = groups if groups else {}
         self.__offsets = offsets if offsets else {}
         self.__count = count
@@ -46,7 +46,7 @@ class Groups(object):
     def end_group(self, number, offset):
         assert isinstance(number, int)
         assert number in self.__offsets, 'Unopened group'
-        self.__groups[number] = (self.__stream[self.__offsets[number]:offset],
+        self.__groups[number] = (self.__text[self.__offsets[number]:offset],
                                  self.__offsets[number], offset)
         del self.__offsets[number]
         if number: # avoid group 0
@@ -62,7 +62,7 @@ class Groups(object):
         return self.__bool__()
     
     def clone(self):
-        return Groups(stream=self.__stream, groups=dict(self.__groups), 
+        return Groups(text=self.__text, groups=dict(self.__groups), 
                       offsets=dict(self.__offsets), count=self.__count, 
                       names=self.__names, indices=self.__indices,
                       lastindex=self.__lastindex)

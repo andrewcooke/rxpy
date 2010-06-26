@@ -1,3 +1,4 @@
+from rxpy.engine.base import BaseEngine
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -48,29 +49,29 @@ class Fail(Exception):
 
 class State(object):
     '''
-    State for a particular position moment / graph position / stream offset.
+    State for a particular position moment / graph position / text offset.
     '''
     
-    def __init__(self, stream, groups, previous=None, offset=0, loops=None):
-        self.__stream = stream
+    def __init__(self, text, groups, previous=None, offset=0, loops=None):
+        self.__text = text
         self.__groups = groups
         self.__previous = previous
         self.__offset = offset
         self.__loops = loops if loops else Loops()
     
     def clone(self):
-        return State(self.__stream, self.__groups.clone(), self.__previous, 
+        return State(self.__text, self.__groups.clone(), self.__previous, 
                      self.__offset, self.__loops.clone())
         
     def advance(self):
         '''
         Used in search to increment start point.
         '''
-        if self.__stream:
+        if self.__text:
             self.__offset += 1
             self.__groups.start_group(0, self.__offset)
-            self.__previous = self.__stream[0]
-            self.__stream = self.__stream[1:]
+            self.__previous = self.__text[0]
+            self.__text = self.__text[1:]
             return True
         else:
             return False
@@ -78,10 +79,10 @@ class State(object):
     def string(self, text):
         try:
             l = len(text)
-            if self.__stream[0:l] == text:
+            if self.__text[0:l] == text:
                 if l:
-                    self.__previous = self.__stream[l-1]
-                    self.__stream = self.__stream[l:]
+                    self.__previous = self.__text[l-1]
+                    self.__text = self.__text[l:]
                     self.__offset += l
                 return self
         except IndexError:
@@ -90,9 +91,9 @@ class State(object):
     
     def character(self, charset):
         try:
-            if self.__stream[0] in charset:
-                self.__previous = self.__stream[0]
-                self.__stream = self.__stream[1:]
+            if self.__text[0] in charset:
+                self.__previous = self.__text[0]
+                self.__text = self.__text[1:]
                 self.__offset += 1
                 return self
         except IndexError:
@@ -116,9 +117,9 @@ class State(object):
     
     def dot(self, multiline=True):
         try:
-            if self.__stream[0] and (multiline or self.__stream[0] != '\n'):
-                self.__previous = self.__stream[0]
-                self.__stream = self.__stream[1:]
+            if self.__text[0] and (multiline or self.__text[0] != '\n'):
+                self.__previous = self.__text[0]
+                self.__text = self.__text[1:]
                 self.__offset += 1
                 return self
         except IndexError:
@@ -132,10 +133,10 @@ class State(object):
             raise Fail
             
     def end_of_line(self, multiline):
-        if ((not self.__stream or (multiline and self.__stream[0] == '\n'))
-                # also before \n at end of stream
-                or (self.__stream and self.__stream[0] == '\n' and
-                    not self.__stream[1:])):
+        if ((not self.__text or (multiline and self.__text[0] == '\n'))
+                # also before \n at end of text
+                or (self.__text and self.__text[0] == '\n' and
+                    not self.__text[1:])):
             return self
         else:
             raise Fail
@@ -149,8 +150,8 @@ class State(object):
         return self.__offset
 
     @property
-    def stream(self):
-        return self.__stream
+    def text(self):
+        return self.__text
 
     @property
     def previous(self):
@@ -186,16 +187,23 @@ class Loops(object):
         return Loops(list(self.__counts), dict(self.__order))
     
 
-class Visitor(BaseVisitor):
+class Engine(BaseEngine, BaseVisitor):
     '''
-    The interpreter.  Creating an instance automatically triggers the 
-    evaluation.
+    The interpreter.
     '''
     
-    def __init__(self, alphabet, flags, stream, graph, state, search=False):
-        self.__alphabet = alphabet
-        self.__flags = flags
-        self.__stream = stream
+    def run(self, text, pos=0, search=False):
+        '''
+        Execute a search.
+        '''
+        self.__text = text
+        self.__pos = pos
+        
+        state = State(text[pos:],
+                      Groups(text=text, count=self._parser_state.group_count, 
+                             names=self._parser_state.group_names, 
+                             indices=self._parser_state.group_indices),
+                      offset=pos, previous=text[pos-1] if pos else None)
         
         self.__stack = None
         self.__stacks = []
@@ -203,19 +211,18 @@ class Visitor(BaseVisitor):
         self.__match = False
         
         state.start_group(0)
-        state = self.__run(graph, state, search=search)
-
-        if self.__match:
+        (match, state) = self.__run(self._graph, state, search=search)
+        if match:
             state.end_group(0)
-            self.groups = state.groups
-            self.offset = state.offset 
-            self.state = state
+            return state.groups
         else:
-            self.groups = Groups()
-            self.offset = None
-            self.state = None
+            return Groups()
             
     def __run(self, graph, state, search=False):
+        '''
+        Run a sun-search.  We support multiple searches (stacks) so that we
+        can invoke the same interpreter for lookaheads etc.
+        '''
         self.__stacks.append(self.__stack)
         self.__stack = []
         first = True
@@ -243,9 +250,10 @@ class Visitor(BaseVisitor):
                     else:
                         search = False
             # search has exited; return
-            return state
+            return (self.__match, state)
         finally:
             self.__stack = self.__stacks.pop()
+            self.__match = False
         
     def __bool__(self):
         return bool(self.__match)
@@ -306,18 +314,13 @@ class Visitor(BaseVisitor):
         if node not in self.__lookaheads:
             self.__lookaheads[node] = {}
         if state.offset not in self.__lookaheads[node]:
-            # we need to match the lookahead, which we do as a separate process
+            # we need to match the lookahead
             if forwards:
-                visitor = Visitor(self.__alphabet, self.__flags, state.stream, 
-                                  next[1], 
-                                  State(state.stream, state.groups.clone()))
-                self.__lookaheads[node][state.offset] = bool(visitor) == equal
+                clone = State(state.text, state.groups.clone())
             else:
-                visitor = Visitor(self.__alphabet, self.__flags, 
-                                  self.__stream[0:state.offset], next[1],
-                                  State(self.__stream[0:state.offset],
-                                        state.groups.clone()))
-                self.__lookaheads[node][state.offset] = bool(visitor) == equal
+                clone = State(self.__text[0:state.offset], state.groups.clone())
+            (match, clone) = self.__run(next[1], clone)
+            self.__lookaheads[node][state.offset] = match == equal
         # if lookahead succeeded, continue
         if self.__lookaheads[node][state.offset]:
             return (next[0], state)
@@ -333,9 +336,9 @@ class Visitor(BaseVisitor):
         if lazy:
             # we can continue from here, but if that fails we want to restart 
             # with another loop, unless we've exceeded the count or there's
-            # no stream left
+            # no text left
             # this is well-behaved with stack space
-            if (end is None and state.stream) \
+            if (end is None and state.text) \
                     or (end is not None and count < end):
                 self.__stack.append((next[1], state.clone()))
             if end is None or count <= end:
@@ -356,10 +359,10 @@ class Visitor(BaseVisitor):
     def word_boundary(self, next, inverted, state):
         previous = state.previous
         try:
-            current = state.stream[0]
+            current = state.text[0]
         except IndexError:
             current = None
-        word = self.__alphabet.word
+        word = self._parser_state.alphabet.word
         boundary = word(current) != word(previous)
         if boundary != inverted:
             return (next[0], state)
@@ -368,7 +371,7 @@ class Visitor(BaseVisitor):
 
     def digit(self, next, inverted, state):
         try:
-            if self.__alphabet.digit(state.stream[0]) != inverted:
+            if self._parser_state.alphabet.digit(state.text[0]) != inverted:
                 return (next[0], state.dot())
         except IndexError:
             pass
@@ -376,7 +379,7 @@ class Visitor(BaseVisitor):
     
     def space(self, next, inverted, state):
         try:
-            if self.__alphabet.space(state.stream[0]) != inverted:
+            if self._parser_state.alphabet.space(state.text[0]) != inverted:
                 return (next[0], state.dot())
         except IndexError:
             pass
@@ -384,20 +387,8 @@ class Visitor(BaseVisitor):
     
     def word(self, next, inverted, state):
         try:
-            if self.__alphabet.word(state.stream[0]) != inverted:
+            if self._parser_state.alphabet.word(state.text[0]) != inverted:
                 return (next[0], state.dot())
         except IndexError:
             pass
         raise Fail
-    
-    
-def engine((parser_state, graph), stream, pos=0, search=False):
-    visitor = Visitor(parser_state.alphabet, parser_state.flags, stream, graph,
-                      State(stream[pos:],
-                            Groups(stream=stream, count=parser_state.group_count, 
-                                   names=parser_state.group_names, 
-                                   indices=parser_state.group_indices),
-                            offset=pos,
-                            previous=stream[pos-1] if pos else None),
-                      search=search)
-    return visitor.groups

@@ -29,9 +29,9 @@
 
 
 from rxpy.compat.module import Re
-from rxpy.engine.simple.visitor import engine
+from rxpy.engine.simple.engine import Engine
 
-_re = Re(engine)
+_re = Re(Engine)
 
 compile = _re.compile
 RegexObject = _re.RegexObject
