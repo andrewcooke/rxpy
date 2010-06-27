@@ -27,11 +27,14 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+A replacement for Python's `re` package that uses the simple engine.
+'''
 
 from rxpy.compat.module import Re
-from rxpy.engine.simple.engine import Engine
+from rxpy.engine.simple.engine import SimpleEngine
 
-_re = Re(Engine)
+_re = Re(SimpleEngine)
 
 compile = _re.compile
 RegexObject = _re.RegexObject

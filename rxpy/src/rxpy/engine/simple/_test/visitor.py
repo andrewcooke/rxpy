@@ -30,13 +30,13 @@
 
 from unittest import TestCase
 
-from rxpy.engine.simple.engine import Engine
+from rxpy.engine.simple.engine import SimpleEngine
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
 def engine(parse, text, search=False):
-    engine = Engine(*parse)
+    engine = SimpleEngine(*parse)
     return engine.run(text, search=search)
 
 

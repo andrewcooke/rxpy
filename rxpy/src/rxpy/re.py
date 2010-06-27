@@ -36,9 +36,9 @@ For documentation, see the official Python re module documentation.
 '''
 
 from rxpy.compat.module import Re
-from rxpy.engine.simple.engine import Engine
+from rxpy.engine.simple.engine import SimpleEngine
 
-_re = Re(Engine)
+_re = Re(SimpleEngine)
 
 compile = _re.compile
 RegexObject = _re.RegexObject

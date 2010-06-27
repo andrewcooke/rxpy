@@ -1,4 +1,3 @@
-from rxpy.engine.base import BaseEngine
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -36,6 +35,7 @@ encapsulated in `State` while program flow uses trampolining to avoid
 exhausting the Python stack. 
 '''                                    
 
+from rxpy.engine.base import BaseEngine
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.compat.groups import Groups
 
@@ -43,6 +43,13 @@ from rxpy.compat.groups import Groups
 class Fail(Exception):
     '''
     Raised on failure.
+    '''
+    pass
+
+
+class Match(Exception):
+    '''
+    raised on success
     '''
     pass
 
@@ -76,6 +83,9 @@ class State(object):
         else:
             return False
     
+    # below are methods that correspond roughly to opcodes in the graph.
+    # these are called from the visitor.
+        
     def string(self, text):
         try:
             l = len(text)
@@ -160,12 +170,12 @@ class State(object):
 
 class Loops(object):
     '''
-    Manage a nested set of indices (loops *must* be nested).
+    The state needed to track explicit repeats (used in the `_STATEFUL` flag
+    was set).  This assumes that loops are nested (as they must be).
     '''
     
     def __init__(self, counts=None, order=None):
         self.__counts = counts if counts else []
-        
         self.__order = order if order else {}
         
     def increment(self, node):
@@ -187,7 +197,7 @@ class Loops(object):
         return Loops(list(self.__counts), dict(self.__order))
     
 
-class Engine(BaseEngine, BaseVisitor):
+class SimpleEngine(BaseEngine, BaseVisitor):
     '''
     The interpreter.
     '''
@@ -208,7 +218,6 @@ class Engine(BaseEngine, BaseVisitor):
         self.__stack = None
         self.__stacks = []
         self.__lookaheads = {} # map from node to set of known ok states
-        self.__match = False
         
         state.start_group(0)
         (match, state) = self.__run(self._graph, state, search=search)
@@ -222,44 +231,50 @@ class Engine(BaseEngine, BaseVisitor):
         '''
         Run a sun-search.  We support multiple searches (stacks) so that we
         can invoke the same interpreter for lookaheads etc.
+        
+        This is a simple trampoline - it stores state on a stack and invokes
+        the visitor interface on each graph node.  Visitor methods return 
+        either the new node and state, or raise `Fail` on failure, or
+        `Match` on success.
         '''
         self.__stacks.append(self.__stack)
         self.__stack = []
-        first = True
         try:
-            while first or (search and not self.__match):
-                # if searching, save state for restarts
-                if search:
-                    (save_state, save_graph) = (state.clone(), graph)
-                # do a normal match
-                while not self.__match:
-                    try:
-                        (graph, state) = graph.visit(self, state)
-                    except Fail:
-                        if self.__stack:
-                            (graph, state) = self.__stack.pop()
+            try:
+                # search loop
+                while True:
+                    # if searching, save state for restart
+                    if search:
+                        (save_state, save_graph) = (state.clone(), graph)
+                    # trampoline loop
+                    while True:
+                        try:
+                            (graph, state) = graph.visit(self, state)
+                        # backtrack if stack exists
+                        except Fail:
+                            if self.__stack:
+                                (graph, state) = self.__stack.pop()
+                            else:
+                                break
+                    # nudge search forwards and try again, or exit
+                    if search:
+                        if save_state.advance():
+                            (state, graph) = (save_state, save_graph)
                         else:
                             break
-                    except AttributeError:
-                        raise
-                # match has exited; handle search
-                first = False
-                if search and not self.__match:
-                    if save_state.advance():
-                        (state, graph) = (save_state, save_graph) 
+                    # match (not search), so exit with failure
                     else:
-                        search = False
-            # search has exited; return
-            return (self.__match, state)
+                        break
+                return (False, state)
+            except Match:
+                return (True, state)
         finally:
+            # restore state so that another run can resume
             self.__stack = self.__stacks.pop()
             self.__match = False
-        
-    def __bool__(self):
-        return bool(self.__match)
-    
-    def __nonzero__(self):
-        return bool(self.__match)
+            
+    # below are the visitor methods - these implement the different opcodes
+    # (typically by modifying state and returning the next node) 
         
     def string(self, next, text, state):
         return (next[0], state.string(text))
@@ -298,8 +313,7 @@ class Engine(BaseEngine, BaseVisitor):
         return (next[0], state)
     
     def match(self, state):
-        self.__match = True
-        return (None, state)
+        raise Match
 
     def dot(self, next, multiline, state):
         return (next[0], state.dot(multiline))
