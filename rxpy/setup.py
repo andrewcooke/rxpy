@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='RXPY',
-      version='0.0.0',
+      version='0.0.1',
       description='A Regular Expression Library for Python',
       long_description='''
 RXPY is a regular expression library, written purely in Python, that is almost
@@ -13,16 +13,19 @@ used.  This allows regular expressions to be defined over sequences of
 arbitrary objects (a mapping between objects and the characters used in the
 regular expression must exist; this is defined by the alphabet).
 
-The initial engine is a simple recursive descent implementation, but future
-releases will support a DFA-based solution similar to re2.
+Release 0.0.1 has been refactored to simplify the creation of new engines.
+The documentation has also been improved.
 ''',
       author='Andrew Cooke',
       author_email='andrew@acooke.org',
       url='http://www.acooke.org/rxpy/',
       packages=['rxpy',
-                'rxpy.alphabet', 'rxpy.alphabet._test',
-                'rxpy.direct',   'rxpy.direct._test',
-                'rxpy.parser',   'rxpy.parser._test',
+                'rxpy.alphabet',      'rxpy.alphabet._test',
+                'rxpy.compat',
+                'rxpy.engine',
+                'rxpy.engine.simple', 'rxpy.engine.simple._test',
+                'rxpy.graph',
+                'rxpy.parser',        'rxpy.parser._test',
                 ],
       package_dir = {'':'src'},
       keywords = "regular expression",

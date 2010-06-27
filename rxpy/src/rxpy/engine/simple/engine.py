@@ -229,7 +229,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
             
     def __run(self, graph, state, search=False):
         '''
-        Run a sun-search.  We support multiple searches (stacks) so that we
+        Run a sub-search.  We support multiple searches (stacks) so that we
         can invoke the same interpreter for lookaheads etc.
         
         This is a simple trampoline - it stores state on a stack and invokes
