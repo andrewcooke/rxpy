@@ -1,3 +1,6 @@
+from rxpy.graph.opcode import StartGroup
+from rxpy.graph.support import contains_instance
+from traceback import print_exc
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -215,6 +218,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                              indices=self._parser_state.group_indices),
                       offset=pos, previous=text[pos-1] if pos else None)
         
+        self.ticks = 0 # for testing optimisations
         self.__stack = None
         self.__stacks = []
         self.__lookaheads = {} # map from node to set of known ok states
@@ -248,6 +252,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                         (save_state, save_graph) = (state.clone(), graph)
                     # trampoline loop
                     while True:
+                        self.ticks += 1
                         try:
                             (graph, state) = graph.visit(self, state)
                         # backtrack if stack exists
@@ -329,11 +334,23 @@ class SimpleEngine(BaseEngine, BaseVisitor):
             self.__lookaheads[node] = {}
         if state.offset not in self.__lookaheads[node]:
             # we need to match the lookahead
+            branch = next[1]
             if forwards:
                 clone = State(state.text, state.groups.clone())
             else:
-                clone = State(self.__text[0:state.offset], state.groups.clone())
-            (match, clone) = self.__run(next[1], clone)
+                # use groups to calculate size if they are unchanged in lookback
+                groups = None if contains_instance(branch, StartGroup) \
+                            else state.groups
+                # calculate lookback size if possible
+                try:
+                    # skip ".*"
+                    branch = next[1].next[1]
+                    subtext = self.__text[state.offset-branch.size(groups):state.offset]
+                except Exception:
+                    branch = next[1]
+                    subtext = self.__text[0:state.offset]
+                clone = State(subtext, state.groups.clone())
+            (match, clone) = self.__run(branch, clone)
             self.__lookaheads[node][state.offset] = match == equal
         # if lookahead succeeded, continue
         if self.__lookaheads[node][state.offset]:

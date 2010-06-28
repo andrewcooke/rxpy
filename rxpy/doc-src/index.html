@@ -22,7 +22,7 @@
 
 <p>A pure-Python regular expression library, compatible with the 
 <tt>re</tt> package.  RXPY can be used as a test-bed for new matching 
-algorithms - the parser and compatability components are reusable.</p>
+algorithms - the parser and compatibility components are reusable.</p>
 
         </div>
       </div>
@@ -75,10 +75,9 @@ algorithms - the parser and compatability components are reusable.</p>
 <h2>Disadvantages</h2>
 
 <p>The main disadvantage with the current (C-based) Python interpreter is
-  speed.  To address this, engines written in C could be supported.
-  Alternatively, progress with PyPy or Unladen Swallow could make Python code
-  competitive with C.  Also, locale-based character groups are not 
-  supported.</p>
+  speed.  Also, locale-based character groups are not supported and the 
+  alphabet-based approach can give slightly different results when mixing 
+  ASCII and Unicode strings.</p>
 
         </div></div></div>
       </div>

@@ -79,7 +79,7 @@ class Groups(object):
                 return [None, -1, -1]
             else:
                 raise IndexError(number)
-    
+            
     def group(self, number, default=None):
         group = self[number][0]
         return default if group is None else group

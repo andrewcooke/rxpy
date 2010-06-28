@@ -28,8 +28,8 @@
 # MPL or the LGPL License.                                              
 
 '''
-Logic related to input consiting of lists of digits (this is a proof of
-concept used to test non-string inputs).
+Logic related to input of lists of digits (this is a proof of
+concept used to test non-string data).
 '''
 
 from rxpy.alphabet.base import BaseAlphabet

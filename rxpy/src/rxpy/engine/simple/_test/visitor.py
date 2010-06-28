@@ -35,9 +35,12 @@ from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
-def engine(parse, text, search=False):
+def engine(parse, text, search=False, ticks=None):
     engine = SimpleEngine(*parse)
-    return engine.run(text, search=search)
+    results = engine.run(text, search=search)
+    if ticks:
+        assert engine.ticks == ticks, engine.ticks
+    return results
 
 
 class VisitorTest(TestCase):
@@ -94,6 +97,27 @@ class VisitorTest(TestCase):
         assert not engine(parse_pattern('.(?<=a)'), 'b')
         assert not engine(parse_pattern('.(?<!a)'), 'a')
         assert engine(parse_pattern('.(?<!a)'), 'b')
+    
+    def test_lookback_with_offset(self):
+        assert engine(parse_pattern('..(?<=a)'), 'xa', ticks=7)
+        assert not engine(parse_pattern('..(?<=a)'), 'ax')
+        
+    def test_lookback_optimisations(self):
+        assert engine(parse_pattern('(.).(?<=a)'), 'xa', ticks=9)
+        # only one more tick with an extra character because we avoid starting
+        # from the start in this case
+        assert engine(parse_pattern('.(.).(?<=a)'), 'xxa', ticks=10)
+        
+        assert engine(parse_pattern('(.).(?<=\\1)'), 'aa', ticks=9)
+        # again, just one tick more
+        assert engine(parse_pattern('.(.).(?<=\\1)'), 'xaa', ticks=10)
+        assert not engine(parse_pattern('(.).(?<=\\1)'), 'xa')
+        
+        assert engine(parse_pattern('(.).(?<=(\\1))'), 'aa', ticks=19)
+        # but here, three ticks more because we have a group reference with
+        # changing groups, so can't reliably calculate lookback distance
+        assert engine(parse_pattern('.(.).(?<=(\\1))'), 'xaa', ticks=22)
+        assert not engine(parse_pattern('(.).(?<=(\\1))'), 'xa')
     
     def test_conditional(self):
         assert engine(parse_pattern('(.)?b(?(1)\\1)'), 'aba')

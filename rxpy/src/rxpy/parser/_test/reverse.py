@@ -82,3 +82,8 @@ class EscapeTest(TestCase):
 #        m = p.match(' a  ab  abc ')
 #        assert m.groups() == ('abc'), m.groups()
         
+    def test_lookback(self):
+        p = compile('..(?<=a)')
+        assert p.match('xa')
+        assert not p.match('ax')
+        

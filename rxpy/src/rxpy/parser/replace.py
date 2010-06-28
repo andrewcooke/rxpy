@@ -25,7 +25,13 @@
 # provisions above and replace them with the notice and other provisions
 # required by the LGPL License.  If you do not delete the provisions    
 # above, a recipient may use your version of this file under either the 
-# MPL or the LGPL License.                                              
+# MPL or the LGPL License.     
+
+'''
+Additional parser code for the expressions used in `re.sub` and similar
+routines, where a "replacement" can be specified, containing group references
+and escaped characters.
+'''                                         
 
 
 from string import digits
@@ -33,11 +39,14 @@ from string import digits
 from rxpy.lib import RxpyException
 from rxpy.graph.opcode import GroupReference, Match, String
 from rxpy.graph.temp import Sequence
-from rxpy.parser.support import parse, StatefulBuilder, ALPHANUMERIC
+from rxpy.parser.support import parse, Builder, ALPHANUMERIC
 from rxpy.parser.pattern import IntermediateEscapeBuilder
 
 
 class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
+    '''
+    Parse escaped characters in a "replacement".
+    '''
     
     def append_character(self, character):
         if not character:
@@ -57,7 +66,10 @@ class ReplacementEscapeBuilder(IntermediateEscapeBuilder):
         return self._parent_builder
         
         
-class ReplacementGroupReferenceBuilder(StatefulBuilder):
+class ReplacementGroupReferenceBuilder(Builder):
+    '''
+    Parse group references in a "replacement".
+    '''
     
     def __init__(self, state, parent):
         super(ReplacementGroupReferenceBuilder, self).__init__(state)
@@ -114,15 +126,13 @@ class ReplacementGroupReferenceBuilder(StatefulBuilder):
             raise RxpyException('Incomplete group escape')
         
 
-class ReplacementBuilder(StatefulBuilder):
+class ReplacementBuilder(Builder):
     '''
-    A separate builder (which uses escape handling above) used to parse the
-    "replacement" string for the "subn" method.
+    Parse a "replacement" (eg for `re.sub`).  Normally this is called via
+    `parse_replace`.
     '''
     
     def __init__(self, state):
-        # we want to preserve the type of the output in python2.6; that means
-        # switching between ASCII and Unicode depending on the input.
         super(ReplacementBuilder, self).__init__(state)
         self._nodes = []
         
@@ -139,7 +149,6 @@ class ReplacementBuilder(StatefulBuilder):
         if not escaped and character == '\\':
             return ReplacementEscapeBuilder(self._state, self)
         elif character:
-            # ignore case here - used only for replacement
             self._nodes.append(
                 String(self._state.alphabet.join(
                             self._state.alphabet.coerce(character))))
@@ -150,5 +159,8 @@ class ReplacementBuilder(StatefulBuilder):
 
 
 def parse_replace(text, state):
+    '''
+    Parse a "replacement" (eg for `re.sub`).
+    '''
     return parse(text, state, ReplacementBuilder, mutable_flags=False)
 

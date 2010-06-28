@@ -32,6 +32,7 @@ from bisect import bisect_left
 from collections import deque
 
 from rxpy.lib import RxpyException, unimplemented
+from traceback import print_exc
 
 
 class GraphException(Exception):
@@ -63,6 +64,13 @@ def edge_iterator(node):
                     stack.append(next)
                     yield edge
                 visited.add(edge)
+                
+
+def contains_instance(graph, type_):
+    for (n1, n2) in edge_iterator(graph):
+        if isinstance(n1, type_) or isinstance(n2, type_):
+            return True
+    return False
         
 
 class BaseNode(object):
@@ -87,13 +95,14 @@ class BaseNode(object):
     individual sub-nodes.
     '''
     
-    def __init__(self, consumer=True):
+    def __init__(self, consumer=True, size=None):
         '''
         Subclasses should pay attention to the relationship between 
         constructor kargs and attributes assumed in `.clone`.
         '''
         self.next = []
         self.__consumer = consumer
+        self.__size = size
         
     @property
     def consumer(self):
@@ -102,7 +111,19 @@ class BaseNode(object):
         detect errors (if False, repeating with * or + would not terminate).
         '''
         return self.__consumer
-        
+    
+    def size(self, groups):
+        '''
+        The number of characters matched by this and subsequence nodes, if
+        known, otherwise None.  Nodes must give a single, fixed number or
+        None, so any loops should return None.
+        '''
+        try:
+            if len(self.next) == 1:
+                return self.__size + self.next[0].size(groups)
+        except:
+            pass
+            
     @property
     def start(self):
         '''
@@ -244,15 +265,21 @@ class BaseSplitNode(BaseNode):
 
 class BaseLineNode(BaseNode):
 
-    def __init__(self, multiline, consumer=False):
-        super(BaseLineNode, self).__init__(consumer=consumer)
+    def __init__(self, multiline, consumer=False, size=0):
+        '''
+        Note that the default value of `size` has changed from `BaseNode`.
+        '''
+        super(BaseLineNode, self).__init__(consumer=consumer, size=size)
         self.multiline = multiline
     
 
 class BaseEscapedNode(BaseNode):
     
-    def __init__(self, character, inverted=False, consumer=True):
-        super(BaseEscapedNode, self).__init__(consumer=consumer)
+    def __init__(self, character, inverted=False, consumer=True, size=1):
+        '''
+        Note that the default value of `size` has changed from `BaseNode`.
+        '''
+        super(BaseEscapedNode, self).__init__(consumer=consumer, size=size)
         self._character = character
         self.inverted = inverted
         

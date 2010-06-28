@@ -51,7 +51,7 @@ class String(BaseNode):
     '''
     
     def __init__(self, text):
-        super(String, self).__init__()
+        super(String, self).__init__(size=len(text))
         self.text = text
         
     def __str__(self):
@@ -71,7 +71,7 @@ class StartGroup(BaseNode):
     '''
     
     def __init__(self, number):
-        super(StartGroup, self).__init__()
+        super(StartGroup, self).__init__(size=0)
         assert isinstance(number, int)
         self.number = number
         
@@ -92,7 +92,7 @@ class EndGroup(BaseNode):
     '''
     
     def __init__(self, number):
-        super(EndGroup, self).__init__()
+        super(EndGroup, self).__init__(size=0)
         assert isinstance(number, int)
         self.number = number
         
@@ -144,6 +144,9 @@ class Match(BaseNode):
 
     def visit(self, visitor, state=None):
         return visitor.match(state)
+    
+    def size(self, groups):
+        return 0
 
 
 class NoMatch(BaseNode):
@@ -177,7 +180,7 @@ class Dot(BaseLineNode):
     '''
     
     def __init__(self, multiline):
-        super(Dot, self).__init__(multiline, consumer=True)
+        super(Dot, self).__init__(multiline, consumer=True, size=1)
 
     def __str__(self):
         return '.'
@@ -244,6 +247,9 @@ class GroupReference(BaseNode):
 
     def visit(self, visitor, state=None):
         return visitor.group_reference(self.next, self.number, state)
+    
+    def size(self, groups):
+        return len(groups.group(self.number))
 
 
 class Lookahead(BaseSplitNode):
@@ -258,6 +264,12 @@ class Lookahead(BaseSplitNode):
       
     - `next` contains two values.  `next[1]` is the lookahead expression;
       `next[0]` is the continuation of the normal match on success. 
+      
+    For lookbacks (`forwards` is `False`) the expression has a prefix of ".*"
+    and a postfix of "$" so that direct matching of the string up to the
+    current point will check.  Engines are welcome to discard these and
+    reverse the graph, to make matching more efficient, providing the results
+    remain correct (word boundaries and groups may be issues).
     '''
     
     def __init__(self, equal, forwards):
@@ -314,7 +326,11 @@ class Repeat(BaseNode):
         text += '}'
         if self.lazy:
             text += '?'
-        return text 
+        return text
+    
+    def size(self, groups):
+        if self.end == self.begin:
+            return self.begin * self.next[1].size(groups)
     
     def visit(self, visitor, state=None):
         return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
@@ -332,7 +348,7 @@ class GroupConditional(BaseSplitNode):
     - `lazy` is used during graph construction.
     
     - `next` contains two nodes.  If the group exists, matching should continue
-      with `next[1]`, otherwise with `next[0]`. 
+      with `next[1]`, otherwise with `next[0]`.
     '''
     
     def __init__(self, number, label, lazy=True):
@@ -343,6 +359,12 @@ class GroupConditional(BaseSplitNode):
         
     def __str__(self):
         return '(?(' + str(self.number) + ')' + self.label + ')'
+    
+    def size(self, groups):
+        if groups[self.number] is not None:
+            return next[1].size(groups)
+        else:
+            return next[0].size(groups)
     
     def visit(self, visitor, state=None):
         return visitor.group_conditional(self.next, self.number, state)
@@ -358,7 +380,7 @@ class WordBoundary(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(WordBoundary, self).__init__('b', inverted, consumer=False)
+        super(WordBoundary, self).__init__('b', inverted, consumer=False, size=0)
 
     def visit(self, visitor, state=None):
         return visitor.word_boundary(self.next, self.inverted, state)
@@ -436,7 +458,7 @@ class Character(BaseNode):
     
     def __init__(self, intervals, alphabet, classes=None, 
                  inverted=False, complete=False):
-        super(Character, self).__init__()
+        super(Character, self).__init__(size=1)
         self.__simple = CharSet(intervals, alphabet)
         self.alphabet = alphabet
         self.classes = classes if classes else []

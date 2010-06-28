@@ -25,7 +25,11 @@
 # provisions above and replace them with the notice and other provisions
 # required by the LGPL License.  If you do not delete the provisions    
 # above, a recipient may use your version of this file under either the 
-# MPL or the LGPL License.                                              
+# MPL or the LGPL License.               
+
+'''
+Support classes for parsing.
+'''                               
 
 
 from string import digits, ascii_letters
@@ -41,7 +45,7 @@ ALPHANUMERIC = digits + ascii_letters
 
 class ParserState(object):
     '''
-    This encapsulates state needed by the parser.  This includes information 
+    Encapsulate state needed by the parser.  This includes information 
     about flags (which may change during processing and is related to 
     alphabets) and groups.
     '''
@@ -199,8 +203,8 @@ class Builder(object):
     Base class for states in the parser (called Builder rather than State
     to avoid confusion with the parser state).
     
-    The parser is a simple state machine, implemented via a separate loop
-    (`parse()`) that repeatedly calls `.append_character()` on the current
+    The parser can be though of as a state machine, implemented via a separate 
+    loop (`parse()`) that repeatedly calls `.append_character()` on the current
     state, using whatever is returned as the next state.
     
     The graph is assembled within the states, which either assemble locally 
@@ -210,11 +214,13 @@ class Builder(object):
     It is also possible for one state to delegate to the append_character
     method of another state (escapes are handled in this way, for example).
     
-    After all characters have been parsed, `None` is used as a final marker.
+    After all characters have been parsed, `None` is used as a final character
+    to flush any state that is waiting for lookahead.
     '''
     
-    def __init__(self):
+    def __init__(self, state):
         super(Builder, self).__init__()
+        self._state = state
     
     def append_character(self, character, escaped=False):
         '''
@@ -224,13 +230,6 @@ class Builder(object):
         If escaped is true then the value is always treated as a literal.
         '''
 
-    
-class StatefulBuilder(Builder):
-    
-    def __init__(self, state):
-        super(StatefulBuilder, self).__init__()
-        self._state = state
-                        
         
 def parse(text, state, class_, mutable_flags=True):
     '''

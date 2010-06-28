@@ -27,6 +27,16 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+An ad-hoc parser for regular expressions.  I think it's best to consider this
+as recursive descent with hand-written trampolining, but you can also consider
+the matchers as states in a state machine.  Whatever it is, it works quite
+nicely, and exploits inheritance well.  I call the matchers/states "builders".
+
+Builders have references to their callers and construct the graph through 
+those references (ultimately accumulating the graph nodes in the root 
+`SequenceBuilder`).
+'''
 
 from string import digits, ascii_letters
 
@@ -35,10 +45,14 @@ from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
     EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, Digit, Word,\
     Space, Lookahead, GroupReference, Repeat
 from rxpy.graph.temp import Sequence, Alternatives, Merge
-from rxpy.parser.support import StatefulBuilder, ParserState, OCTAL, parse
+from rxpy.parser.support import Builder, ParserState, OCTAL, parse
 
 
-class SequenceBuilder(StatefulBuilder):
+class SequenceBuilder(Builder):
+    '''
+    Parse a sequence (this is the main entry point for parsing, but users
+    will normally call `parse_pattern`).
+    '''
     
     def __init__(self, state):
         super(SequenceBuilder, self).__init__(state)
@@ -46,6 +60,9 @@ class SequenceBuilder(StatefulBuilder):
         self._nodes = []
         
     def parse(self, text):
+        '''
+        Parse a regular expression.
+        '''
         builder = self
         for character in text:
             builder = builder.append_character(character)
@@ -56,7 +73,7 @@ class SequenceBuilder(StatefulBuilder):
     
     def parse_group(self, text):
         '''
-        Used to parse a set of groups for the Scanner.
+        Parse a set of groups for `Scanner`.
         '''
         builder = GroupBuilder(self._state, self)
         if self._nodes:
@@ -80,7 +97,7 @@ class SequenceBuilder(StatefulBuilder):
         elif not escaped and character == '(':
             return GroupEscapeBuilder(self._state, self)
         elif not escaped and character == '[':
-            return CharSetBuilder(self._state, self)
+            return CharacterBuilder(self._state, self)
         elif not escaped and character == '.':
             self._nodes.append(Dot(self._state.flags & ParserState.DOTALL))
         elif not escaped and character == '^':
@@ -118,7 +135,10 @@ class SequenceBuilder(StatefulBuilder):
         return bool(self._nodes)
     
     
-class RepeatBuilder(StatefulBuilder):
+class RepeatBuilder(Builder):
+    '''
+    Parse simple repetition expressions (*, + and ?).
+    '''
     
     def __init__(self, state, sequence, latest, character):
         super(RepeatBuilder, self).__init__(state)
@@ -176,7 +196,10 @@ class RepeatBuilder(StatefulBuilder):
         parent_sequence._nodes.append(split)
         
                 
-class GroupEscapeBuilder(StatefulBuilder):
+class GroupEscapeBuilder(Builder):
+    '''
+    Parse "group escapes" - expressions of the form (?X...).
+    '''
     
     def __init__(self, state, sequence):
         super(GroupEscapeBuilder, self).__init__(state)
@@ -216,7 +239,10 @@ class GroupEscapeBuilder(StatefulBuilder):
                     'Unexpected qualifier after (? - ' + character)
                 
                 
-class ParserStateBuilder(StatefulBuilder):
+class ParserStateBuilder(Builder):
+    '''
+    Parse embedded flags - expressions of the form (?i), (?m) etc.
+    '''
     
     INITIAL = 'iLmsuxa_'
     
@@ -255,6 +281,9 @@ class ParserStateBuilder(StatefulBuilder):
         
 
 class BaseGroupBuilder(SequenceBuilder):
+    '''
+    Support for parsing groups.
+    '''
     
     # This must subclass SequenceBuilder rather than contain an instance
     # because that may itself return child builders.
@@ -275,6 +304,10 @@ class BaseGroupBuilder(SequenceBuilder):
         
 
 class GroupBuilder(BaseGroupBuilder):
+    '''
+    Parse groups - expressions of the form (...) containing sub-expressions,
+    like (ab[c-e]*).
+    '''
     
     def __init__(self, state, sequence, binding=True, name=None):
         super(GroupBuilder, self).__init__(state, sequence)
@@ -290,7 +323,11 @@ class GroupBuilder(BaseGroupBuilder):
         return self._parent_sequence
     
 
-class LookbackBuilder(StatefulBuilder):
+class LookbackBuilder(Builder):
+    '''
+    Parse lookback expressions of the form (?<...).
+    This delegates most of the work to `LookaheadBuilder`.
+    '''
     
     def __init__(self, state, sequence):
         super(LookbackBuilder, self).__init__(state)
@@ -308,6 +345,9 @@ class LookbackBuilder(StatefulBuilder):
 
 class LookaheadBuilder(BaseGroupBuilder):
     '''
+    Parse lookahead expressions of the form (?=...) and (?!...), along with
+    lookback expressions (via `LookbackBuilder`).
+    
     If it's a reverse lookup we add an end of string matcher, and prefix ".*"
     so that we can use the matcher directly.
     '''
@@ -328,9 +368,11 @@ class LookaheadBuilder(BaseGroupBuilder):
         return self._parent_sequence
         
 
-class GroupConditionalBuilder(StatefulBuilder):
+class GroupConditionalBuilder(Builder):
     '''
-    Handle (?(id/name)yes-pattern|optional-no-pattern)
+    Parse (?(id/name)yes-pattern|no-pattern) expressions.  Either 
+    sub-expression is optional (this isn't documented, but is required by 
+    the tests).
     '''
     
     def __init__(self, state, sequence):
@@ -388,7 +430,7 @@ class GroupConditionalBuilder(StatefulBuilder):
         
 class YesNoBuilder(BaseGroupBuilder):
     '''
-    Collecy yes / no alternatives.
+    A helper for `GroupConditionBuilder` that parses the sub-expressions.
     '''
     
     def __init__(self, conditional, state, sequence, terminals):
@@ -405,9 +447,9 @@ class YesNoBuilder(BaseGroupBuilder):
             return super(YesNoBuilder, self).append_character(character, escaped)
 
 
-class NamedGroupBuilder(StatefulBuilder):
+class NamedGroupBuilder(Builder):
     '''
-    Handle '(?P<name>pattern)' and '(?P=name)' by creating either creating a 
+    Parse '(?P<name>pattern)' and '(?P=name)' by creating either a 
     matching group (and associating the name with the group number) or a
     group reference (for the group number).
     '''
@@ -450,7 +492,10 @@ class NamedGroupBuilder(StatefulBuilder):
         return self
     
     
-class CommentGroupBuilder(StatefulBuilder):
+class CommentGroupBuilder(Builder):
+    '''
+    Parse comments - expressions of the form (#...).
+    '''
     
     def __init__(self, state, sequence):
         super(CommentGroupBuilder, self).__init__(state)
@@ -467,10 +512,16 @@ class CommentGroupBuilder(StatefulBuilder):
             raise RxpyException('Incomplete comment')
 
 
-class CharSetBuilder(StatefulBuilder):
+class CharacterBuilder(Builder):
+    '''
+    Parse a character range - expressions of the form [...].
+    These can include character classes (\\s for example), which we handle
+    in the alphabet as functions rather than character code ranges, so the
+    final graph node can be quite complex. 
+    '''
     
     def __init__(self, state, sequence):
-        super(CharSetBuilder, self).__init__(state)
+        super(CharacterBuilder, self).__init__(state)
         self._parent_sequence = sequence
         self._charset = Character([], alphabet=state.alphabet)
         self._invert = None
@@ -549,9 +600,11 @@ class CharSetBuilder(StatefulBuilder):
         return self
     
 
-class SimpleEscapeBuilder(StatefulBuilder):
+class SimpleEscapeBuilder(Builder):
     '''
-    Escaped characters only.
+    Parse the standard escaped characters, character codes
+    (\\x, \\u and \\U, by delegating to `CharacterCodeBuilder`),
+    and octal codes (\\000 etc, by delegating to `OctalEscapeBuilder`)
     '''
     
     def __init__(self, state, parent):
@@ -564,7 +617,7 @@ class SimpleEscapeBuilder(StatefulBuilder):
         if not character:
             raise RxpyException('Incomplete character escape')
         elif character in 'xuU':
-            return UnicodeEscapeBuilder(self._state, self._parent_builder, character)
+            return CharacterCodeBuilder(self._state, self._parent_builder, character)
         elif character in digits:
             return OctalEscapeBuilder(self._state, self._parent_builder, character)
         elif character in self.__std_escapes:
@@ -582,7 +635,7 @@ class SimpleEscapeBuilder(StatefulBuilder):
 
 class IntermediateEscapeBuilder(SimpleEscapeBuilder):
     '''
-    Extend SimpleEscapeBuilder to also handle group references.
+    Extend `SimpleEscapeBuilder` to also handle group references (\\1 etc).
     '''
     
     def append_character(self, character):
@@ -596,7 +649,8 @@ class IntermediateEscapeBuilder(SimpleEscapeBuilder):
         
 class ComplexEscapeBuilder(IntermediateEscapeBuilder):
     '''
-    Extend IntermediateEscapeBuilder to handle character classes.
+    Extend `IntermediateEscapeBuilder` to handle character classes
+    (\\b, \\s etc).
     '''
     
     def append_character(self, character):
@@ -626,12 +680,16 @@ class ComplexEscapeBuilder(IntermediateEscapeBuilder):
             return super(ComplexEscapeBuilder, self).append_character(character)
         
 
-class UnicodeEscapeBuilder(StatefulBuilder):
+class CharacterCodeBuilder(Builder):
+    '''
+    Parse character code escapes - expressions of the form \\x..., \\u..., 
+    and \\U....
+    '''
     
     LENGTH = {'x': 2, 'u': 4, 'U': 8}
     
     def __init__(self, state, parent, initial):
-        super(UnicodeEscapeBuilder, self).__init__(state)
+        super(CharacterCodeBuilder, self).__init__(state)
         self.__parent_builder = parent
         self.__buffer = ''
         self.__remaining = self.LENGTH[initial]
@@ -651,7 +709,10 @@ class UnicodeEscapeBuilder(StatefulBuilder):
             raise RxpyException('Bad unicode escape: ' + self.__buffer)
     
 
-class OctalEscapeBuilder(StatefulBuilder):
+class OctalEscapeBuilder(Builder):
+    '''
+    Parse octal character code escapes - expressions of the form \\000.
+    '''
     
     def __init__(self, state, parent, initial=0):
         super(OctalEscapeBuilder, self).__init__(state)
@@ -681,7 +742,11 @@ class OctalEscapeBuilder(StatefulBuilder):
             return chain.append_character(character)
     
 
-class GroupReferenceBuilder(StatefulBuilder):
+class GroupReferenceBuilder(Builder):
+    '''
+    Parse group references - expressions of the form \\1.
+    This delegates to `OctalEscapeBuilder` when appropriate.
+    '''
     
     def __init__(self, state, parent, initial):
         super(GroupReferenceBuilder, self).__init__(state)
@@ -721,7 +786,13 @@ class GroupReferenceBuilder(StatefulBuilder):
             return self.__parent_sequence.append_character(character)
     
 
-class CountBuilder(StatefulBuilder):
+class CountBuilder(Builder):
+    '''
+    Parse explicit counted repeats - expressions of the form ...{n,m}.
+    If the `_STATEFUL` flag is not set then this expands the expression 
+    as an explicit series of repetitions, so 'a{2,4}' would become
+    equivalent to 'aaa?a?'
+    '''
     
     def __init__(self, state, sequence):
         super(CountBuilder, self).__init__(state)
@@ -814,11 +885,17 @@ class CountBuilder(StatefulBuilder):
                         
         
 def parse_pattern(text, flags=0, alphabet=None, hint_alphabet=None):
+    '''
+    Parse a standard regular expression.
+    '''
     state = ParserState(flags=flags, alphabet=alphabet, 
                         hint_alphabet=hint_alphabet)
     return parse(text, state, SequenceBuilder)
 
 def parse_groups(texts, flags=0, alphabet=None):
+    '''
+    Parse set of expressions, used to define groups for `Scanner`.
+    '''
     state = ParserState(flags=flags, alphabet=alphabet)
     sequence = SequenceBuilder(state)
     for text in texts:
@@ -826,4 +903,3 @@ def parse_groups(texts, flags=0, alphabet=None):
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
     return (state, sequence.build_complete())
-
