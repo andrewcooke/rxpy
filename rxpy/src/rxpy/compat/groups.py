@@ -61,10 +61,19 @@ class Groups(object):
     def __nonzero__(self):
         return self.__bool__()
     
+    def __eq__(self, other):
+        return self.__text == other.__text and \
+            self.__groups == other.__groups and \
+            self.__offsets == other.__offsets and \
+            self.__count == other.__count and \
+            self.__names == other.__names and \
+            self.__indices == other.__indices and \
+            self.__lastindex == other.__lastindex
+    
     def clone(self):
         return Groups(text=self.__text, groups=dict(self.__groups), 
                       offsets=dict(self.__offsets), count=self.__count, 
-                      names=self.__names, indices=self.__indices,
+                      names=dict(self.__names), indices=dict(self.__indices),
                       lastindex=self.__lastindex)
     
     def __getitem__(self, number):

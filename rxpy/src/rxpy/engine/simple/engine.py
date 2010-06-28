@@ -1,6 +1,3 @@
-from rxpy.graph.opcode import StartGroup
-from rxpy.graph.support import contains_instance
-from traceback import print_exc
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -38,9 +35,11 @@ encapsulated in `State` while program flow uses trampolining to avoid
 exhausting the Python stack. 
 '''                                    
 
-from rxpy.engine.base import BaseEngine
-from rxpy.graph.visitor import BaseVisitor
 from rxpy.compat.groups import Groups
+from rxpy.engine.base import BaseEngine
+from rxpy.graph.opcode import StartGroup
+from rxpy.graph.support import contains_instance
+from rxpy.graph.visitor import BaseVisitor
 
 
 class Fail(Exception):
@@ -69,9 +68,22 @@ class State(object):
         self.__offset = offset
         self.__loops = loops if loops else Loops()
     
-    def clone(self):
-        return State(self.__text, self.__groups.clone(), self.__previous, 
-                     self.__offset, self.__loops.clone())
+    def clone(self, offset=None):
+        '''
+        Duplicate this state.  If offset is specified, it must be greater than
+        or equal the existing offset; then the text and offset of the clone
+        will be consistent with the new value.
+        '''
+        previous = self.__previous
+        if offset is None:
+            offset = self.__offset
+            text = self.__text
+        else:
+            delta = offset - self.__offset
+            if delta:
+                previous = self.__text[delta-1]
+            text = self.__text[delta:]
+        return State(text, self.__groups.clone(), previous, offset, self.__loops.clone())
         
     def advance(self):
         '''
@@ -153,6 +165,13 @@ class State(object):
             return self
         else:
             raise Fail
+        
+    def similar(self, other):
+        '''
+        Is this state similar to the one given?  In particular, are the
+        groups and loops values identical (so we only differ by offset)?
+        '''
+        return self.__groups == other.__groups and self.__loops == other.__loops
 
     @property
     def groups(self):
@@ -169,7 +188,73 @@ class State(object):
     @property
     def previous(self):
         return self.__previous
-
+    
+    
+class Stack(object):
+    '''
+    A stack of states.  This extends a simple stack with the ability to 
+    compress repeated states (which is useful to avoid filling the stack
+    with backtracking when something like ".*" is used to match a large 
+    string).
+    
+    The compression is quite simple: if a state and group are pushed to
+    the stack which are identical, apart from offset, with the existing top
+    of the stack, then the stack is not extended.  Instead, the new offset
+    and increment are appended to the existing entry.  The same occurs for
+    further pushes that have the same increment.
+    
+    On popping we create a new state, and adjust the offset as necessary.
+    
+    For this to work correctly we must also be careful to preserve the
+    original state, since that is the one that contains the most text.
+    Later states have less text and so cannot be cloned "back" to having
+    an earlier offset.
+    '''
+    
+    def __init__(self):
+        self.__stack = []
+        
+    def push(self, graph, state):
+        if self.__stack:
+            (p_graph, p_state, p_repeat) = self.__stack[-1]
+            # is compressed repetition possible?
+            if p_state.similar(state) and p_graph == graph:
+                # do we have an existing repeat?
+                if p_repeat:
+                    (end, step) = p_repeat
+                    # and this new state has the expected increment
+                    if state.offset == end + step:
+                        self.__stack.pop()
+                        self.__stack.append((graph, p_state,
+                                             (state.offset, step)))
+                        return
+                # otherwise, start a new repeat block
+                elif p_state.offset < state.offset:
+                    self.__stack.pop()
+                    self.__stack.append((graph, p_state, 
+                                         (state.offset, state.offset - p_state.offset)))
+                    return
+        # above returns on success, so here default to a "normal" push
+        self.__stack.append((graph, state, None))
+        
+    def pop(self):
+        (graph, state, repeat) = self.__stack.pop()
+        if repeat:
+            (end, step) = repeat
+            # if the repeat has not expired
+            if state.offset != end:
+                # add back one step down
+                self.__stack.append((graph, state, (end-step, step)))
+                state = state.clone(end)
+        return (graph, state)
+            
+    
+    def __bool__(self):
+        return bool(self.__stack)
+    
+    def __nonzero__(self):
+        return self.__bool__()
+    
 
 class Loops(object):
     '''
@@ -198,6 +283,9 @@ class Loops(object):
         
     def clone(self):
         return Loops(list(self.__counts), dict(self.__order))
+    
+    def __eq__(self, other):
+        return self.__counts == other.__counts and self.__order == other.__order
     
 
 class SimpleEngine(BaseEngine, BaseVisitor):
@@ -242,7 +330,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
         `Match` on success.
         '''
         self.__stacks.append(self.__stack)
-        self.__stack = []
+        self.__stack = Stack()
         try:
             try:
                 # search loop
@@ -253,6 +341,8 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                     # trampoline loop
                     while True:
                         self.ticks += 1
+                        if state.offset == 6:
+                            pass
                         try:
                             (graph, state) = graph.visit(self, state)
                         # backtrack if stack exists
@@ -314,7 +404,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
     def split(self, next, state):
         for graph in reversed(next[1:]):
             clone = state.clone()
-            self.__stack.append((graph, clone))
+            self.__stack.push(graph, clone)
         return (next[0], state)
     
     def match(self, state):
@@ -370,7 +460,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
             # this is well-behaved with stack space
             if (end is None and state.text) \
                     or (end is not None and count < end):
-                self.__stack.append((next[1], state.clone()))
+                self.__stack.push(next[1], state.clone())
             if end is None or count <= end:
                 return (next[0], state.drop(node))
             else:
@@ -378,7 +468,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
         else:
             if end is None or count < end:
                 # add a fallback so that if a higher loop fails, we can continue
-                self.__stack.append((next[0], state.clone().drop(node)))
+                self.__stack.push(next[0], state.clone().drop(node))
             if count == end:
                 # if last possible loop, continue
                 return (next[0], state.drop(node))
