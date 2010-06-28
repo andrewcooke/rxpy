@@ -51,11 +51,15 @@ class String(BaseNode):
     '''
     
     def __init__(self, text):
-        super(String, self).__init__(size=len(text))
+        super(String, self).__init__()
         self.text = text
         
     def __str__(self):
         return self.text
+    
+    def size(self, groups):
+        if len(self.next) == 1:
+            return len(self.text) + self.next[0].size(groups)
     
     def visit(self, visitor, state=None):
         return visitor.string(self.next, self.text, state)
