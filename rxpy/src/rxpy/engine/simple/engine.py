@@ -334,23 +334,22 @@ class SimpleEngine(BaseEngine, BaseVisitor):
             self.__lookaheads[node] = {}
         if state.offset not in self.__lookaheads[node]:
             # we need to match the lookahead
-            branch = next[1]
+            search = False
             if forwards:
                 clone = State(state.text, state.groups.clone())
             else:
                 # use groups to calculate size if they are unchanged in lookback
-                groups = None if contains_instance(branch, StartGroup) \
+                groups = None if contains_instance(next[1], StartGroup) \
                             else state.groups
                 # calculate lookback size if possible
                 try:
                     # skip ".*"
-                    branch = next[1].next[1]
-                    subtext = self.__text[state.offset-branch.size(groups):state.offset]
+                    subtext = self.__text[state.offset-next[1].size(groups):state.offset]
                 except Exception:
-                    branch = next[1]
                     subtext = self.__text[0:state.offset]
+                    search = True
                 clone = State(subtext, state.groups.clone())
-            (match, clone) = self.__run(branch, clone)
+            (match, clone) = self.__run(next[1], clone, search=search)
             self.__lookaheads[node][state.offset] = match == equal
         # if lookahead succeeded, continue
         if self.__lookaheads[node][state.offset]:

@@ -113,10 +113,10 @@ class VisitorTest(TestCase):
         assert engine(parse_pattern('.(.).(?<=\\1)'), 'xaa', ticks=10)
         assert not engine(parse_pattern('(.).(?<=\\1)'), 'xa')
         
-        assert engine(parse_pattern('(.).(?<=(\\1))'), 'aa', ticks=19)
+        assert engine(parse_pattern('(.).(?<=(\\1))'), 'aa', ticks=15)
         # but here, three ticks more because we have a group reference with
         # changing groups, so can't reliably calculate lookback distance
-        assert engine(parse_pattern('.(.).(?<=(\\1))'), 'xaa', ticks=22)
+        assert engine(parse_pattern('.(.).(?<=(\\1))'), 'xaa', ticks=18)
         assert not engine(parse_pattern('.(.).(?<=(\\1))'), 'xxa')
         
     def test_lookback_bug(self):

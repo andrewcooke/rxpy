@@ -348,16 +348,14 @@ class LookaheadBuilder(BaseGroupBuilder):
     Parse lookahead expressions of the form (?=...) and (?!...), along with
     lookback expressions (via `LookbackBuilder`).
     
-    If it's a reverse lookup we add an end of string matcher, and prefix ".*"
-    so that we can use the matcher directly.
+    If it's a reverse lookup we add an end of string matcher, but no prefix,
+    so the matcher must be used to "search" if the start is not known.
     '''
     
     def __init__(self, state, sequence, equal, forwards):
         super(LookaheadBuilder, self).__init__(state, sequence)
         self._equal = equal
         self._forwards = forwards
-        if not self._forwards:
-            RepeatBuilder.build_star(self, Dot(True), False)
         
     def _build_group(self):
         lookahead = Lookahead(self._equal, self._forwards)

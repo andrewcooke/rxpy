@@ -636,24 +636,19 @@ r"""strict digraph {
  0 [label="a"]
  1 [label="(?<=...)"]
  2 [label="c"]
- 3 [label="...*"]
- 4 [label="."]
- 5 [label="b"]
- 6 [label="...+"]
- 7 [label="$"]
- 8 [label="Match"]
- 9 [label="Match"]
+ 3 [label="b"]
+ 4 [label="...+"]
+ 5 [label="$"]
+ 6 [label="Match"]
+ 7 [label="Match"]
  0 -> 1
  1 -> 2
  1 -> 3
  3 -> 4
- 3 -> 5
- 5 -> 6
- 6 -> 5
- 6 -> 7
- 7 -> 8
  4 -> 3
- 2 -> 9
+ 4 -> 5
+ 5 -> 6
+ 2 -> 7
 }""")
         
     def test_stateful_count(self):
