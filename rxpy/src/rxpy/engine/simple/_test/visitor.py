@@ -119,11 +119,17 @@ class VisitorTest(TestCase):
         assert engine(parse_pattern('.(.).(?<=(\\1))'), 'xaa', ticks=18)
         assert not engine(parse_pattern('.(.).(?<=(\\1))'), 'xxa')
         
-    def test_lookback_bug(self):
+    def test_lookback_bug_1(self):
         result = engine(parse_pattern('.*(?<!abc)(d.f)'), 'abcdefdof')
         assert result.group(1) == 'dof', result.group(1)
         result = engine(parse_pattern('(?<!abc)(d.f)'), 'abcdefdof', search=True)
         assert result.group(1) == 'dof', result.group(1)
+        
+    def test_lookback_bug_2(self):
+        assert not engine(parse_pattern(r'.*(?<=\bx)a'), 'xxa')
+        assert engine(parse_pattern(r'.*(?<!\bx)a'), 'xxa')
+        assert not engine(parse_pattern(r'.*(?<!\Bx)a'), 'xxa')
+        assert engine(parse_pattern(r'.*(?<=\Bx)a'), 'xxa')
     
     def test_conditional(self):
         assert engine(parse_pattern('(.)?b(?(1)\\1)'), 'aba')

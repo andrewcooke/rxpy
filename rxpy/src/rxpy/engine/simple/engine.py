@@ -436,11 +436,14 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                 # calculate lookback size if possible
                 try:
                     # skip ".*"
-                    subtext = self.__text[state.offset-next[1].size(groups):state.offset]
+                    offset = state.offset-next[1].size(groups)
+                    subtext = self.__text[offset:state.offset]
+                    previous = self.__text[offset-1]
                 except Exception:
                     subtext = self.__text[0:state.offset]
+                    previous = None
                     search = True
-                clone = State(subtext, state.groups.clone())
+                clone = State(subtext, state.groups.clone(), previous=previous)
             (match, clone) = self.__run(next[1], clone, search=search)
             self.__lookaheads[node][state.offset] = match == equal
         # if lookahead succeeded, continue
