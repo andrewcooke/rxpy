@@ -269,11 +269,10 @@ class Lookahead(BaseSplitNode):
     - `next` contains two values.  `next[1]` is the lookahead expression;
       `next[0]` is the continuation of the normal match on success. 
       
-    For lookbacks (`forwards` is `False`) the expression has a prefix of ".*"
-    and a postfix of "$" so that direct matching of the string up to the
-    current point will check.  Engines are welcome to discard these and
-    reverse the graph, to make matching more efficient, providing the results
-    remain correct (word boundaries and groups may be issues).
+    For lookbacks (`forwards` is `False`) the expression has a postfix of "$" 
+    so that direct searching (not matching) of the string up to the current 
+    point provides the to check.  Engines are welcome to use more efficient
+    approaches, as long as the results remain correct.
     '''
     
     def __init__(self, equal, forwards):

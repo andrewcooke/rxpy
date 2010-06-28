@@ -111,7 +111,7 @@ class VisitorTest(TestCase):
         assert engine(parse_pattern('(.).(?<=\\1)'), 'aa', ticks=9)
         # again, just one tick more
         assert engine(parse_pattern('.(.).(?<=\\1)'), 'xaa', ticks=10)
-        assert not engine(parse_pattern('(.).(?<=\\1)'), 'xa')
+        assert not engine(parse_pattern('.(.).(?<=\\1)'), 'xxa')
         
         assert engine(parse_pattern('(.).(?<=(\\1))'), 'aa', ticks=15)
         # but here, three ticks more because we have a group reference with
