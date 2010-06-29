@@ -27,4 +27,4 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-__version__ = '0.0.1'
+__version__ = '0.1.0'

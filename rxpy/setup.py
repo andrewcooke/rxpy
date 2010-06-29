@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='RXPY',
-      version='0.0.1',
+      version='0.1.0',
       description='A Regular Expression Library for Python',
       long_description='''
 RXPY is a regular expression library, written purely in Python, that is almost
@@ -13,8 +13,8 @@ used.  This allows regular expressions to be defined over sequences of
 arbitrary objects (a mapping between objects and the characters used in the
 regular expression must exist; this is defined by the alphabet).
 
-Release 0.0.1 has been refactored to simplify the creation of new engines.
-The documentation has also been improved.
+Release 0.1.0 marks a relatively stable architecture and initial engine.
+The next release will add a second engine.
 ''',
       author='Andrew Cooke',
       author_email='andrew@acooke.org',

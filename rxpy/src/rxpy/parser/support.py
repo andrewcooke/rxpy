@@ -95,7 +95,7 @@ class ParserState(object):
         Used only for testing.
         '''
         def eq(a, b):
-            return a == b == None or (a and b and a.deep_eq(b))
+            return a == b == None or (a and b and type(a) == type(b))
         return self.__new_flags == other.__new_flags and \
             eq(self.__initial_alphabet, other.__initial_alphabet) and \
             eq(self.__hint_alphabet, other.__hint_alphabet) and \
