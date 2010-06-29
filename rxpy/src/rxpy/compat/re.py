@@ -69,6 +69,9 @@ class RegexObject(object):
         self.__engine = engine
         
     def deep_eq(self, other):
+        '''
+        Used only for testing.
+        '''
         return self.__parsed[0].deep_eq(other.__parsed[0]) and \
             self.__parsed[1].deep_eq(other.__parsed[1]) and \
             self.__pattern == other.__pattern and \

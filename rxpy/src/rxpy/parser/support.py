@@ -91,6 +91,9 @@ class ParserState(object):
         self.__comment = False  # used to track comments with extended syntax
         
     def deep_eq(self, other):
+        '''
+        Used only for testing.
+        '''
         def eq(a, b):
             return a == b == None or (a and b and a.deep_eq(b))
         return self.__new_flags == other.__new_flags and \

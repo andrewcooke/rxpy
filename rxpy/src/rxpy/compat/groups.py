@@ -62,6 +62,9 @@ class Groups(object):
         return self.__bool__()
     
     def deep_eq(self, other):
+        '''
+        Used only for testing.
+        '''
         return self.__text == other.__text and \
             self.__groups.deep_eq(other.__groups) and \
             self.__offsets == other.__offsets and \

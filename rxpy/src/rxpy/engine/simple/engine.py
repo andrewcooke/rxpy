@@ -287,6 +287,9 @@ class Loops(object):
         return Loops(list(self.__counts), dict(self.__order))
     
     def deep_eq(self, other):
+        '''
+        Used only for testing.
+        '''
         return self.__counts == other.__counts and self.__order == other.__order
     
 

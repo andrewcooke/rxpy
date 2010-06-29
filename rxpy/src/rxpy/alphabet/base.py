@@ -53,6 +53,9 @@ class BaseAlphabet(object):
         self.max = max
         
     def deep_eq(self, other):
+        '''
+        Used only for testing.
+        '''
         return type(self) == type(other)
         
     @unimplemented
