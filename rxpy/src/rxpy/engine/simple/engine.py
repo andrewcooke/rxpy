@@ -286,7 +286,7 @@ class Loops(object):
     def clone(self):
         return Loops(list(self.__counts), dict(self.__order))
     
-    def __eq__(self, other):
+    def deep_eq(self, other):
         return self.__counts == other.__counts and self.__order == other.__order
     
 

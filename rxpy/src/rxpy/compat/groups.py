@@ -61,9 +61,9 @@ class Groups(object):
     def __nonzero__(self):
         return self.__bool__()
     
-    def __eq__(self, other):
+    def deep_eq(self, other):
         return self.__text == other.__text and \
-            self.__groups == other.__groups and \
+            self.__groups.deep_eq(other.__groups) and \
             self.__offsets == other.__offsets and \
             self.__count == other.__count and \
             self.__names == other.__names and \

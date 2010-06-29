@@ -58,3 +58,4 @@ class BaseEngine(object):
         A `Groups` instance should be returned.
         '''
         raise UnimplementedMethod('Engines must implement match()')
+

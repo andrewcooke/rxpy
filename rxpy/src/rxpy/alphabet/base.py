@@ -52,6 +52,9 @@ class BaseAlphabet(object):
         self.min = min
         self.max = max
         
+    def deep_eq(self, other):
+        return type(self) == type(other)
+        
     @unimplemented
     def code_to_char(self, code):
         '''

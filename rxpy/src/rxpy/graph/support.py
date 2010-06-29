@@ -208,6 +208,15 @@ class BaseNode(object):
             if next not in cache:
                 next.clone(cache=cache)
             yield cache[next]
+            
+    def _node_eq(self, other):
+        return type(self) == type(other) and self._kargs() == other._kargs()
+    
+    def deep_eq(self, other):
+        for ((a, b), (c, d)) in zip(edge_iterator(self), edge_iterator(other)):
+            if not a._node_eq(c) or not b._node_eq(d):
+                return False
+        return True
         
     def _kargs(self):
         '''

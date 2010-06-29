@@ -32,7 +32,7 @@ from rxpy.graph.support import BaseNode
 from rxpy.graph.opcode import String
 
 
-class Sequence(BaseNode):
+class Sequence(object):
     '''
     A temporary node, used only during construction, that contains a sequence 
     of nodes.  When the contents are first referenced any consecutive strings
@@ -108,7 +108,7 @@ class Sequence(BaseNode):
         return self.__bool__()
     
     
-class Alternatives(BaseNode):
+class Alternatives(object):
     '''
     A temporary node that does the wiring necessary to connect various
     alternatives together within the same Split().  The alternatives all 
@@ -142,9 +142,12 @@ class Alternatives(BaseNode):
         return Alternatives([sequence.clone(cache) 
                              for sequence in self.__sequences],
                              self.__split.clone(cache))
+        
+    @property
+    def start(self):
+        return self.__split
 
-
-class Merge(BaseNode):
+class Merge(object):
     '''
     Another temporary node, supporting the merge of several different arcs.
     

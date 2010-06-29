@@ -34,6 +34,7 @@ from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.pattern import parse_pattern, parse_groups
 from rxpy.compat.replace import compile_repl
 from rxpy.lib import RxpyException
+from traceback import print_exc
 
 
 _ALPHANUMERICS = ascii_letters + digits
@@ -66,6 +67,12 @@ class RegexObject(object):
         self.__parsed = parsed
         self.__pattern = pattern
         self.__engine = engine
+        
+    def deep_eq(self, other):
+        return self.__parsed[0].deep_eq(other.__parsed[0]) and \
+            self.__parsed[1].deep_eq(other.__parsed[1]) and \
+            self.__pattern == other.__pattern and \
+            self.__engine == other.__engine
         
     @property
     def __parser_state(self):

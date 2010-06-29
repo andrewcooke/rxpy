@@ -90,6 +90,18 @@ class ParserState(object):
         self.__index_to_name = {}
         self.__comment = False  # used to track comments with extended syntax
         
+    def deep_eq(self, other):
+        def eq(a, b):
+            return a == b == None or (a and b and a.deep_eq(b))
+        return self.__new_flags == other.__new_flags and \
+            eq(self.__initial_alphabet, other.__initial_alphabet) and \
+            eq(self.__hint_alphabet, other.__hint_alphabet) and \
+            eq(self.__alphabet, other.__alphabet) and \
+            self.__flags == other.__flags and \
+            self.__group_count == other.__group_count and \
+            self.__name_to_index == other.__name_to_index and \
+            self.__comment == other.__comment
+        
     @property
     def has_new_flags(self):
         '''

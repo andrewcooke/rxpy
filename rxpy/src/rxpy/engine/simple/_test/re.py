@@ -133,6 +133,18 @@ class RegexObjectTest(TestCase):
         
         results = sub('$', 'x', 'ab\n')
         assert results == 'abx\nx', results
+        
+    def test_pickle(self):
+        import pickle
+        self.pickle_test(pickle)
+        import cPickle
+        self.pickle_test(cPickle)
+        
+    def pickle_test(self, pickle):
+        oldpat = compile('a(?:b|(c|e){1,2}?|d)+?(.)')
+        s = pickle.dumps(oldpat)
+        newpat = pickle.loads(s)
+        assert oldpat.deep_eq(newpat)
 
 
 class EscapeTest(TestCase):

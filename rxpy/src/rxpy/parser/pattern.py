@@ -183,7 +183,6 @@ class RepeatBuilder(Builder):
     def build_plus(parent_sequence, latest, lazy, state):
         RepeatBuilder.assert_consumer(latest)
         split = Split('...+', lazy)
-        # this (frozen) sequence protects "latest" from coalescing 
         seq = Sequence([latest, split], state)
         split.next = [seq.start]
         parent_sequence._nodes.append(seq)
