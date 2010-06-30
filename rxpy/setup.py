@@ -23,7 +23,7 @@ The next release will add a second engine.
                 'rxpy.alphabet',      'rxpy.alphabet._test',
                 'rxpy.compat',
                 'rxpy.engine',
-                'rxpy.engine.simple', 'rxpy.engine.simple._test',
+                'rxpy.engine.backtrack', 'rxpy.engine.backtrack._test',
                 'rxpy.graph',
                 'rxpy.parser',        'rxpy.parser._test',
                 ],

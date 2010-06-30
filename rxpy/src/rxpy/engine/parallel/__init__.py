@@ -28,30 +28,6 @@
 # MPL or the LGPL License.                                              
 
 '''
-A replacement for the Python re module, using the simple engine.
-Eventually much of this will do something smart to choose an appropriate
-engine.
-
-For documentation, see the official Python re module documentation.
+A matching engine that runs separate threads in parallel 
+(see Russ Cox's papers).
 '''
-
-from rxpy.compat.module import Re
-from rxpy.engine.backtrack.engine import BacktrackingEngine
-
-_re = Re(BacktrackingEngine)
-
-compile = _re.compile
-RegexObject = _re.RegexObject
-MatchIterator = _re.MatchIterator
-match = _re.match    
-search = _re.search
-findall = _re.findall
-finditer = _re.finditer    
-sub = _re.sub    
-subn = _re.subn    
-split = _re.split    
-error = _re.error
-escape = _re.escape    
-Scanner = _re.Scanner    
-
-(I, M, S, U, X, A, _S, _B, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL, _BACKTRACK_OR) = _re.FLAGS

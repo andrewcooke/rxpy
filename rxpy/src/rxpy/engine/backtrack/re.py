@@ -32,9 +32,9 @@ A replacement for Python's `re` package that uses the simple engine.
 '''
 
 from rxpy.compat.module import Re
-from rxpy.engine.simple.engine import SimpleEngine
+from rxpy.engine.backtrack.engine import BacktrackingEngine
 
-_re = Re(SimpleEngine)
+_re = Re(BacktrackingEngine)
 
 compile = _re.compile
 RegexObject = _re.RegexObject

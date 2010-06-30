@@ -292,7 +292,7 @@ class Loops(object):
         return self.__counts == other.__counts and self.__order == other.__order
     
 
-class SimpleEngine(BaseEngine, BaseVisitor):
+class BacktrackingEngine(BaseEngine, BaseVisitor):
     '''
     The interpreter.
     '''

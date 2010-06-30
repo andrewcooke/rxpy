@@ -30,13 +30,13 @@
 
 from unittest import TestCase
 
-from rxpy.engine.simple.engine import SimpleEngine
+from rxpy.engine.backtrack.engine import BacktrackingEngine
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
 def engine(parse, text, search=False, ticks=None, maxdepth=None):
-    engine = SimpleEngine(*parse)
+    engine = BacktrackingEngine(*parse)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
