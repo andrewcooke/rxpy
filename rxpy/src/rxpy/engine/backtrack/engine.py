@@ -53,7 +53,7 @@ class Fail(Exception):
 
 class Match(Exception):
     '''
-    raised on success
+    Raised on success
     '''
     pass
 
