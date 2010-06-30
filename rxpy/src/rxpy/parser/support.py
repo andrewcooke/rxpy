@@ -50,7 +50,7 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL) = _FLAGS
+    (I, M, S, U, X, A, _L, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None):
         '''

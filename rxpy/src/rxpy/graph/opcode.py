@@ -291,7 +291,7 @@ class Lookahead(BaseSplitNode):
 
 class Repeat(BaseNode):
     '''
-    A numerical repeat.  This node is only present if the `_STATEFUL` flag was
+    A numerical repeat.  This node is only present if the `_LOOPS` flag was
     used during compilation (otherwise numerical repeats are rewritten as 
     appropriate splits/loops).
     

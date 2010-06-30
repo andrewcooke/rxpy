@@ -54,7 +54,7 @@ class ReprTest(GraphTest):
         parse_pattern('(c|e)')
         parse_pattern('c{1,2}', )
         parse_pattern('c{1,2}')
-        parse_pattern('(c|e){1,2}', flags=ParserState._STATEFUL)
+        parse_pattern('(c|e){1,2}', flags=ParserState._LOOPS)
         parse_pattern('(c|e){1,2}')
         parse_pattern('(c|e){1,2}?')
         parse_pattern('(b|(c|e){1,2}?|d)')

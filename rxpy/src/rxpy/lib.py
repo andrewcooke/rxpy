@@ -53,6 +53,6 @@ class RxpyException(Exception):
     '''
     
     
-(I, M, S, U, X, A, _S) = map(lambda x: 2**x, range(7))
-(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL) = (I, M, S, U, X, A, _S)
-_FLAGS = (I, M, S, U, X, A, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _STATEFUL)
+(I, M, S, U, X, A, _L) = map(lambda x: 2**x, range(7))
+(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS) = (I, M, S, U, X, A, _L)
+_FLAGS = (I, M, S, U, X, A, _L, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS)

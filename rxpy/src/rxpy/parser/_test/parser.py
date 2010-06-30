@@ -652,7 +652,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_count(self):
-        self.assert_graphs(parse_pattern('ab{1,2}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,2}c', flags=ParserState._LOOPS), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -667,7 +667,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateful_count(self):
-        self.assert_graphs(parse_pattern('ab{1,2}?c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,2}?c', flags=ParserState._LOOPS), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}?"]
@@ -682,7 +682,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_open_count(self):
-        self.assert_graphs(parse_pattern('ab{1,}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{1,}c', flags=ParserState._LOOPS), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,}"]
@@ -697,7 +697,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_fixed_count(self):
-        self.assert_graphs(parse_pattern('ab{2}c', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('ab{2}c', flags=ParserState._LOOPS), 
 """strict digraph {
  0 [label="a"]
  1 [label="{2}"]
@@ -712,7 +712,7 @@ r"""strict digraph {
 }""")
 
     def test_stateful_group_count(self):
-        self.assert_graphs(parse_pattern('a(?:bc){1,2}d', flags=ParserState._STATEFUL), 
+        self.assert_graphs(parse_pattern('a(?:bc){1,2}d', flags=ParserState._LOOPS), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -1063,13 +1063,13 @@ r"""strict digraph {
         self.assert_flags('(?u)', ParserState.UNICODE)
         self.assert_flags('(?x)', ParserState.VERBOSE)
         self.assert_flags('(?a)', ParserState.ASCII)
-        self.assert_flags('(?_s)', ParserState._STATEFUL)
+        self.assert_flags('(?_l)', ParserState._LOOPS)
         try:
-            self.assert_flags('(?imsuxa_s)', 0)
+            self.assert_flags('(?imsuxa_l)', 0)
             assert False
         except RxpyException:
             pass
-        self.assert_flags('(?imsux_s)', 
+        self.assert_flags('(?imsux_l)', 
                           ParserState.IGNORECASE | ParserState.MULTILINE | 
                           ParserState.DOTALL | ParserState.UNICODE |
-                          ParserState.VERBOSE | ParserState._STATEFUL)
+                          ParserState.VERBOSE | ParserState._LOOPS)

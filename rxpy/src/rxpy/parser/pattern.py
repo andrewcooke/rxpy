@@ -255,13 +255,13 @@ class ParserStateBuilder(Builder):
                         'u': ParserState.U,
                         'x': ParserState.X,
                         'a': ParserState.A,
-                        '_s': ParserState._S}
+                        '_l': ParserState._L}
         
     def append_character(self, character):
         if not self.__escape and character == '_':
             self.__escape = True
             return self
-        elif self.__escape and character in 'sg':
+        elif self.__escape and character in 'l':
             self._state.new_flag(self.__table['_' + character])
             self.__escape = False
             return self
@@ -785,7 +785,7 @@ class GroupReferenceBuilder(Builder):
 class CountBuilder(Builder):
     '''
     Parse explicit counted repeats - expressions of the form ...{n,m}.
-    If the `_STATEFUL` flag is not set then this expands the expression 
+    If the `_LOOPS` flag is not set then this expands the expression 
     as an explicit series of repetitions, so 'a{2,4}' would become
     equivalent to 'aaa?a?'
     '''
@@ -854,7 +854,7 @@ class CountBuilder(Builder):
         if not self._parent_sequence._nodes:
             raise RxpyException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
-        if self._state.flags & ParserState._STATEFUL:
+        if self._state.flags & ParserState._LOOPS:
             self.build_count(self._parent_sequence, latest, self._begin, 
                              self._end if self._range else self._begin, 
                              self._lazy)

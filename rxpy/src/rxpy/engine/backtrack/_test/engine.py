@@ -150,43 +150,43 @@ class EngineTest(TestCase):
         assert engine(parse_pattern('a?b'), 'ab')
         assert not engine(parse_pattern('a?b'), 'aab')
         
-        assert engine(parse_pattern('a*b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a*b', flags=ParserState._STATEFUL), 'ab')
-        assert engine(parse_pattern('a*b', flags=ParserState._STATEFUL), 'aab')
-        assert not engine(parse_pattern('a+b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a+b', flags=ParserState._STATEFUL), 'ab')
-        assert engine(parse_pattern('a+b', flags=ParserState._STATEFUL), 'aab')
-        assert engine(parse_pattern('a?b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a?b', flags=ParserState._STATEFUL), 'ab')
-        assert not engine(parse_pattern('a?b', flags=ParserState._STATEFUL), 'aab')
+        assert engine(parse_pattern('a*b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a*b', flags=ParserState._LOOPS), 'ab')
+        assert engine(parse_pattern('a*b', flags=ParserState._LOOPS), 'aab')
+        assert not engine(parse_pattern('a+b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a+b', flags=ParserState._LOOPS), 'ab')
+        assert engine(parse_pattern('a+b', flags=ParserState._LOOPS), 'aab')
+        assert engine(parse_pattern('a?b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a?b', flags=ParserState._LOOPS), 'ab')
+        assert not engine(parse_pattern('a?b', flags=ParserState._LOOPS), 'aab')
 
     def test_counted(self):
-        groups = engine(parse_pattern('a{2}', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{2}', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 2, groups[0][0]
-        groups = engine(parse_pattern('a{1,2}', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{1,2}', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 2, groups[0][0]
-        groups = engine(parse_pattern('a{1,}', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{1,}', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 3, groups[0][0]
-        groups = engine(parse_pattern('a{2}?', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{2}?', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 2, groups[0][0]
-        groups = engine(parse_pattern('a{1,2}?', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{1,2}?', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 1, groups[0][0]
-        groups = engine(parse_pattern('a{1,}?', flags=ParserState._STATEFUL), 'aaa')
+        groups = engine(parse_pattern('a{1,}?', flags=ParserState._LOOPS), 'aaa')
         assert len(groups[0][0]) == 1, groups[0][0]
-        groups = engine(parse_pattern('a{1,2}?b', flags=ParserState._STATEFUL), 'aab')
+        groups = engine(parse_pattern('a{1,2}?b', flags=ParserState._LOOPS), 'aab')
         assert len(groups[0][0]) == 3, groups[0][0]
-        groups = engine(parse_pattern('a{1,}?b', flags=ParserState._STATEFUL), 'aab')
+        groups = engine(parse_pattern('a{1,}?b', flags=ParserState._LOOPS), 'aab')
         assert len(groups[0][0]) == 3, groups[0][0]
         
-        assert engine(parse_pattern('a{0,}?b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a{0,}?b', flags=ParserState._STATEFUL), 'ab')
-        assert engine(parse_pattern('a{0,}?b', flags=ParserState._STATEFUL), 'aab')
-        assert not engine(parse_pattern('a{1,}?b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a{1,}?b', flags=ParserState._STATEFUL), 'ab')
-        assert engine(parse_pattern('a{1,}?b', flags=ParserState._STATEFUL), 'aab')
-        assert engine(parse_pattern('a{0,1}?b', flags=ParserState._STATEFUL), 'b')
-        assert engine(parse_pattern('a{0,1}?b', flags=ParserState._STATEFUL), 'ab')
-        assert not engine(parse_pattern('a{0,1}?b', flags=ParserState._STATEFUL), 'aab')
+        assert engine(parse_pattern('a{0,}?b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a{0,}?b', flags=ParserState._LOOPS), 'ab')
+        assert engine(parse_pattern('a{0,}?b', flags=ParserState._LOOPS), 'aab')
+        assert not engine(parse_pattern('a{1,}?b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a{1,}?b', flags=ParserState._LOOPS), 'ab')
+        assert engine(parse_pattern('a{1,}?b', flags=ParserState._LOOPS), 'aab')
+        assert engine(parse_pattern('a{0,1}?b', flags=ParserState._LOOPS), 'b')
+        assert engine(parse_pattern('a{0,1}?b', flags=ParserState._LOOPS), 'ab')
+        assert not engine(parse_pattern('a{0,1}?b', flags=ParserState._LOOPS), 'aab')
 
         groups = engine(parse_pattern('a{2}'), 'aaa')
         assert len(groups[0][0]) == 2, groups[0][0]
@@ -234,7 +234,7 @@ class EngineTest(TestCase):
         assert engine(parse_pattern(r'a\Bb', flags=ParserState.ASCII), 'ab')
         groups = engine(parse_pattern(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
         assert groups[0][0] == ' a ', groups[0][0]
-        groups = engine(parse_pattern(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._STATEFUL|ParserState.ASCII), ' a ab abc ')
+        groups = engine(parse_pattern(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOPS|ParserState.ASCII), ' a ab abc ')
         assert groups[0][0] == ' a ab abc ', groups[0][0]
         
     def test_unicode_escapes(self):
@@ -256,7 +256,7 @@ class EngineTest(TestCase):
         assert engine(parse_pattern(r'a\Bb'), 'ab')
         groups = engine(parse_pattern(r'\s*\b\w+\b\s*'), ' a ')
         assert groups[0][0] == ' a ', groups[0][0]
-        groups = engine(parse_pattern(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._STATEFUL), ' a ab abc ')
+        groups = engine(parse_pattern(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOPS), ' a ab abc ')
         assert groups[0][0] == ' a ab abc ', groups[0][0]
     
     def test_or(self):

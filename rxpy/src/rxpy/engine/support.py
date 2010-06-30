@@ -49,7 +49,7 @@ class Match(Exception):
 
 class Loops(object):
     '''
-    The state needed to track explicit repeats (used in the `_STATEFUL` flag
+    The state needed to track explicit repeats (used in the `_LOOPS` flag
     was set).  This assumes that loops are nested (as they must be).
     '''
     
