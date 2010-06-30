@@ -35,15 +35,17 @@ from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
-def engine(parse, text, search=False, ticks=None):
+def engine(parse, text, search=False, ticks=None, maxdepth=None):
     engine = SimpleEngine(*parse)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
+    if maxdepth:
+        assert engine.maxdepth == maxdepth, engine.maxdepth
     return results
 
 
-class VisitorTest(TestCase):
+class EngineTest(TestCase):
     
     def test_string(self):
         assert engine(parse_pattern('abc'), 'abc')
@@ -265,4 +267,14 @@ class VisitorTest(TestCase):
 
     def test_search(self):
         assert engine(parse_pattern('a'), 'ab', search=True)
+        
+    def test_stack(self):
+        # optimized
+        assert engine(parse_pattern('(?:abc)*x'), ('abc' * 50000) + 'x',  maxdepth=1)
+        # this defines a group, so requires state on stack
+        assert engine(parse_pattern('(abc)*x'), ('abc' * 5) + 'x',  maxdepth=6)
+        # this is lazy, so doesn't
+        assert engine(parse_pattern('(abc)*?x'), ('abc' * 5) + 'x',  maxdepth=1)
+        
+        
         

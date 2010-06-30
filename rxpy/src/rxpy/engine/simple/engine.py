@@ -215,6 +215,7 @@ class Stack(object):
     
     def __init__(self):
         self.__stack = []
+        self.maxdepth = 0  # for tests
         
     def push(self, graph, state):
         if self.__stack:
@@ -238,6 +239,7 @@ class Stack(object):
                     return
         # above returns on success, so here default to a "normal" push
         self.__stack.append((graph, state, None))
+        self.maxdepth = max(self.maxdepth, len(self.__stack))
         
     def pop(self):
         (graph, state, repeat) = self.__stack.pop()
@@ -286,10 +288,7 @@ class Loops(object):
     def clone(self):
         return Loops(list(self.__counts), dict(self.__order))
     
-    def deep_eq(self, other):
-        '''
-        Used only for testing.
-        '''
+    def __eq__(self, other):
         return self.__counts == other.__counts and self.__order == other.__order
     
 
@@ -310,8 +309,11 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                              names=self._parser_state.group_names, 
                              indices=self._parser_state.group_indices),
                       offset=pos, previous=text[pos-1] if pos else None)
+
+        # for testing optimizations
+        self.ticks = 0
+        self.maxdepth = 0 
         
-        self.ticks = 0 # for testing optimisations
         self.__stack = None
         self.__stacks = []
         self.__lookaheads = {} # map from node to set of known ok states
@@ -346,8 +348,6 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                     # trampoline loop
                     while True:
                         self.ticks += 1
-                        if state.offset == 6:
-                            pass
                         try:
                             (graph, state) = graph.visit(self, state)
                         # backtrack if stack exists
@@ -370,6 +370,7 @@ class SimpleEngine(BaseEngine, BaseVisitor):
                 return (True, state)
         finally:
             # restore state so that another run can resume
+            self.maxdepth = max(self.maxdepth, self.__stack.maxdepth)
             self.__stack = self.__stacks.pop()
             self.__match = False
             
