@@ -1064,14 +1064,12 @@ r"""strict digraph {
         self.assert_flags('(?x)', ParserState.VERBOSE)
         self.assert_flags('(?a)', ParserState.ASCII)
         self.assert_flags('(?_s)', ParserState._STATEFUL)
-        self.assert_flags('(?_g)', ParserState._GREEDY_OR)
         try:
-            self.assert_flags('(?imsuxa_s_g)', 0)
+            self.assert_flags('(?imsuxa_s)', 0)
             assert False
         except RxpyException:
             pass
-        self.assert_flags('(?imsux_s_g)', 
+        self.assert_flags('(?imsux_s)', 
                           ParserState.IGNORECASE | ParserState.MULTILINE | 
                           ParserState.DOTALL | ParserState.UNICODE |
-                          ParserState.VERBOSE |
-                          ParserState._STATEFUL | ParserState._GREEDY_OR)
+                          ParserState.VERBOSE | ParserState._STATEFUL)

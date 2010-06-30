@@ -37,8 +37,8 @@ further reduce the use of the (non-Python) stack, simple repetition is
 for example). 
 '''                                    
 
-from rxpy.compat.groups import Groups
 from rxpy.engine.base import BaseEngine
+from rxpy.engine.support import Groups
 from rxpy.graph.opcode import StartGroup
 from rxpy.graph.support import contains_instance
 from rxpy.graph.visitor import BaseVisitor

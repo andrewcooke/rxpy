@@ -34,7 +34,6 @@ from rxpy.alphabet.unicode import Unicode
 from rxpy.parser.pattern import parse_pattern, parse_groups
 from rxpy.compat.replace import compile_repl
 from rxpy.lib import RxpyException
-from traceback import print_exc
 
 
 _ALPHANUMERICS = ascii_letters + digits

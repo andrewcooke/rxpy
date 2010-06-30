@@ -32,25 +32,11 @@ A matcher implementation that explores threads in parallel, providing better
 scaling for complex matches.
 '''
 
-from rxpy.compat.groups import Groups
 from rxpy.engine.base import BaseEngine
+from rxpy.engine.support import Loops, Groups, Fail, Match
 from rxpy.graph.opcode import StartGroup
 from rxpy.graph.support import contains_instance
 from rxpy.graph.visitor import BaseVisitor
-
-
-class Fail(Exception):
-    '''
-    Raised on failure.
-    '''
-    pass
-
-
-class Match(Exception):
-    '''
-    Raised on success
-    '''
-    pass
 
 
 class State(object):
@@ -58,36 +44,10 @@ class State(object):
     State for a particular thread (offset in the text is common to all threads).
     '''
     
-    def __init__(self, groups, loops=None):
+    def __init__(self, graph, groups, loops=None):
+        self.__graph = graph
         self.__groups = groups
         self.__loops = loops if loops else Loops()
-    
-    # below are methods that correspond roughly to opcodes in the graph.
-    # these are called from the visitor.
-        
-    def string(self, text):
-        try:
-            l = len(text)
-            if self.__text[0:l] == text:
-                if l:
-                    self.__previous = self.__text[l-1]
-                    self.__text = self.__text[l:]
-                    self.__offset += l
-                return self
-        except IndexError:
-            pass
-        raise Fail
-    
-    def character(self, charset):
-        try:
-            if self.__text[0] in charset:
-                self.__previous = self.__text[0]
-                self.__text = self.__text[1:]
-                self.__offset += 1
-                return self
-        except IndexError:
-            pass
-        raise Fail
     
     def start_group(self, number):
         self.__groups.start_group(number, self.__offset)
@@ -104,127 +64,19 @@ class State(object):
         self.__loops.drop(node)
         return self
     
-    def dot(self, multiline=True):
-        try:
-            if self.__text[0] and (multiline or self.__text[0] != '\n'):
-                self.__previous = self.__text[0]
-                self.__text = self.__text[1:]
-                self.__offset += 1
-                return self
-        except IndexError:
-            pass
-        raise Fail
-        
-    def start_of_line(self, multiline):
-        if self.__offset == 0 or (multiline and self.__previous == '\n'):
-            return self
-        else:
-            raise Fail
-            
-    def end_of_line(self, multiline):
-        if ((not self.__text or (multiline and self.__text[0] == '\n'))
-                # also before \n at end of text
-                or (self.__text and self.__text[0] == '\n' and
-                    not self.__text[1:])):
-            return self
-        else:
-            raise Fail
-        
-    def similar(self, other):
-        '''
-        Is this state similar to the one given?  In particular, are the
-        groups and loops values identical (so we only differ by offset)?
-        '''
-        return self.__groups == other.__groups and self.__loops == other.__loops
-
+    @property
+    def graph(self):
+        return self.__graph
+    
     @property
     def groups(self):
         return self.__groups
     
-    @property
-    def offset(self):
-        return self.__offset
-
-    @property
-    def text(self):
-        return self.__text
-
-    @property
-    def previous(self):
-        return self.__previous
     
-    
-class Stack(object):
+class ParallelEngine(BaseEngine, BaseVisitor):
     '''
-    A stack of states.  This extends a simple stack with the ability to 
-    compress repeated states (which is useful to avoid filling the stack
-    with backtracking when something like ".*" is used to match a large 
-    string).
-    
-    The compression is quite simple: if a state and group are pushed to
-    the stack which are identical, apart from offset, with the existing top
-    of the stack, then the stack is not extended.  Instead, the new offset
-    and increment are appended to the existing entry.  The same occurs for
-    further pushes that have the same increment.
-    
-    On popping we create a new state, and adjust the offset as necessary.
-    
-    For this to work correctly we must also be careful to preserve the
-    original state, since that is the one that contains the most text.
-    Later states have less text and so cannot be cloned "back" to having
-    an earlier offset.
-    '''
-    
-    def __init__(self):
-        self.__stack = []
-        self.maxdepth = 0  # for tests
-        
-    def push(self, graph, state):
-        if self.__stack:
-            (p_graph, p_state, p_repeat) = self.__stack[-1]
-            # is compressed repetition possible?
-            if p_state.similar(state) and p_graph == graph:
-                # do we have an existing repeat?
-                if p_repeat:
-                    (end, step) = p_repeat
-                    # and this new state has the expected increment
-                    if state.offset == end + step:
-                        self.__stack.pop()
-                        self.__stack.append((graph, p_state,
-                                             (state.offset, step)))
-                        return
-                # otherwise, start a new repeat block
-                elif p_state.offset < state.offset:
-                    self.__stack.pop()
-                    self.__stack.append((graph, p_state, 
-                                         (state.offset, state.offset - p_state.offset)))
-                    return
-        # above returns on success, so here default to a "normal" push
-        self.__stack.append((graph, state, None))
-        self.maxdepth = max(self.maxdepth, len(self.__stack))
-        
-    def pop(self):
-        (graph, state, repeat) = self.__stack.pop()
-        if repeat:
-            (end, step) = repeat
-            # if the repeat has not expired
-            if state.offset != end:
-                # add back one step down
-                self.__stack.append((graph, state, (end-step, step)))
-                state = state.clone(end)
-        return (graph, state)
-            
-    
-    def __bool__(self):
-        return bool(self.__stack)
-    
-    def __nonzero__(self):
-        return self.__bool__()
-    
-
-class BacktrackingEngine(BaseEngine, BaseVisitor):
-    '''
-    The interpreter.
+    Run an interpreter with parallel threads (effectively constructing a DFA
+    "on the fly")
     '''
     
     def run(self, text, pos=0, search=False):
@@ -232,87 +84,69 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
         Execute a search.
         '''
         self.__text = text
-        self.__pos = pos
+        self.__offset = pos
+        if pos:
+            self.__previous = self.__text[pos-1]
+        else:
+            self.__previous = None
         
-        state = State(text[pos:],
-                      Groups(text=text, count=self._parser_state.group_count, 
+        state = State(Groups(text=text, count=self._parser_state.group_count, 
                              names=self._parser_state.group_names, 
-                             indices=self._parser_state.group_indices),
-                      offset=pos, previous=text[pos-1] if pos else None)
-
-        # for testing optimizations
-        self.ticks = 0
-        self.maxdepth = 0 
-        
-        self.__stack = None
-        self.__stacks = []
-        self.__lookaheads = {} # map from node to set of known ok states
-        
+                             indices=self._parser_state.group_indices))
         state.start_group(0)
-        (match, state) = self.__run(self._graph, state, search=search)
+        
+        current_states, next_states  = [state], []
+        match = False
+
+        while current_states and not match:
+            while current_states and not match:
+                state = current_states.pop()
+                (updated, extra, match) = state.graph.visit(self, state)
+                if updated:
+                    next_states.append(updated)
+                # we process extra states immediately
+                current_states.extend(extra)
+            current_states, next_states = next_states, []
+            
         if match:
-            state.end_group(0)
-            return state.groups
+            updated.end_group(0)
+            return updated.groups
         else:
             return Groups()
-            
-    def __run(self, graph, state, search=False):
-        '''
-        Run a sub-search.  We support multiple searches (stacks) so that we
-        can invoke the same interpreter for lookaheads etc.
         
-        This is a simple trampoline - it stores state on a stack and invokes
-        the visitor interface on each graph node.  Visitor methods return 
-        either the new node and state, or raise `Fail` on failure, or
-        `Match` on success.
-        '''
-        self.__stacks.append(self.__stack)
-        self.__stack = Stack()
-        try:
-            try:
-                # search loop
-                while True:
-                    # if searching, save state for restart
-                    if search:
-                        (save_state, save_graph) = (state.clone(), graph)
-                    # trampoline loop
-                    while True:
-                        self.ticks += 1
-                        try:
-                            (graph, state) = graph.visit(self, state)
-                        # backtrack if stack exists
-                        except Fail:
-                            if self.__stack:
-                                (graph, state) = self.__stack.pop()
-                            else:
-                                break
-                    # nudge search forwards and try again, or exit
-                    if search:
-                        if save_state.advance():
-                            (state, graph) = (save_state, save_graph)
-                        else:
-                            break
-                    # match (not search), so exit with failure
-                    else:
-                        break
-                return (False, state)
-            except Match:
-                return (True, state)
-        finally:
-            # restore state so that another run can resume
-            self.maxdepth = max(self.maxdepth, self.__stack.maxdepth)
-            self.__stack = self.__stacks.pop()
-            self.__match = False
-            
     # below are the visitor methods - these implement the different opcodes
     # (typically by modifying state and returning the next node) 
         
     def string(self, next, text, state):
         return (next[0], state.string(text))
     
+    def string(self, text):
+        try:
+            l = len(text)
+            if self.__text[0:l] == text:
+                if l:
+                    self.__previous = self.__text[l-1]
+                    self.__text = self.__text[l:]
+                    self.__offset += l
+                return self
+        except IndexError:
+            pass
+        raise Fail
+    
     def character(self, next, charset, state):
         return (next[0], state.character(charset))
         
+    def character(self, charset):
+        try:
+            if self.__text[0] in charset:
+                self.__previous = self.__text[0]
+                self.__text = self.__text[1:]
+                self.__offset += 1
+                return self
+        except IndexError:
+            pass
+        raise Fail
+    
     def start_group(self, next, number, state):
         return (next[0], state.start_group(number))
     
@@ -349,12 +183,38 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
     def dot(self, next, multiline, state):
         return (next[0], state.dot(multiline))
     
+    def dot(self, multiline=True):
+        try:
+            if self.__text[0] and (multiline or self.__text[0] != '\n'):
+                self.__previous = self.__text[0]
+                self.__text = self.__text[1:]
+                self.__offset += 1
+                return self
+        except IndexError:
+            pass
+        raise Fail
+        
     def start_of_line(self, next, multiline, state):
         return (next[0], state.start_of_line(multiline))
         
+    def start_of_line(self, multiline):
+        if self.__offset == 0 or (multiline and self.__previous == '\n'):
+            return self
+        else:
+            raise Fail
+            
     def end_of_line(self, next, multiline, state):
         return (next[0], state.end_of_line(multiline))
     
+    def end_of_line(self, multiline):
+        if ((not self.__text or (multiline and self.__text[0] == '\n'))
+                # also before \n at end of text
+                or (self.__text and self.__text[0] == '\n' and
+                    not self.__text[1:])):
+            return self
+        else:
+            raise Fail
+        
     def lookahead(self, next, node, equal, forwards, state):
         if node not in self.__lookaheads:
             self.__lookaheads[node] = {}

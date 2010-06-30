@@ -255,8 +255,7 @@ class ParserStateBuilder(Builder):
                         'u': ParserState.U,
                         'x': ParserState.X,
                         'a': ParserState.A,
-                        '_s': ParserState._S,
-                        '_g': ParserState._G}
+                        '_s': ParserState._S}
         
     def append_character(self, character):
         if not self.__escape and character == '_':
