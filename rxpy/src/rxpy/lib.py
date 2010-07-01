@@ -53,6 +53,21 @@ class RxpyException(Exception):
     '''
     
     
-(I, M, S, U, X, A, _L) = map(lambda x: 2**x, range(7))
-(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS) = (I, M, S, U, X, A, _L)
-_FLAGS = (I, M, S, U, X, A, _L, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS)
+(I, M, S, U, X, A, _L, _S) = map(lambda x: 2**x, range(8))
+(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS) = (I, M, S, U, X, A, _L, _S)
+_FLAGS = (I, M, S, U, X, A, _L, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS)
+
+FLAG_NAMES = {I: 'I/IGNORECASE',
+              M: 'M/MULTILINE',
+              S: 'S/DOTALL',
+              U: 'U/UNICODE',
+              X: 'X/VERBOSE',
+              A: 'A/ASCII',
+              _L: '_L/_LOOPS',
+              _S: '_S/_STRINGS'}
+
+def refuse_flags(flags):
+    names = [FLAG_NAMES[key] for key in FLAG_NAMES if key & flags]
+    if names:
+        raise RxpyException('Bad flag' + ('s' if len(names) > 1 else '') 
+                            + ': ' + '; '.join(names))

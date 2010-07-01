@@ -42,6 +42,7 @@ from rxpy.engine.support import Groups
 from rxpy.graph.opcode import StartGroup
 from rxpy.graph.support import contains_instance
 from rxpy.graph.visitor import BaseVisitor
+from rxpy.lib import _STRINGS
 
 
 class Fail(Exception):
@@ -296,6 +297,11 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
     '''
     The interpreter.
     '''
+    
+    REQUIRE = _STRINGS
+    
+    def __init__(self, parser_state, graph):
+        super(BacktrackingEngine, self).__init__(parser_state, graph)
     
     def run(self, text, pos=0, search=False):
         '''

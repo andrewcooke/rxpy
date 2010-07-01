@@ -33,7 +33,11 @@ from rxpy.graph.opcode import String
 from rxpy.parser._test.lib import GraphTest
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
+from rxpy.engine.base import BaseEngine
 
+
+def parse(pattern, flags=0):
+    return parse_pattern(pattern, BaseEngine, flags=flags)
 
 class ReprTest(GraphTest):
     
@@ -47,24 +51,24 @@ class ReprTest(GraphTest):
 }""")
 
     def test_already_connected_bug(self):
-        parse_pattern('a')
-        parse_pattern('b')
-        parse_pattern('(c|e)')
-        parse_pattern('d')
-        parse_pattern('(c|e)')
-        parse_pattern('c{1,2}', )
-        parse_pattern('c{1,2}')
-        parse_pattern('(c|e){1,2}', flags=ParserState._LOOPS)
-        parse_pattern('(c|e){1,2}')
-        parse_pattern('(c|e){1,2}?')
-        parse_pattern('(b|(c|e){1,2}?|d)')
-        parse_pattern('(?:b|(c|e){1,2}?|d)')
-        parse_pattern('(?:b|(c|e){1,2}?|d)+?')
-        parse_pattern('(.)')
-        parse_pattern('a(?:b|(c|e){1,2}?|d)+?(.)')
+        parse('a')
+        parse('b')
+        parse('(c|e)')
+        parse('d')
+        parse('(c|e)')
+        parse('c{1,2}', )
+        parse('c{1,2}')
+        parse('(c|e){1,2}', flags=ParserState._LOOPS)
+        parse('(c|e){1,2}')
+        parse('(c|e){1,2}?')
+        parse('(b|(c|e){1,2}?|d)')
+        parse('(?:b|(c|e){1,2}?|d)')
+        parse('(?:b|(c|e){1,2}?|d)+?')
+        parse('(.)')
+        parse('a(?:b|(c|e){1,2}?|d)+?(.)')
 
     def test_w3_bug(self):
-        self.assert_graphs(parse_pattern('\w{3}$'),
+        self.assert_graphs(parse('\w{3}$'),
 """strict digraph {
  0 [label="\\\\w"]
  1 [label="\\\\w"]
@@ -76,7 +80,7 @@ class ReprTest(GraphTest):
  2 -> 3
  3 -> 4
 }""")
-        self.assert_graphs(parse_pattern('(\w)$'),
+        self.assert_graphs(parse('(\w)$'),
 """strict digraph {
  0 [label="("]
  1 [label="\\\\w"]
@@ -88,7 +92,7 @@ class ReprTest(GraphTest):
  2 -> 3
  3 -> 4
 }""")
-        self.assert_graphs(parse_pattern('(\w){3}$'),
+        self.assert_graphs(parse('(\w){3}$'),
 """strict digraph {
  0 [label="("]
  1 [label="\\\\w"]

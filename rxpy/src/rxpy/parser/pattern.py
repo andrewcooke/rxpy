@@ -255,13 +255,14 @@ class ParserStateBuilder(Builder):
                         'u': ParserState.U,
                         'x': ParserState.X,
                         'a': ParserState.A,
-                        '_l': ParserState._L}
+                        '_l': ParserState._L,
+                        '_s': ParserState._S}
         
     def append_character(self, character):
         if not self.__escape and character == '_':
             self.__escape = True
             return self
-        elif self.__escape and character in 'l':
+        elif self.__escape and character in 'ls':
             self._state.new_flag(self.__table['_' + character])
             self.__escape = False
             return self
@@ -880,19 +881,21 @@ class CountBuilder(Builder):
         parent_sequence._nodes.append(count)
                         
         
-def parse_pattern(text, flags=0, alphabet=None, hint_alphabet=None):
+def parse_pattern(text, engine, flags=0, alphabet=None, hint_alphabet=None):
     '''
     Parse a standard regular expression.
     '''
     state = ParserState(flags=flags, alphabet=alphabet, 
-                        hint_alphabet=hint_alphabet)
+                        hint_alphabet=hint_alphabet,
+                        refuse=engine.REFUSE, require=engine.REQUIRE)
     return parse(text, state, SequenceBuilder)
 
-def parse_groups(texts, flags=0, alphabet=None):
+def parse_groups(texts, engine, flags=0, alphabet=None):
     '''
     Parse set of expressions, used to define groups for `Scanner`.
     '''
-    state = ParserState(flags=flags, alphabet=alphabet)
+    state = ParserState(flags=flags, alphabet=alphabet,
+                        refuse=engine.REFUSE, require=engine.REQUIRE)
     sequence = SequenceBuilder(state)
     for text in texts:
         sequence.parse_group(text)

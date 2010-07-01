@@ -28,8 +28,8 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.graph.support import BaseNode
 from rxpy.graph.opcode import String
+from rxpy.lib import _STRINGS
 
 
 class Sequence(object):
@@ -61,7 +61,7 @@ class Sequence(object):
                     node = old_nodes.pop()
                     if isinstance(node, Sequence) and not node._frozen:
                         old_nodes.extend(node._nodes)
-                    elif isinstance(node, String):
+                    elif isinstance(node, String) and (self._state.flags & _STRINGS):
                         if acc:
                             acc.text = self._state.alphabet.join(node.text, acc.text)
                         else:

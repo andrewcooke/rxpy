@@ -40,6 +40,7 @@ _ALPHANUMERICS = ascii_letters + digits
 
 
 def compile(pattern, flags=None, alphabet=None, engine=None):
+    require_engine(engine)
     if isinstance(pattern, RegexObject):
         if flags is not None and flags != pattern.flags:
             raise ValueError('Changed flags')
@@ -54,7 +55,8 @@ def compile(pattern, flags=None, alphabet=None, engine=None):
             hint_alphabet = Unicode()
         else:
             hint_alphabet = None
-        pattern = RegexObject(parse_pattern(pattern, flags=flags, alphabet=alphabet,
+        pattern = RegexObject(parse_pattern(pattern, engine, flags=flags, 
+                                            alphabet=alphabet, 
                                             hint_alphabet=hint_alphabet),
                               pattern, engine=engine)
     return pattern
@@ -63,6 +65,7 @@ def compile(pattern, flags=None, alphabet=None, engine=None):
 class RegexObject(object):
     
     def __init__(self, parsed, pattern=None, engine=None):
+        require_engine(engine)
         self.__parsed = parsed
         self.__pattern = pattern
         self.__engine = engine
@@ -205,6 +208,7 @@ class MatchIterator(object):
     '''
     
     def __init__(self, re, parsed, text, pos=0, endpos=None, engine=None):
+        require_engine(engine)
         self.__re = re
         self.__parsed = parsed
         self.__text = text
@@ -308,21 +312,25 @@ class MatchObject(object):
     
     
 def match(pattern, text, flags=0, alphabet=None, engine=None):
+    require_engine(engine)
     return compile(pattern, flags=flags, 
                    alphabet=alphabet, engine=engine).match(text)
 
 
 def search(pattern, text, flags=0, alphabet=None, engine=None):
+    require_engine(engine)
     return compile(pattern, flags=flags, 
                    alphabet=alphabet, engine=engine).search(text)
 
 
 def findall(pattern, text, flags=0, alphabet=None, engine=None):
+    require_engine(engine)
     return compile(pattern, flags=flags, 
                    alphabet=alphabet, engine=engine).findall(text)
 
 
 def finditer(pattern, text, flags=0, alphabet=None, engine=None):
+    require_engine(engine)
     return compile(pattern, flags=flags, 
                    alphabet=alphabet, engine=engine).finditer(text)
 
@@ -332,6 +340,7 @@ def sub(pattern, repl, text, count=0, flags=0, alphabet=None, engine=None):
     Find `pattern` in `text` and replace it with `repl`; limit this to
     `count` replacements (from left) if `count > 0`.
     '''
+    require_engine(engine)
     return compile(pattern, flags=flags, 
                    alphabet=alphabet, engine=engine).sub(repl, text, count=count)
 
@@ -365,8 +374,9 @@ class Scanner(object):
     '''
 
     def __init__(self, pairs, flags=0, alphabet=None, engine=None):
+        require_engine(engine)
         self.__regex = RegexObject(parse_groups(map(lambda x: x[0], pairs), 
-                                                flags=flags, alphabet=alphabet),
+                                                engine, flags=flags, alphabet=alphabet),
                                    engine=engine)
         self.__actions = list(map(lambda x: x[1], pairs))
     
@@ -384,4 +394,7 @@ class Scanner(object):
                 yield self.__actions[found.lastindex-1](self, found.group())
         
 
-            
+def require_engine(engine):
+    if not engine:
+        raise RxpyException('Engine must be given for RXPY '
+                            '(use an engine-specific re module).')

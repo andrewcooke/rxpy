@@ -30,6 +30,13 @@ from rxpy.lib import UnimplementedMethod
 
 
 class BaseEngine(object):
+    '''
+    Subclasses can redefine REFUSE and REQUIRE to indicate what flags
+    should be set (REQUIRE) or trigger an error (REFUSE).
+    '''
+    
+    REFUSE = 0
+    REQUIRE = 0
     
     def __init__(self, parser_state, graph):
         '''

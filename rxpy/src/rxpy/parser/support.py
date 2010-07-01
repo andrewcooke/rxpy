@@ -36,7 +36,7 @@ from string import digits, ascii_letters
 
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
-from rxpy.lib import _FLAGS, RxpyException
+from rxpy.lib import _FLAGS, RxpyException, refuse_flags
 
 
 OCTAL = '01234567'
@@ -50,22 +50,30 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _L, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS) = _FLAGS
+    (I, M, S, U, X, A, _L, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS) = _FLAGS
     
-    def __init__(self, flags=0, alphabet=None, hint_alphabet=None):
+    def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
+                 require=0, refuse=0):
         '''
-        flags - initial flags set by user (bits as int)
+        `flags` - initial flags set by user (bits as int)
         
-        alphabet - optional alphabet (if given, checked against flags; if not
+        `alphabet` - optional alphabet (if given, checked against flags; if not
         given inferred from flags and hint) 
         
-        hint_alphabet - used to help auto-detect ASCII and Unicode in 2.6
+        `hint_alphabet` - used to help auto-detect ASCII and Unicode in 2.6
+        
+        `require` - fkags required by the alphabet
+        
+        `refuse` - flags refused by the alphabet
         '''
         
         self.__new_flags = 0
         self.__initial_alphabet = alphabet
         self.__hint_alphabet = hint_alphabet
+        self.__require = require
+        self.__refuse = refuse
         
+        flags = flags | require
         # default, if nothing specified, is unicode
         if alphabet is None and not (flags & (ParserState.ASCII | ParserState.UNICODE)):
             alphabet = hint_alphabet if hint_alphabet else Unicode()
@@ -82,6 +90,8 @@ class ParserState(object):
         # check contradictions
         if (flags & ParserState.ASCII) and (flags & ParserState.UNICODE):
             raise RxpyException('Cannot specify Unicode and ASCII together')
+        refuse_flags(flags & refuse)
+        
         
         self.__alphabet = alphabet
         self.__flags = flags
@@ -99,6 +109,8 @@ class ParserState(object):
         return self.__new_flags == other.__new_flags and \
             eq(self.__initial_alphabet, other.__initial_alphabet) and \
             eq(self.__hint_alphabet, other.__hint_alphabet) and \
+            self.__require == other.__require and \
+            self.__refuse == other.__refuse and \
             eq(self.__alphabet, other.__alphabet) and \
             self.__flags == other.__flags and \
             self.__group_count == other.__group_count and \
@@ -120,7 +132,8 @@ class ParserState(object):
         '''
         return ParserState(alphabet=self.__initial_alphabet, 
                            flags=self.__flags | self.__new_flags, 
-                           hint_alphabet=self.__hint_alphabet)
+                           hint_alphabet=self.__hint_alphabet,
+                           require=self.__require, refuse=self.__refuse)
         
     def next_group_index(self, name=None):
         '''

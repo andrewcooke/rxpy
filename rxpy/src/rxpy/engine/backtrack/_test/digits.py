@@ -45,7 +45,8 @@ def engine(parse, text, search=False):
 class VisitorTest(TestCase):
     
     def parse(self, regexp, flags=0):
-        return parse_pattern(regexp, alphabet=Digits(), flags=flags)
+        return parse_pattern(regexp, BacktrackingEngine,
+                             alphabet=Digits(), flags=flags)
     
     def test_string(self):
         assert engine(self.parse('1'), [1])
