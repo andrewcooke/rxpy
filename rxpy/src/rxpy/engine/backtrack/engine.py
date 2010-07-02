@@ -446,7 +446,7 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
                 # calculate lookback size if possible
                 try:
                     # skip ".*"
-                    offset = state.offset-next[1].size(groups)
+                    offset = state.offset - next[1].size(groups)
                     subtext = self.__text[offset:state.offset]
                     previous = self.__text[offset-1]
                 except Exception:

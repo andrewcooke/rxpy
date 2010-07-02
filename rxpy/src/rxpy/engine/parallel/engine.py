@@ -1,3 +1,5 @@
+from rxpy.graph.support import contains_instance
+from rxpy.graph.opcode import StartGroup
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -132,8 +134,17 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         '''
         Execute a search.
         '''
+        state = self.run_state(text, pos, search)
+        if state:
+            return state.groups
+        else:
+            return Groups()
+        
+    def run_state(self, text, pos=0, search=False):
+        
         self.__text = text
         self.__offset = pos
+        self.__lookaheads = {}
         
         state = State(self._graph,
                       text=text, count=self._parser_state.group_count, 
@@ -141,9 +152,13 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                       indices=self._parser_state.group_indices)
         state.start_group(0, self.__offset)
         
-        current_states, next_states  = [state], []
+        self.ticks = 0
+        self.maxwidth = 0
+        
+        current_states, next_states = [state], []
 
         while current_states and not current_states[-1].match:
+            self.maxwidth = max(self.maxwidth, len(current_states))
             try:
                 self.__previous = self.__text[self.__offset-1]
             except IndexError:
@@ -156,18 +171,26 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 state = current_states.pop()
                 # extra nodes are in reverse priority - most important at end
                 (updated, extra) = state.graph.visit(self, state)
+                self.ticks += 1
                 if updated:
                     next_states.append(updated)
                 # we process extra states immediately
                 current_states.extend(extra)
-            current_states, next_states = next_states, []
-            current_states.reverse()
             self.__offset += 1
+            current_states, next_states = next_states, []
+            if search:
+                current_states.append(
+                    State(self._graph,
+                          text=text, count=self._parser_state.group_count, 
+                          names=self._parser_state.group_names, 
+                          indices=self._parser_state.group_indices)
+                    .start_group(0, self.__offset))
+            current_states.reverse()
         
         if current_states:
-            return current_states[-1].groups
+            return current_states[-1]
         else:
-            return Groups()
+            return None
         
     # below are the visitor methods - these implement the different opcodes
     # (typically by modifying state and returning the next node) 
@@ -231,7 +254,35 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, [])
         
     def lookahead(self, next, node, equal, forwards, state):
-        raise UnsupportedOperation
+        if node not in self.__lookaheads:
+            self.__lookaheads[node] = {}
+        if self.__offset not in self.__lookaheads[node]:
+            # we need to match the lookahead
+            search = False
+            if forwards:
+                offset = self.__offset
+                subtext = self.__text
+            else:
+                # use groups to calculate size if they are unchanged in lookback
+                groups = None if contains_instance(next[1], StartGroup) \
+                            else state.groups
+                # calculate lookback size if possible
+                try:
+                    # skip ".*"
+                    offset = self.__offset - next[1].size(groups)
+                except Exception:
+                    offset = 0
+                    search = True
+                subtext = self.__text[0:self.__offset]
+            engine = ParallelEngine(self._parser_state, next[1])
+            match = bool(engine.run_state(subtext, offset, search))
+            self.ticks += engine.ticks
+            self.__lookaheads[node][self.__offset] = match == equal
+        # if lookahead succeeded, continue
+        if self.__lookaheads[node][self.__offset]:
+            return (None, [state.advance()])
+        else:
+            return (None, [])
 
     def repeat(self, next, node, begin, end, lazy, state):
         count = state.increment(node)
