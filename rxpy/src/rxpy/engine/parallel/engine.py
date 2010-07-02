@@ -1,4 +1,3 @@
-from rxpy.lib import _STRINGS, UnsupportedOperation
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -36,6 +35,7 @@ scaling for complex matches.
 from rxpy.engine.base import BaseEngine
 from rxpy.engine.support import Loops, Groups
 from rxpy.graph.visitor import BaseVisitor
+from rxpy.lib import _STRINGS, UnsupportedOperation
 
 
 class State(object):
@@ -148,8 +148,13 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 self.__previous = self.__text[self.__offset-1]
             except IndexError:
                 self.__previous = None
+            try:
+                self.__current = self.__text[self.__offset]
+            except IndexError:
+                self.__current = None
             while current_states:
                 state = current_states.pop()
+                # extra nodes are in reverse priority - most important at end
                 (updated, extra) = state.graph.visit(self, state)
                 if updated:
                     next_states.append(updated)
@@ -168,19 +173,13 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     # (typically by modifying state and returning the next node) 
         
     def string(self, next, text, state):
-        try:
-            if self.__text[self.__offset] == text:
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        if self.__current == text:
+            return (state.advance(), [])
         return (None, [])
     
     def character(self, next, charset, state):
-        try:
-            if self.__text[self.__offset] in charset:
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        if self.__current in charset:
+            return (state.advance(), [])
         return (None, [])
     
     def start_group(self, next, number, state):
@@ -212,12 +211,9 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (state, [])
 
     def dot(self, next, multiline, state):
-        try:
-            if self.__text[self.__offset] and \
-                    (multiline or self.__text[self.__offset] != '\n'):
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        if self.__current and \
+                (multiline or self.__current != '\n'):
+            return (state.advance(), [])
         return (None, [])
         
     def start_of_line(self, next, multiline, state):
@@ -227,54 +223,67 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             return (None, [])
             
     def end_of_line(self, next, multiline, state):
-        try:
-            if ((len(self.__text) == self.__offset or 
-                        (multiline and self.__text[self.__offset] == '\n'))
-                    or (self.__text and self.__text[0] == '\n' and
-                            not self.__text[1:])):
-                return (None, [state.advance()])
-        except IndexError:
-            pass
+        if ((len(self.__text) == self.__offset or 
+                    (multiline and self.__current == '\n'))
+                or (self.__current == '\n' and
+                        not self.__text[self.__offset+1:])):
+            return (None, [state.advance()])
         return (None, [])
         
     def lookahead(self, next, node, equal, forwards, state):
         raise UnsupportedOperation
 
     def repeat(self, next, node, begin, end, lazy, state):
-        raise UnsupportedOperation
+        count = state.increment(node)
+        # if we haven't yet reached the point where we can continue, loop
+        if count < begin:
+            return (None, [state.advance(1)])
+        # otherwise, logic depends on laziness
+        states = []
+        if lazy:
+            # continuation is highest priority, but if that fails we restart 
+            # with another loop, unless we've exceeded the count or there's
+            # no text left
+            if (end is None and self.__current) \
+                    or (end is not None and count < end):
+                states.append(state.clone().advance(1))
+            if end is None or count <= end:
+                states.append(state.drop(node).advance())
+        else:
+            if end is None or count < end:
+                # add a fallback so that if a higher loop fails, we can continue
+                states.append(state.clone().drop(node).advance())
+            if count == end:
+                # if last possible loop, continue
+                states.append(state.drop(node).advance())
+            else:
+                # otherwise, do another loop
+                states.append(state.advance(1))
+        return (None, states)
     
     def word_boundary(self, next, inverted, state):
-        try:
-            current = self.__text[self.__offset]
-        except IndexError:
-            current = None
         word = self._parser_state.alphabet.word
-        boundary = word(current) != word(self.__previous)
+        boundary = word(self.__current) != word(self.__previous)
         if boundary != inverted:
             return (None, [state.advance()])
         else:
             return (None, [])
 
     def digit(self, next, inverted, state):
-        try:
-            if self._parser_state.alphabet.digit(self.__text[self.__offset]) != inverted:
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        # current here tests whether we have finished
+        if self.__current and \
+                self._parser_state.alphabet.digit(self.__current) != inverted:
+            return (state.advance(), [])
         return (None, [])
     
     def space(self, next, inverted, state):
-        try:
-            if self._parser_state.alphabet.space(self.__text[self.__offset]) != inverted:
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        if self.__current and \
+                self._parser_state.alphabet.space(self.__current) != inverted:
+            return (state.advance(), [])
         return (None, [])
     
     def word(self, next, inverted, state):
-        try:
-            if self._parser_state.alphabet.word(self.__text[self.__offset]) != inverted:
-                return (state.advance(), [])
-        except IndexError:
-            pass
+        if self.__current and \
+                self._parser_state.alphabet.word(self.__current) != inverted:
+            return (state.advance(), [])
         return (None, [])

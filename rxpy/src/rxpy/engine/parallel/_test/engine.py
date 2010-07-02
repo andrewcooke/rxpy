@@ -263,10 +263,10 @@ class EngineTest(TestCase):
         assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
     
     def test_or(self):
-#        assert engine(parse('a|b'), 'a')
-#        assert engine(parse('a|b'), 'b')
-#        assert not engine(parse('a|b'), 'c')
-#        assert engine(parse('(a|ac)'), 'ac')
+        assert engine(parse('a|b'), 'a')
+        assert engine(parse('a|b'), 'b')
+        assert not engine(parse('a|b'), 'c')
+        assert engine(parse('(a|ac)'), 'ac')
         assert engine(parse('(a|ac)$'), 'ac')
 
     def test_search(self):

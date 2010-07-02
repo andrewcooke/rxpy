@@ -73,10 +73,10 @@ class Ascii(BaseAlphabet):
         return repr(char)[1:-1]
 
     def digit(self, char):
-        return char in digits
+        return char and char in digits
     
     def space(self, char):
-        return char in ' \t\n\r\f\v'
+        return char and char in ' \t\n\r\f\v'
         
     def word(self, char):
         return char in WORD
