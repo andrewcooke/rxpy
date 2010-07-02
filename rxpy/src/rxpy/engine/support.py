@@ -96,7 +96,7 @@ class Groups(object):
         
     def end_group(self, number, offset):
         assert isinstance(number, int)
-        assert number in self.__offsets, 'Unopened group'
+        assert number in self.__offsets, 'Unopened group: ' + str(number) 
         self.__groups[number] = (self.__text[self.__offsets[number]:offset],
                                  self.__offsets[number], offset)
         del self.__offsets[number]
@@ -127,7 +127,7 @@ class Groups(object):
                       names=dict(self.__names), indices=dict(self.__indices),
                       lastindex=self.__lastindex)
     
-    def __getitem__(self, number):
+    def data(self, number):
         if number in self.__names:
             index = self.__names[number]
         else:
@@ -141,14 +141,14 @@ class Groups(object):
                 raise IndexError(number)
             
     def group(self, number, default=None):
-        group = self[number][0]
+        group = self.data(number)[0]
         return default if group is None else group
         
     def start(self, number):
-        return self[number][1]
+        return self.data(number)[1]
     
     def end(self, number):
-        return self[number][2]
+        return self.data(number)[2]
 
     @property
     def lastindex(self):

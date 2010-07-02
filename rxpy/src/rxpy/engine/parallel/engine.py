@@ -43,29 +43,66 @@ class State(object):
     State for a particular thread (offset in the text is common to all threads).
     '''
     
-    def __init__(self, graph, groups, loops=None):
+    def __init__(self, graph, groups=None, loops=None, **groups_kargs):
         self.__graph = graph
-        self.__groups = groups
-        self.__loops = loops if loops else Loops()
+        self.__groups = groups if groups is not None else [None, None, groups_kargs]
+        self.__loops = loops
         self.match = False
         
     def clone(self):
-        return State(self.__graph, self.__groups.clone(), self.__loops.clone())
+        try:
+            groups = self.__groups.clone()
+        except AttributeError:
+            groups = list(self.__groups)
+        try:
+            loops = self.__loops.clone()
+        except AttributeError:
+            loops = self.__loops
+        return State(self.__graph, groups=groups, loops=loops)
     
     def start_group(self, number, offset):
+        if number == 0:
+            try:
+                self.__groups[0] = offset
+                return self
+            except TypeError:
+                pass
+        self.__expand_groups()
         self.__groups.start_group(number, offset)
         return self
         
     def end_group(self, number, offset):
+        if number == 0:
+            try:
+                self.__groups[1] = offset
+                return self
+            except TypeError:
+                pass
+        self.__expand_groups()
         self.__groups.end_group(number, offset)
         return self
     
+    def __expand_groups(self):
+        if not isinstance(self.__groups, Groups):
+            save = self.__groups
+            self.__groups = Groups(**save[2])
+            if save[0] is not None:
+                self.__groups.start_group(0, save[0])
+            if save[1] is not None:
+                self.__groups.end_group(0, save[1])
+    
     def increment(self, node):
+        self.__expand_loops()
         return self.__loops.increment(node)
     
     def drop(self, node):
+        self.__expand_loops()
         self.__loops.drop(node)
         return self
+    
+    def __expand_loops(self):
+        if not self.__loops:
+            self.__loops = Loops()
     
     def advance(self, index=0):
         self.__graph = self.__graph.next[index]
@@ -77,6 +114,7 @@ class State(object):
     
     @property
     def groups(self):
+        self.__expand_groups()
         return self.__groups
     
     
@@ -96,20 +134,20 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         '''
         self.__text = text
         self.__offset = pos
-        if pos:
-            self.__previous = self.__text[pos-1]
-        else:
-            self.__previous = None
         
         state = State(self._graph,
-                      Groups(text=text, count=self._parser_state.group_count, 
-                             names=self._parser_state.group_names, 
-                             indices=self._parser_state.group_indices))
+                      text=text, count=self._parser_state.group_count, 
+                      names=self._parser_state.group_names, 
+                      indices=self._parser_state.group_indices)
         state.start_group(0, self.__offset)
         
         current_states, next_states  = [state], []
 
         while current_states and not current_states[-1].match:
+            try:
+                self.__previous = self.__text[self.__offset-1]
+            except IndexError:
+                self.__previous = None
             while current_states:
                 state = current_states.pop()
                 (updated, extra) = state.graph.visit(self, state)

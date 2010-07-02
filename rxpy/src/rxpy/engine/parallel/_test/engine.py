@@ -83,9 +83,9 @@ class EngineTest(TestCase):
         assert engine(parse('a*b'), 'aab')
         assert not engine(parse('a*b'), 'aa')
         groups = engine(parse('a*'), 'aaa')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a*'), 'aab')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         
     def test_nested_group(self):
         groups = engine(parse('(.)*'), 'ab')
@@ -165,21 +165,21 @@ class EngineTest(TestCase):
 
     def test_counted(self):
         groups = engine(parse('a{2}', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,2}', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,}', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a{2}?', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,2}?', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('a{1,}?', flags=ParserState._LOOPS), 'aaa')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('a{1,2}?b', flags=ParserState._LOOPS), 'aab')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a{1,}?b', flags=ParserState._LOOPS), 'aab')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         
         assert engine(parse('a{0,}?b', flags=ParserState._LOOPS), 'b')
         assert engine(parse('a{0,}?b', flags=ParserState._LOOPS), 'ab')
@@ -192,21 +192,21 @@ class EngineTest(TestCase):
         assert not engine(parse('a{0,1}?b', flags=ParserState._LOOPS), 'aab')
 
         groups = engine(parse('a{2}'), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,2}'), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,}'), 'aaa')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a{2}?'), 'aaa')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('a{1,2}?'), 'aaa')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('a{1,}?'), 'aaa')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('a{1,2}?b'), 'aab')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a{1,}?b'), 'aab')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         
         assert engine(parse('a{0,}?b'), 'b')
         assert engine(parse('a{0,}?b'), 'ab')
@@ -220,53 +220,53 @@ class EngineTest(TestCase):
 
     def test_ascii_escapes(self):
         groups = engine(parse('\\d*', flags=ParserState.ASCII), '12x')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('\\D*', flags=ParserState.ASCII), 'x12')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('\\w*', flags=ParserState.ASCII), '12x a')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('\\W*', flags=ParserState.ASCII), ' a')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('\\s*', flags=ParserState.ASCII), '  a')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('\\S*', flags=ParserState.ASCII), 'aa ')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         assert engine(parse(r'a\b ', flags=ParserState.ASCII), 'a ')
         assert not engine(parse(r'a\bb', flags=ParserState.ASCII), 'ab')
         assert not engine(parse(r'a\B ', flags=ParserState.ASCII), 'a ')
         assert engine(parse(r'a\Bb', flags=ParserState.ASCII), 'ab')
         groups = engine(parse(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
-        assert groups[0][0] == ' a ', groups[0][0]
+        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
         groups = engine(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOPS|ParserState.ASCII), ' a ab abc ')
-        assert groups[0][0] == ' a ab abc ', groups[0][0]
+        assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
         
     def test_unicode_escapes(self):
         groups = engine(parse('\\d*'), '12x')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('\\D*'), 'x12')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('\\w*'), '12x a')
-        assert len(groups[0][0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('\\W*'), ' a')
-        assert len(groups[0][0]) == 1, groups[0][0]
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
         groups = engine(parse('\\s*'), '  a')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         groups = engine(parse('\\S*'), 'aa ')
-        assert len(groups[0][0]) == 2, groups[0][0]
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
         assert engine(parse(r'a\b '), 'a ')
         assert not engine(parse(r'a\bb'), 'ab')
         assert not engine(parse(r'a\B '), 'a ')
         assert engine(parse(r'a\Bb'), 'ab')
         groups = engine(parse(r'\s*\b\w+\b\s*'), ' a ')
-        assert groups[0][0] == ' a ', groups[0][0]
+        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
         groups = engine(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOPS), ' a ab abc ')
-        assert groups[0][0] == ' a ab abc ', groups[0][0]
+        assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
     
     def test_or(self):
-        assert engine(parse('a|b'), 'a')
-        assert engine(parse('a|b'), 'b')
-        assert not engine(parse('a|b'), 'c')
-        assert engine(parse('(a|ac)'), 'ac')
+#        assert engine(parse('a|b'), 'a')
+#        assert engine(parse('a|b'), 'b')
+#        assert not engine(parse('a|b'), 'c')
+#        assert engine(parse('(a|ac)'), 'ac')
         assert engine(parse('(a|ac)$'), 'ac')
 
     def test_search(self):
