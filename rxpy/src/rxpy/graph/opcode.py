@@ -36,7 +36,7 @@ See `BaseNode` for a general description of nodes.
 '''
 
 from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
-    GraphException, BaseEscapedNode, CharSet
+    GraphException, BaseEscapedNode, CharSet, ReadsGroup
 
 
 class String(BaseNode):
@@ -231,7 +231,7 @@ class EndOfLine(BaseLineNode):
         return visitor.end_of_line(self.next, self.multiline, state)
 
 
-class GroupReference(BaseNode):
+class GroupReference(BaseNode, ReadsGroup):
     '''
     Match the text previously matched by the given group.
     
@@ -340,7 +340,7 @@ class Repeat(BaseNode):
                               state)
     
     
-class GroupConditional(BaseSplitNode):
+class GroupConditional(BaseSplitNode, ReadsGroup):
     '''
     Branch the graph, depending on the existence of a group.
 

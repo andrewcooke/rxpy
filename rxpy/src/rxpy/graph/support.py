@@ -273,6 +273,12 @@ class BaseSplitNode(BaseNode):
                 self.next.append(next.start)
             self.__connected = True
         return self
+    
+    
+class ReadsGroup(object):
+    '''
+    Used to identify opcdes that require groups.
+    '''
 
 
 class BaseLineNode(BaseNode):

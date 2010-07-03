@@ -1,5 +1,6 @@
-from rxpy.graph.support import contains_instance
-from rxpy.graph.opcode import StartGroup
+from rxpy.graph.support import contains_instance, ReadsGroup
+from rxpy.graph.opcode import StartGroup, String
+from rxpy.graph.temp import Sequence
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -51,7 +52,7 @@ class State(object):
         self.__loops = loops
         self.match = False
         
-    def clone(self):
+    def clone(self, graph=None):
         try:
             groups = self.__groups.clone()
         except AttributeError:
@@ -60,7 +61,8 @@ class State(object):
             loops = self.__loops.clone()
         except AttributeError:
             loops = self.__loops
-        return State(self.__graph, groups=groups, loops=loops)
+        return State(self.__graph if graph is None else graph, 
+                     groups=groups, loops=loops)
     
     def start_group(self, number, offset):
         if number == 0:
@@ -134,23 +136,25 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         '''
         Execute a search.
         '''
-        state = self.run_state(text, pos, search)
+        state = State(self._graph,
+                      text=text, count=self._parser_state.group_count, 
+                      names=self._parser_state.group_names, 
+                      indices=self._parser_state.group_indices)
+        state.start_group(0, pos)
+        
+        state = self.run_state(state, text, pos, search)
+        
         if state:
             return state.groups
         else:
             return Groups()
         
-    def run_state(self, text, pos=0, search=False):
+    def run_state(self, state, text, pos=0, search=False, groups=None):
         
         self.__text = text
         self.__offset = pos
-        self.__lookaheads = {}
-        
-        state = State(self._graph,
-                      text=text, count=self._parser_state.group_count, 
-                      names=self._parser_state.group_names, 
-                      indices=self._parser_state.group_indices)
-        state.start_group(0, self.__offset)
+        self.__lookaheads = {} # can we delete some of this as we progress?
+        self.__groups = {}
         
         self.ticks = 0
         self.maxwidth = 0
@@ -178,13 +182,15 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 current_states.extend(extra)
             self.__offset += 1
             current_states, next_states = next_states, []
-            if search:
-                current_states.append(
-                    State(self._graph,
-                          text=text, count=self._parser_state.group_count, 
-                          names=self._parser_state.group_names, 
-                          indices=self._parser_state.group_indices)
-                    .start_group(0, self.__offset))
+            if search and self.__offset < len(self.__text):
+                if groups:
+                    state = State(self._graph, groups=groups)
+                else:
+                    state = State(self._graph,
+                                  text=text, count=self._parser_state.group_count, 
+                                  names=self._parser_state.group_names, 
+                                  indices=self._parser_state.group_indices)
+                current_states.append(state.start_group(0, self.__offset))
             current_states.reverse()
         
         if current_states:
@@ -212,7 +218,21 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, [state.end_group(number, self.__offset).advance()])
 
     def group_reference(self, next, number, state):
-        raise UnsupportedOperation
+        try:
+            text = state.groups.group(number)
+            if text is None:
+                return (None, [])
+            elif text:
+                if text not in self.__groups:
+                    self.__groups[text] = \
+                        Sequence([String(c) for c in text], self._parser_state)
+                graph = self.__groups[text].clone()
+                graph = graph.concatenate(next[0])
+                return (None, [state.clone(graph)])
+            else:
+                return (None, [state.advance()])
+        except KeyError:
+            return (None, [])
 
     def group_conditional(self, next, number, state):
         index = 1 if state.groups.group(number) else 0
@@ -259,6 +279,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         if self.__offset not in self.__lookaheads[node]:
             # we need to match the lookahead
             search = False
+            groups = None
             if forwards:
                 offset = self.__offset
                 subtext = self.__text
@@ -268,14 +289,22 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                             else state.groups
                 # calculate lookback size if possible
                 try:
-                    # skip ".*"
-                    offset = self.__offset - next[1].size(groups)
+                    offset = self.__offset - \
+                        next[1].size(None 
+                                     if contains_instance(next[1], StartGroup)
+                                     else state.groups)
                 except Exception:
                     offset = 0
                     search = True
                 subtext = self.__text[0:self.__offset]
+            if contains_instance(next[1], ReadsGroup):
+                groups = state.groups
+            else:
+                groups = None
             engine = ParallelEngine(self._parser_state, next[1])
-            match = bool(engine.run_state(subtext, offset, search))
+            match = bool(engine.run_state(state.clone(next[1]), subtext, 
+                                          pos=offset, search=search,
+                                          groups=groups))
             self.ticks += engine.ticks
             self.__lookaheads[node][self.__offset] = match == equal
         # if lookahead succeeded, continue

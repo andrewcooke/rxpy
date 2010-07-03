@@ -113,15 +113,15 @@ class EngineTest(TestCase):
         # from the start in this case
         assert engine(parse('.(.).(?<=a)'), 'xxa', ticks=10)
         
-        assert engine(parse('(.).(?<=\\1)'), 'aa', ticks=9)
+        assert engine(parse('(.).(?<=\\1)'), 'aa', ticks=10)
         # again, just one tick more
-        assert engine(parse('.(.).(?<=\\1)'), 'xaa', ticks=10)
+        assert engine(parse('.(.).(?<=\\1)'), 'xaa', ticks=11)
         assert not engine(parse('.(.).(?<=\\1)'), 'xxa')
         
-        assert engine(parse('(.).(?<=(\\1))'), 'aa', ticks=15)
+        assert engine(parse('(.).(?<=(\\1))'), 'aa', ticks=17)
         # but here, three ticks more because we have a group reference with
         # changing groups, so can't reliably calculate lookback distance
-        assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=18)
+        assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=21)
         assert not engine(parse('.(.).(?<=(\\1))'), 'xxa')
         
     def test_lookback_bug_1(self):
