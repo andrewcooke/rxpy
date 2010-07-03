@@ -38,7 +38,7 @@ scaling for complex matches.
 from rxpy.engine.base import BaseEngine
 from rxpy.engine.support import Loops, Groups
 from rxpy.graph.visitor import BaseVisitor
-from rxpy.lib import _STRINGS, UnsupportedOperation
+from rxpy.lib import _STRINGS
 
 
 class State(object):
@@ -77,6 +77,7 @@ class State(object):
         
     def end_group(self, number, offset):
         if number == 0:
+            self.match = True
             try:
                 self.__groups[1] = offset
                 return self
@@ -171,15 +172,21 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 self.__current = self.__text[self.__offset]
             except IndexError:
                 self.__current = None
+            matched = False
             while current_states:
                 state = current_states.pop()
-                # extra nodes are in reverse priority - most important at end
-                (updated, extra) = state.graph.visit(self, state)
-                self.ticks += 1
-                if updated:
-                    next_states.append(updated)
-                # we process extra states immediately
-                current_states.extend(extra)
+                if state.match:
+                    if not matched:
+                        next_states.append(state)
+                        matched = True
+                else:
+                    # extra nodes are in reverse priority - most important at end
+                    (updated, extra) = state.graph.visit(self, state)
+                    self.ticks += 1
+                    if updated:
+                        next_states.append(updated)
+                    # we process extra states immediately
+                    current_states.extend(extra)
             self.__offset += 1
             current_states, next_states = next_states, []
             if search and self.__offset < len(self.__text):
@@ -248,10 +255,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, states)
     
     def match(self, state):
-        if not state.match:
-            state.match = True
-            state.end_group(0, self.__offset)
-        return (state, [])
+        return (state.end_group(0, self.__offset), [])
 
     def dot(self, next, multiline, state):
         if self.__current and \

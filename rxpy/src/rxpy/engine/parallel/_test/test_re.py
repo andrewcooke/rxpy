@@ -529,13 +529,12 @@ class ReTests(unittest.TestCase):
         pat=u"["+re.escape(u"\u2039")+u"]"
         self.assertEqual(re.compile(pat) and 1, 1)
 
-# TODO - width limiting?
-#    def test_stack_overflow(self):
-#        # nasty cases that used to overflow the straightforward recursive
-#        # implementation of repeated groups.
-#        self.assertEqual(re.match('(x)*', 50000*'x').group(1), 'x')
-#        self.assertEqual(re.match('(x)*y', 50000*'x'+'y').group(1), 'x')
-#        self.assertEqual(re.match('(x)*?y', 50000*'x'+'y').group(1), 'x')
+    def test_stack_overflow(self):
+        # nasty cases that used to overflow the straightforward recursive
+        # implementation of repeated groups.
+        self.assertEqual(re.match('(x)*', 50000*'x').group(1), 'x')
+        self.assertEqual(re.match('(x)*y', 50000*'x'+'y').group(1), 'x')
+        self.assertEqual(re.match('(x)*?y', 50000*'x'+'y').group(1), 'x')
 
     def test_scanner(self):
         def s_ident(scanner, token): return token
