@@ -276,6 +276,15 @@ class EngineTest(TestCase):
         assert engine(parse('(a|ac)$'), 'ac')
 
     def test_search(self):
-        assert engine(parse('a'), 'ab', search=True)
+#        assert engine(parse('a'), 'ab', search=True)
+#        assert engine(parse('$'), '', search=True)
+        assert engine(parse('$'), 'a', search=True)
+        
+    def test_end_of_line(self):
+        assert engine(parse('ab$'), 'ab')
+        assert engine(parse('ab$'), 'ab\n')
+        assert not engine(parse('ab$'), 'abc')
+        assert not engine(parse('ab$'), 'ab\nc')
+        assert engine(parse('(?m)ab$'), 'ab\nc')
         
         

@@ -149,7 +149,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     
     # single characters only to avoid incrementing any one thread out of
     # step with the others
-    REJECT = _STRINGS
+    REFUSE = _STRINGS
     
     def run(self, text, pos=0, search=False):
         '''
@@ -182,10 +182,12 @@ class ParallelEngine(BaseEngine, BaseVisitor):
 
         while current_states and not current_states[-1].match:
             self.maxwidth = max(self.maxwidth, len(current_states))
+            self.__previous = None
             try:
-                self.__previous = self.__text[self.__offset-1]
+                if self.__offset:
+                    self.__previous = self.__text[self.__offset-1]
             except IndexError:
-                self.__previous = None
+                pass
             try:
                 self.__current = self.__text[self.__offset]
             except IndexError:
@@ -210,7 +212,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 current_states.extend(extra)
             self.__offset += 1
             current_states, next_states = next_states, []
-            if search and self.__offset < len(self.__text):
+            # equals here allows final test at end
+            if search and self.__offset <= len(self.__text):
                 if groups:
                     state = State(self._graph, groups=groups)
                 else:

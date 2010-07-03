@@ -83,9 +83,9 @@ class Loops(object):
         return self.__counts == other.__counts and self.__order == other.__order
     
     def __hash__(self):
-        return reduce(xor, map(hash, self.__counts) ^ \
+        return reduce(xor, map(hash, self.__counts), 0) ^ \
                       reduce(xor, [hash(node) ^ hash(self.__order[node])
-                                   for node in self.__order]))
+                                   for node in self.__order], 0)
 
 class Groups(object):
     
