@@ -183,7 +183,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                     # extra nodes are in reverse priority - most important at end
                     (updated, extra) = state.graph.visit(self, state)
                     self.ticks += 1
-                    if updated:
+                    if updated and (not matched or not state.match):
                         next_states.append(updated)
                     # we process extra states immediately
                     current_states.extend(extra)
