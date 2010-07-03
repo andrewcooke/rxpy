@@ -35,13 +35,13 @@ from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
-def engine(parse, text, search=False, ticks=None, maxdepth=None):
+def engine(parse, text, search=False, ticks=None):
     engine = ParallelEngine(*parse)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
     if maxdepth:
-        assert engine.maxdepth == maxdepth, engine.maxdepth
+        assert engine.maxdepth == maxdepth
     return results
 
 def parse(pattern, flags=0):

@@ -68,8 +68,10 @@ class State(object):
         '''
         Equality to avoid state duplication (only; minimal logic)
         '''
+        if self.match and other.match:
+            return True 
         return self.__graph is other.__graph and \
-            (type(self.__groups) == type(other.__groups) == tuple or
+            (list == type(self.__groups) == type(other.__groups) or \
                 self.__groups == other.__groups) and \
             self.__loops == other.__loops
             
@@ -77,8 +79,10 @@ class State(object):
         '''
         Hash to avoid state duplication (only; minimal logic)
         '''
+        if self.match:
+            return 0
         h = hash(self.__graph) ^ hash(self.__loops)
-        if isinstance(self.__groups, Groups):
+        if list != type(self.__groups):
             h ^= hash(self.__groups)
         return h
     
@@ -151,6 +155,12 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     # step with the others
     REFUSE = _STRINGS
     
+    def __init__(self, parser_state, graph, 
+                 hash_state=False, single_match=True):
+        super(ParallelEngine, self).__init__(parser_state, graph)
+        self.__hash_state = hash_state
+        self.__single_match = single_match
+    
     def run(self, text, pos=0, search=False):
         '''
         Execute a search.
@@ -171,6 +181,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     def run_state(self, state, text, pos=0, search=False, groups=None):
         
         self.__text = text
+        self.__current = None
         self.__offset = pos
         self.__lookaheads = {} # can we delete some of this as we progress?
         self.__groups = {}
@@ -182,30 +193,22 @@ class ParallelEngine(BaseEngine, BaseVisitor):
 
         while current_states and not current_states[-1].match:
             self.maxwidth = max(self.maxwidth, len(current_states))
-            self.__previous = None
-            try:
-                if self.__offset:
-                    self.__previous = self.__text[self.__offset-1]
-            except IndexError:
-                pass
+            self.__previous = self.__current
             try:
                 self.__current = self.__text[self.__offset]
             except IndexError:
                 self.__current = None
-            known = set()
+            if self.__hash_state: known = set()
             while current_states:
-                state = current_states.pop()
-                if state.match: # exit current match location
+                state, extra = current_states.pop(), []
+                if not state.match:
+                    # extra nodes are in reverse priority - most important at end
+                    (state, extra) = state.graph.visit(self, state)
+                    self.ticks += 1
+                if state and (not self.__hash_state or state not in known):
+                    if self.__hash_state: known.add(state)
                     next_states.append(state)
-                    current_states = []
-                    break
-                # extra nodes are in reverse priority - most important at end
-                (updated, extra) = state.graph.visit(self, state)
-                self.ticks += 1
-                if updated and updated not in known:
-                    known.add(updated)
-                    next_states.append(updated)
-                    if updated.match: # exit current match location
+                    if state.match and self.__single_match: # exit current match location
                         current_states = []
                         break
                 # we process extra states immediately
@@ -230,7 +233,6 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             return None
         
     # below are the visitor methods - these implement the different opcodes
-    # (typically by modifying state and returning the next node) 
         
     def string(self, next, text, state):
         if self.__current == text:
