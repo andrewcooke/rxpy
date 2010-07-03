@@ -30,7 +30,9 @@
 
 '''
 Support classes shared by various engines.
-'''                                    
+'''                 
+
+from operator import xor                   
 
 
 class Fail(Exception):
@@ -54,7 +56,9 @@ class Loops(object):
     '''
     
     def __init__(self, counts=None, order=None):
+        # counts for loops in nested order
         self.__counts = counts if counts else []
+        # map from node to position in counts list
         self.__order = order if order else {}
         
     def increment(self, node):
@@ -77,26 +81,41 @@ class Loops(object):
     
     def __eq__(self, other):
         return self.__counts == other.__counts and self.__order == other.__order
-
+    
+    def __hash__(self):
+        return reduce(xor, map(hash, self.__counts) ^ \
+                      reduce(xor, [hash(node) ^ hash(self.__order[node])
+                                   for node in self.__order]))
 
 class Groups(object):
     
     def __init__(self, text=None, groups=None, offsets=None, count=0, 
                  names=None, indices=None, lastindex=None):
+        # text being matched
         self.__text = text
+        # map from index to (text, start, end)
         self.__groups = groups if groups else {}
+        # map from index to start for pending groups
         self.__offsets = offsets if offsets else {}
+        # total number of groups declared in expression
         self.__count = count
+        # map from group names to indices
         self.__names = names if names else {}
+        # map from group indices to names
         self.__indices = indices if indices else {}
+        # last index matched
         self.__lastindex = lastindex
+        # cache for str
+        self.__str = None
         
     def start_group(self, number, offset):
+        self.__str = None
         self.__offsets[number] = offset
         
     def end_group(self, number, offset):
         assert isinstance(number, int)
         assert number in self.__offsets, 'Unopened group: ' + str(number) 
+        self.__str = None
         self.__groups[number] = (self.__text[self.__offsets[number]:offset],
                                  self.__offsets[number], offset)
         del self.__offsets[number]
@@ -113,13 +132,33 @@ class Groups(object):
         return self.__bool__()
     
     def __eq__(self, other):
-        return self.__text == other.__text and \
-            self.__groups == other.__groups and \
-            self.__offsets == other.__offsets and \
-            self.__count == other.__count and \
-            self.__names == other.__names and \
-            self.__indices == other.__indices and \
-            self.__lastindex == other.__lastindex
+        '''
+        Ignores values from context (so does not work for comparison across 
+        matches).
+        '''
+        return type(self) == type(other) and str(self) == str(other)
+            
+    def __hash__(self):
+        '''
+        Ignores values from context (so does not work for comparison across 
+        matches).
+        '''
+        return hash(self.__str__())
+    
+    def __str__(self):
+        '''
+        Unique representation, used for eq and hash.  Ignores values from 
+        context (so does not work for comparison across matches).
+        '''
+        if not self.__str:
+            def fmt_group(index):
+                group = self.__groups[index]
+                return str(group[1]) + ':' + str(group[2]) + ':' + repr(group[0])
+            self.__str = ';'.join(str(index) + '=' + fmt_group(index)
+                            for index in sorted(self.__groups.keys())) + ' ' + \
+                         ';'.join(str(index) + ':' + str(self.__offsets[index])
+                            for index in sorted(self.__offsets.keys()))
+        return self.__str
     
     def clone(self):
         return Groups(text=self.__text, groups=dict(self.__groups), 

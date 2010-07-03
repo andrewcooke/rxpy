@@ -1,6 +1,3 @@
-from rxpy.graph.support import contains_instance, ReadsGroup
-from rxpy.graph.opcode import StartGroup, String
-from rxpy.graph.temp import Sequence
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -37,6 +34,9 @@ scaling for complex matches.
 
 from rxpy.engine.base import BaseEngine
 from rxpy.engine.support import Loops, Groups
+from rxpy.graph.support import contains_instance, ReadsGroup
+from rxpy.graph.opcode import StartGroup, String
+from rxpy.graph.temp import Sequence
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.lib import _STRINGS
 
@@ -63,6 +63,24 @@ class State(object):
             loops = self.__loops
         return State(self.__graph if graph is None else graph, 
                      groups=groups, loops=loops)
+        
+    def __eq__(self, other):
+        '''
+        Equality to avoid state duplication (only; minimal logic)
+        '''
+        return self.__graph is other.__graph and \
+            (type(self.__groups) == type(other.__groups) == tuple or
+                self.__groups == other.__groups) and \
+            self.__loops == other.__loops
+            
+    def __hash__(self):
+        '''
+        Hash to avoid state duplication (only; minimal logic)
+        '''
+        h = hash(self.__graph) ^ hash(self.__loops)
+        if isinstance(self.__groups, Groups):
+            h ^= hash(self.__groups)
+        return h
     
     def start_group(self, number, offset):
         if number == 0:
@@ -172,21 +190,24 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 self.__current = self.__text[self.__offset]
             except IndexError:
                 self.__current = None
-            matched = False
+            known = set()
             while current_states:
                 state = current_states.pop()
-                if state.match:
-                    if not matched:
-                        next_states.append(state)
-                        matched = True
-                else:
-                    # extra nodes are in reverse priority - most important at end
-                    (updated, extra) = state.graph.visit(self, state)
-                    self.ticks += 1
-                    if updated and (not matched or not state.match):
-                        next_states.append(updated)
-                    # we process extra states immediately
-                    current_states.extend(extra)
+                if state.match: # exit current match location
+                    next_states.append(state)
+                    current_states = []
+                    break
+                # extra nodes are in reverse priority - most important at end
+                (updated, extra) = state.graph.visit(self, state)
+                self.ticks += 1
+                if updated and updated not in known:
+                    known.add(updated)
+                    next_states.append(updated)
+                    if updated.match: # exit current match location
+                        current_states = []
+                        break
+                # we process extra states immediately
+                current_states.extend(extra)
             self.__offset += 1
             current_states, next_states = next_states, []
             if search and self.__offset < len(self.__text):
