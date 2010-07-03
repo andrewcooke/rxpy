@@ -86,6 +86,12 @@ class EngineTest(TestCase):
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = engine(parse('a*'), 'aab')
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
+        assert engine(parse('a*'), 'a')
+        assert engine(parse('a*'), 'aa')
+        assert engine(parse('a*'), '')
+        assert engine(parse('a+'), 'a')
+        assert engine(parse('a+'), 'aa')
+        assert not engine(parse('a+'), '')
         
     def test_nested_group(self):
         groups = engine(parse('(.)*'), 'ab')

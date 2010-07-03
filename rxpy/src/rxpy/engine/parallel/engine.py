@@ -207,7 +207,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, [])
     
     def character(self, next, charset, state):
-        if self.__current in charset:
+        if self.__current and self.__current in charset:
             return (state.advance(), [])
         return (None, [])
     
