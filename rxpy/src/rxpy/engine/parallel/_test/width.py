@@ -82,3 +82,23 @@ class WidthTest(TestCase):
         assert engine(parse('.*?cd'), 1000*'abc'+'de', ticks=10004, maxwidth=2)
         # this could be optimised as a character
         assert engine(parse('(a|b)*?c'), 1000*'ab'+'cd', ticks=14007, maxwidth=1)
+
+    def test_search(self):
+        bk = 1000 * 'b'
+#        result = engine(parse('b*'), bk, search=True)
+#        assert result
+#        assert result.group(0) == bk, result.group(0)
+        
+#        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, search=True)
+#        assert engine(parse('b*'), bk, ticks=1504503, maxwidth=501501, single_match=False, search=True)
+#        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, single_match=False, hash_state=True, search=True)
+#        assert engine(parse('.*?b*'), bk, ticks=3004, maxwidth=2)
+
+#        assert engine(parse('b*'), bk + 'c', ticks=3003, maxwidth=2, search=True)
+#        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
+#        assert engine(parse('b*?c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
+#        assert engine(parse('ab*c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
+#        assert engine(parse('ab*?c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
+
+        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
+        assert engine(parse('.*?b*c'), bk + 'c', ticks=1506506, maxwidth=1002)

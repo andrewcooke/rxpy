@@ -181,23 +181,26 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     def run_state(self, state, text, pos=0, search=False, groups=None):
         
         self.__text = text
-        self.__current = None
         self.__offset = pos
         self.__lookaheads = {} # can we delete some of this as we progress?
         self.__groups = {}
         
+        if 0 <= pos < len(text):
+            self.__current = text[pos]
+        else:
+            self.__current = None
+        if 0 <= pos-1 < len(text):
+            self.__previous = text[pos-1]
+        else:
+            self.__previous = None
+            
         self.ticks = 0
         self.maxwidth = 0
         
-        current_states, next_states = [state], []
+        current_states, next_states, matched = [state], [], False
 
         while current_states and not current_states[-1].match:
             self.maxwidth = max(self.maxwidth, len(current_states))
-            self.__previous = self.__current
-            try:
-                self.__current = self.__text[self.__offset]
-            except IndexError:
-                self.__current = None
             if self.__hash_state: known = set()
             while current_states:
                 state, extra = current_states.pop(), []
@@ -210,13 +213,20 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                     next_states.append(state)
                     if state.match and self.__single_match: # exit current match location
                         current_states = []
+                        matched = True
                         break
                 # we process extra states immediately
                 current_states.extend(extra)
             self.__offset += 1
+            self.__previous = self.__current
+            try:
+                self.__current = self.__text[self.__offset]
+            except IndexError:
+                self.__current = None
             current_states, next_states = next_states, []
             # equals here allows final test at end
-            if search and self.__offset <= len(self.__text):
+            if search and self.__offset <= len(self.__text) and \
+                    (not self.__single_match or not matched):
                 if groups:
                     state = State(self._graph, groups=groups)
                 else:
@@ -224,7 +234,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                                   text=text, count=self._parser_state.group_count, 
                                   names=self._parser_state.group_names, 
                                   indices=self._parser_state.group_indices)
-                current_states.append(state.start_group(0, self.__offset))
+                if (not self.__hash_state or state not in known):
+                    current_states.append(state.start_group(0, self.__offset))
             current_states.reverse()
         
         if current_states:

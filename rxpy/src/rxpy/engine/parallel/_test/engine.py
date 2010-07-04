@@ -40,8 +40,6 @@ def engine(parse, text, search=False, ticks=None):
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
-    if maxdepth:
-        assert engine.maxdepth == maxdepth
     return results
 
 def parse(pattern, flags=0):
