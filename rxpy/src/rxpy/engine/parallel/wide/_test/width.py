@@ -30,13 +30,13 @@
 
 from unittest import TestCase
 
-from rxpy.engine.parallel.engine import ParallelEngine
+from rxpy.engine.parallel.wide.engine import WideEngine
 from rxpy.parser.pattern import parse_pattern
 
 
 def engine(parse, text, search=False, ticks=None, maxwidth=None, 
            single_match=True, hash_state=False):
-    engine = ParallelEngine(*parse, single_match=single_match, hash_state=hash_state)
+    engine = WideEngine(*parse, single_match=single_match, hash_state=hash_state)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
@@ -45,7 +45,7 @@ def engine(parse, text, search=False, ticks=None, maxwidth=None,
     return results
 
 def parse(pattern, flags=0):
-    return parse_pattern(pattern, ParallelEngine, flags=flags)
+    return parse_pattern(pattern, WideEngine, flags=flags)
 
 
 class WidthTest(TestCase):
@@ -100,5 +100,5 @@ class WidthTest(TestCase):
 #        assert engine(parse('ab*c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
 #        assert engine(parse('ab*?c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
 
-        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
-        assert engine(parse('.*?b*c'), bk + 'c', ticks=1506506, maxwidth=1002)
+#        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
+#        assert engine(parse('.*?b*c'), bk + 'c', ticks=1506506, maxwidth=1002)

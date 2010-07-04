@@ -32,9 +32,9 @@ A replacement for Python's `re` package that uses the parallel engine.
 '''
 
 from rxpy.compat.module import Re
-from rxpy.engine.parallel.engine import ParallelEngine
+from rxpy.engine.parallel.wide.engine import WideEngine
 
-_re = Re(ParallelEngine)
+_re = Re(WideEngine)
 
 compile = _re.compile
 RegexObject = _re.RegexObject

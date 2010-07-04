@@ -30,20 +30,20 @@
 
 from unittest import TestCase
 
-from rxpy.engine.parallel.engine import ParallelEngine
+from rxpy.engine.parallel.wide.engine import WideEngine
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
 def engine(parse, text, search=False, ticks=None):
-    engine = ParallelEngine(*parse)
+    engine = WideEngine(*parse)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
     return results
 
 def parse(pattern, flags=0):
-    return parse_pattern(pattern, ParallelEngine, flags=flags)
+    return parse_pattern(pattern, WideEngine, flags=flags)
 
 
 class EngineTest(TestCase):
