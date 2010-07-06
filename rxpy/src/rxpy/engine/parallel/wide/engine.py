@@ -1,4 +1,3 @@
-from rxpy.engine.parallel.base import ParallelEngine
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -29,14 +28,16 @@ from rxpy.engine.parallel.base import ParallelEngine
 # MPL or the LGPL License.                                              
 
 '''
-A matcher implementation that explores threads in parallel, providing better
-scaling for complex matches.
+A matcher implementation that explores all threads in parallel, including 
+search.
 '''
+
+from rxpy.engine.parallel.base import ParallelEngine
 
 
 class WideEngine(ParallelEngine):
     '''
-    Run an interpreter with parallel threads (effectively constructing a DFA
-    "on the fly")
+    Run an interpreter with parallel threads, including search 
+    (effectively constructing a DFA "on the fly").
     '''
     

@@ -87,3 +87,59 @@ class EscapeTest(TestCase):
         assert p.match('xa')
         assert not p.match('ax')
         
+    def test_groups_in_lookback(self):
+        p = compile('(.).(?<=a(.))')
+        result = p.match('ab')
+        assert result
+        assert result.group(1) == 'a'
+        assert result.group(2) == 'b'
+
+        assert compile('(.).(?<=(?(1)))').match('ab')
+        try:
+            assert not compile('(.).(?<=(?(2)))').match('ab')
+            assert False, 'expected error'
+        except:
+            pass
+        
+        # these work as expected
+        
+        assert compile('(a)b(?<=b)(c)').match('abc')
+        assert not compile('(a)b(?<=c)(c)').match('abc')
+        assert compile('(a)b(?=c)(c)').match('abc')
+        assert not compile('(a)b(?=b)(c)').match('abc')
+        
+        # but when you add groups, you get bugs
+        
+        #assert not compile('(?:(a)|(x))b(?<=(?(2)x|c))c').match('abc') # this matches!
+        assert not compile('(?:(a)|(x))b(?<=(?(2)b|x))c').match('abc')
+        #assert compile('(?:(a)|(x))b(?<=(?(2)x|b))c').match('abc') # this doesn't match!
+        #assert not compile('(?:(a)|(x))b(?<=(?(1)c|x))c').match('abc') # this matches!
+        #assert compile('(?:(a)|(x))b(?<=(?(1)b|x))c').match('abc') # this doesn't match
+        
+        # but lookahead works as expected
+        
+        assert compile('(?:(a)|(x))b(?=(?(2)x|c))c').match('abc')
+        assert not compile('(?:(a)|(x))b(?=(?(2)c|x))c').match('abc')
+        assert compile('(?:(a)|(x))b(?=(?(2)x|c))c').match('abc')
+        assert not compile('(?:(a)|(x))b(?=(?(1)b|x))c').match('abc')
+        assert compile('(?:(a)|(x))b(?=(?(1)c|x))c').match('abc')
+      
+        # these are similar but, in my opinion, shouldn't even compile
+        # (group used before defined)
+      
+        #assert not compile('(a)b(?<=(?(2)x|c))(c)').match('abc') # this matches!
+        assert not compile('(a)b(?<=(?(2)b|x))(c)').match('abc')
+        #assert not compile('(a)b(?<=(?(1)c|x))(c)').match('abc') # this matches!
+        #assert compile('(a)b(?<=(?(1)b|x))(c)').match('abc') # this doesn't match
+        
+        assert compile('(a)b(?=(?(2)x|c))(c)').match('abc')
+        assert not compile('(a)b(?=(?(2)b|x))(c)').match('abc')
+        assert compile('(a)b(?=(?(1)c|x))(c)').match('abc')
+        
+        # this is the error we should see above
+        try:
+            compile('(a)\\2(b)')
+            assert False, 'expected error'
+        except:
+            pass
+        

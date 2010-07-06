@@ -1,3 +1,4 @@
+from rxpy.lib import RxpyException
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -37,8 +38,8 @@ See `BaseNode` for a general description of nodes.
 
 from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
     GraphException, BaseEscapedNode, CharSet, ReadsGroup
-
-
+    
+    
 class String(BaseNode):
     '''
     Match a series of literal characters.
@@ -57,9 +58,12 @@ class String(BaseNode):
     def __str__(self):
         return self.text
     
-    def size(self, groups):
-        if len(self.next) == 1:
-            return len(self.text) + self.next[0].size(groups)
+    def size(self, groups, known=None):
+        if known is None:
+            known = set()
+        if self not in known:
+            known.add(self)
+            return len(self.text) + self.next[0].size(groups, known)
     
     def visit(self, visitor, state=None):
         return visitor.string(self.next, self.text, state)
@@ -134,6 +138,19 @@ class Split(BaseSplitNode):
     def visit(self, visitor, state=None):
         return visitor.split(self.next, state)
 
+    def size(self, groups, known=None):
+        if known is None:
+            known = set()
+        known.add(self)
+        size = self.next[0].size(groups, known)
+        if size is not None:
+            for next in self.next[1:]:
+                if size != next.size(groups, known):
+                    return None
+            return size
+        else:
+            return None
+
 
 class Match(BaseNode):
     '''
@@ -149,7 +166,7 @@ class Match(BaseNode):
     def visit(self, visitor, state=None):
         return visitor.match(state)
     
-    def size(self, groups):
+    def size(self, groups, known=None):
         return 0
 
 
@@ -252,8 +269,13 @@ class GroupReference(BaseNode, ReadsGroup):
     def visit(self, visitor, state=None):
         return visitor.group_reference(self.next, self.number, state)
     
-    def size(self, groups):
-        return len(groups.group(self.number))
+    def size(self, groups, known=None):
+        if known is None:
+            known = set()
+        if self not in known:
+            known.add(self)
+            if groups.data(self.number) is not None:
+                return len(groups.group(self.number))
 
 
 class Lookahead(BaseSplitNode):
@@ -331,9 +353,12 @@ class Repeat(BaseNode):
             text += '?'
         return text
     
-    def size(self, groups):
-        if self.end == self.begin:
-            return self.begin * self.next[1].size(groups)
+    def size(self, groups, known=None):
+        if known is None:
+            known = set()
+        if self.end == self.begin and self not in known:
+            known.add(self)
+            return self.begin * self.next[1].size(groups, known)
     
     def visit(self, visitor, state=None):
         return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
@@ -363,11 +388,15 @@ class GroupConditional(BaseSplitNode, ReadsGroup):
     def __str__(self):
         return '(?(' + str(self.number) + ')' + self.label + ')'
     
-    def size(self, groups):
-        if groups[self.number] is not None:
-            return next[1].size(groups)
-        else:
-            return next[0].size(groups)
+    def size(self, groups, known=None):
+        if known is None:
+            known = set()
+        if self not in known:
+            known.add(self)
+            if groups.data(self.number) is not None:
+                return self.next[1].size(groups, known)
+            else:
+                return self.next[0].size(groups, known)
     
     def visit(self, visitor, state=None):
         return visitor.group_conditional(self.next, self.number, state)

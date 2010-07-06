@@ -71,12 +71,15 @@ class State(object):
         self.__offset = offset
         self.__loops = loops if loops else Loops()
     
-    def clone(self, offset=None):
+    def clone(self, offset=None, groups=None):
         '''
         Duplicate this state.  If offset is specified, it must be greater than
         or equal the existing offset; then the text and offset of the clone
-        will be consistent with the new value.
+        will be consistent with the new value.  If groups is given it replaces
+        the previous groups.
         '''
+        if groups is None:
+            groups = self.__groups.clone()
         previous = self.__previous
         if offset is None:
             offset = self.__offset
@@ -86,7 +89,7 @@ class State(object):
             if delta:
                 previous = self.__text[delta-1]
             text = self.__text[delta:]
-        return State(text, self.__groups.clone(), previous, offset, self.__loops.clone())
+        return State(text, groups, previous, offset, self.__loops.clone())
         
     def advance(self):
         '''
@@ -434,29 +437,35 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
     def lookahead(self, next, node, equal, forwards, state):
         if node not in self.__lookaheads:
             self.__lookaheads[node] = {}
-        if state.offset not in self.__lookaheads[node]:
+        if state.offset in self.__lookaheads[node]:
+            mutates = False
+            success = self.__lookaheads[node][state.offset]
+        else:
             # we need to match the lookahead
             search = False
+            mutates = contains_instance(next[1], StartGroup)
             if forwards:
                 clone = State(state.text, state.groups.clone())
             else:
                 # use groups to calculate size if they are unchanged in lookback
-                groups = None if contains_instance(next[1], StartGroup) \
-                            else state.groups
-                # calculate lookback size if possible
-                try:
-                    offset = state.offset - next[1].size(groups)
-                    subtext = self.__text[offset:state.offset]
-                    previous = self.__text[offset-1]
-                except Exception:
+                size = None if mutates else next[1].size(state.groups)
+                if size is None: 
                     subtext = self.__text[0:state.offset]
                     previous = None
                     search = True
+                else:
+                    offset = state.offset - size
+                    subtext = self.__text[offset:state.offset]
+                    previous = self.__text[offset-1]
                 clone = State(subtext, state.groups.clone(), previous=previous)
             (match, clone) = self.__run(next[1], clone, search=search)
-            self.__lookaheads[node][state.offset] = match == equal
+            success = match == equal
+            if not mutates:
+                self.__lookaheads[node][state.offset] = success
         # if lookahead succeeded, continue
-        if self.__lookaheads[node][state.offset]:
+        if success:
+            if mutates:
+                state = state.clone(groups=clone.groups)
             return (next[0], state)
         else:
             raise Fail

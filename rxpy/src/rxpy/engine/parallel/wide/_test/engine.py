@@ -122,10 +122,11 @@ class EngineTest(TestCase):
         assert engine(parse('.(.).(?<=\\1)'), 'xaa', ticks=11)
         assert not engine(parse('.(.).(?<=\\1)'), 'xxa')
         
-        assert engine(parse('(.).(?<=(\\1))'), 'aa', ticks=17)
+        assert engine(parse('(.).(?<=(\\1))'), 'aa')
+        assert engine(parse('(.).(?<=(\\1))'), 'aa', ticks=18)
         # but here, three ticks more because we have a group reference with
         # changing groups, so can't reliably calculate lookback distance
-        assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=21)
+        assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=22)
         assert not engine(parse('.(.).(?<=(\\1))'), 'xxa')
         
     def test_lookback_bug_1(self):
@@ -274,8 +275,8 @@ class EngineTest(TestCase):
         assert engine(parse('(a|ac)$'), 'ac')
 
     def test_search(self):
-#        assert engine(parse('a'), 'ab', search=True)
-#        assert engine(parse('$'), '', search=True)
+        assert engine(parse('a'), 'ab', search=True)
+        assert engine(parse('$'), '', search=True)
         assert engine(parse('$'), 'a', search=True)
         
     def test_end_of_line(self):
@@ -285,4 +286,8 @@ class EngineTest(TestCase):
         assert not engine(parse('ab$'), 'ab\nc')
         assert engine(parse('(?m)ab$'), 'ab\nc')
         
-        
+    def test_groups_in_lookback(self):
+        result = engine(parse('(.).(?<=a(.))'), 'ab')
+        assert result
+        assert result.group(1) == 'a'
+        assert result.group(2) == 'b'

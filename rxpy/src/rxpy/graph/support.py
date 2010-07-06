@@ -112,17 +112,19 @@ class BaseNode(object):
         '''
         return self.__consumer
     
-    def size(self, groups):
+    def size(self, groups, known=None):
         '''
         The number of characters matched by this and subsequence nodes, if
         known, otherwise None.  Nodes must give a single, fixed number or
         None, so any loops should return None.
         '''
-        try:
-            if len(self.next) == 1:
-                return self.__size + self.next[0].size(groups)
-        except:
-            pass
+        if known is None:
+            known = set()
+        if len(self.next) == 1 and self not in known and self.__size is not None:
+            known.add(self)
+            other = self.next[0].size(groups, known)
+            if other is not None:
+                return self.__size + other
             
     @property
     def start(self):

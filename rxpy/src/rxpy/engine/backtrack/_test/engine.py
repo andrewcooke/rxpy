@@ -124,6 +124,8 @@ class EngineTest(TestCase):
         assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=18)
         assert not engine(parse('.(.).(?<=(\\1))'), 'xxa')
         
+        assert engine(parse('(.).(?<=a)'), 'xa', ticks=9)
+        
     def test_lookback_bug_1(self):
         result = engine(parse('.*(?<!abc)(d.f)'), 'abcdefdof')
         assert result.group(1) == 'dof', result.group(1)
@@ -271,13 +273,71 @@ class EngineTest(TestCase):
     def test_search(self):
         assert engine(parse('a'), 'ab', search=True)
         
-    def test_stack(self):
-        # optimized
-        assert engine(parse('(?:abc)*x'), ('abc' * 50000) + 'x',  maxdepth=1)
-        # this defines a group, so requires state on stack
-        assert engine(parse('(abc)*x'), ('abc' * 5) + 'x',  maxdepth=6)
-        # this is lazy, so doesn't
-        assert engine(parse('(abc)*?x'), ('abc' * 5) + 'x',  maxdepth=1)
+#    def test_stack(self):
+#        # optimized
+#        assert engine(parse('(?:abc)*x'), ('abc' * 50000) + 'x',  maxdepth=1)
+#        # this defines a group, so requires state on stack
+#        assert engine(parse('(abc)*x'), ('abc' * 5) + 'x',  maxdepth=6)
+#        # this is lazy, so doesn't
+#        assert engine(parse('(abc)*?x'), ('abc' * 5) + 'x',  maxdepth=1)
+        
+    def test_groups_in_lookback(self):
+        result = engine(parse('(.).(?<=a(.))'), 'ab')
+        assert result
+        assert result.group(1) == 'a'
+        assert result.group(2) == 'b'
+
+        assert engine(parse('(.).(?<=(?(1)))'), 'ab')
+        try:
+            assert not engine(parse('(.).(?<=(?(2)))'), 'ab')
+            assert False, 'expected error'
+        except:
+            pass
+        
+        assert engine(parse('(a)b(?<=b)(c)'), 'abc')
+        assert not engine(parse('(a)b(?<=c)(c)'), 'abc')
+        assert engine(parse('(a)b(?=c)(c)'), 'abc')
+        assert not engine(parse('(a)b(?=b)(c)'), 'abc')
+        
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)b|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?<=(?(2)x|b))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(1)c|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?<=(?(1)b|x))c'), 'abc')
+        
+        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?=(?(2)c|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?=(?(1)b|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?=(?(1)c|x))c'), 'abc')
+      
+        # TODO - timing tests for shortcut?
+      
+        try:
+            assert not engine(parse('(a)b(?<=(?(2)x|c))(c)'), 'abc')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            assert not engine(parse('(a)b(?<=(?(2)b|x))(c)'), 'abc')
+            assert False, 'expected error'
+        except:
+            pass
+        assert not engine(parse('(a)b(?<=(?(1)c|x))(c)'), 'abc')
+        assert engine(parse('(a)b(?<=(?(1)b|x))(c)'), 'abc')
+        
+        try:
+            assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
+            assert False, 'expected error'
+        except:
+            pass
+        assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
         
         
+
         

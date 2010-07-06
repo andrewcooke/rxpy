@@ -161,7 +161,11 @@ class ParserState(object):
         First, we parser as an integer, then we try as a name.
         '''
         try:
-            return int(name)
+            index = int(name)
+            if index > self.__group_count:
+                raise RxpyException('Unknown index: ' + name)
+            else:
+                return index
         except:
             return self.index_for_name(name)
         

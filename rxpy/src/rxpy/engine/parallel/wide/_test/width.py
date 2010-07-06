@@ -35,8 +35,8 @@ from rxpy.parser.pattern import parse_pattern
 
 
 def engine(parse, text, search=False, ticks=None, maxwidth=None, 
-           single_match=True, hash_state=False):
-    engine = WideEngine(*parse, single_match=single_match, hash_state=hash_state)
+           hash_state=False):
+    engine = WideEngine(*parse, hash_state=hash_state)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
@@ -60,13 +60,9 @@ class WidthTest(TestCase):
         assert engine(parse('ab*c'), 'a' + 1000 * 'b' + 'c', ticks=3005, maxwidth=1)
         assert engine(parse('ab*?c'), 'a' + 1000 * 'b' + 'c', ticks=3005, maxwidth=1)
 
-    def test_single_match(self):
-        # without single match we get matches piling up that are never used
-        assert engine(parse('b*'), 1000 * 'b', ticks=3003, maxwidth=1001, single_match=False)
-        
     def test_hash_state(self):
         # equivalently, we can use hashing (which shortcuts on match)
-        assert engine(parse('b*'), 1000 * 'b', ticks=3003, maxwidth=2, single_match=False, hash_state=True)
+        assert engine(parse('b*'), 1000 * 'b', ticks=3003, maxwidth=2, hash_state=True)
     
     def test_groups(self):
         assert engine(parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=2)
@@ -75,30 +71,28 @@ class WidthTest(TestCase):
         assert engine(parse('(b)*?c'), 1000 * 'b' + 'c', ticks=5005, maxwidth=1)
         assert engine(parse('a(b)*c'), 'a' + 1000 * 'b' + 'c', ticks=5006, maxwidth=1)
         assert engine(parse('a(b)*?c'), 'a' + 1000 * 'b' + 'c', ticks=5006, maxwidth=1)
-        assert engine(parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=1001, single_match=False)
-        assert engine(parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=2, single_match=False, hash_state=True)
+        assert engine(parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=2, hash_state=True)
 
     def test_re_test(self):
-        assert engine(parse('.*?cd'), 1000*'abc'+'de', ticks=10004, maxwidth=2)
+        assert engine(parse('.*?cd'), 1000*'abc'+'de', ticks=10005, maxwidth=2)
         # this could be optimised as a character
         assert engine(parse('(a|b)*?c'), 1000*'ab'+'cd', ticks=14007, maxwidth=1)
 
     def test_search(self):
         bk = 1000 * 'b'
-#        result = engine(parse('b*'), bk, search=True)
-#        assert result
-#        assert result.group(0) == bk, result.group(0)
+        result = engine(parse('b*'), bk, search=True)
+        assert result
+        assert result.group(0) == bk, result.group(0)
         
-#        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, search=True)
-#        assert engine(parse('b*'), bk, ticks=1504503, maxwidth=501501, single_match=False, search=True)
-#        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, single_match=False, hash_state=True, search=True)
-#        assert engine(parse('.*?b*'), bk, ticks=3004, maxwidth=2)
+        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, search=True)
+        assert engine(parse('b*'), bk, ticks=3003, maxwidth=2, hash_state=True, search=True)
+        assert engine(parse('.*?b*'), bk, ticks=3005, maxwidth=2)
 
-#        assert engine(parse('b*'), bk + 'c', ticks=3003, maxwidth=2, search=True)
-#        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
-#        assert engine(parse('b*?c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
-#        assert engine(parse('ab*c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
-#        assert engine(parse('ab*?c'), 'a' + bk + 'c', ticks=4006, maxwidth=2, search=True)
+        assert engine(parse('b*'), bk + 'c', ticks=3003, maxwidth=2, search=True)
+        assert engine(parse('b*c'), bk + 'c', ticks=1505505, maxwidth=1002, search=True)
+        assert engine(parse('b*?c'), bk + 'c', ticks=1505505, maxwidth=1002, search=True)
+        assert engine(parse('ab*c'), 'a' + bk + 'c', ticks=4007, maxwidth=2, search=True)
+        assert engine(parse('ab*?c'), 'a' + bk + 'c', ticks=4007, maxwidth=2, search=True)
 
-#        assert engine(parse('b*c'), bk + 'c', ticks=1504504, maxwidth=1002, search=True)
-#        assert engine(parse('.*?b*c'), bk + 'c', ticks=1506506, maxwidth=1002)
+        assert engine(parse('b*c'), bk + 'c', ticks=1505505, maxwidth=1002, search=True)
+        assert engine(parse('.*?b*c'), bk + 'c', ticks=1507507, maxwidth=1002)
