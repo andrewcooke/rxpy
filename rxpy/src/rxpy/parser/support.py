@@ -1,3 +1,4 @@
+from rxpy.graph.post import post_process, resolve_group_names
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -274,8 +275,7 @@ def parse(text, state, class_, mutable_flags=True):
     if mutable_flags and state.has_new_flags:
         state = state.clone_with_new_flags()
         graph = class_(state).parse(text)
+    graph = post_process(graph, resolve_group_names(state))
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
     return (state, graph)
-
-

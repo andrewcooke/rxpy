@@ -1,3 +1,5 @@
+from rxpy.graph.support import contains_instance, ReadsGroup
+from rxpy.graph.opcode import StartGroup
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -196,3 +198,19 @@ class Groups(object):
     @property
     def lastgroup(self):
         return self.__indices.get(self.lastindex, None)
+
+
+def lookahead_logic(branch, forwards, groups):
+    '''
+    Encapsulate common logic for calculating lookback logic.  This doesn't
+    really fit on the opcode, but is common to several engines.
+    '''
+    reads = contains_instance(branch, ReadsGroup)
+    mutates = contains_instance(branch, StartGroup)
+    # use groups to calculate size if they are unchanged in lookback
+    if forwards or (reads and mutates):
+        size = None
+    else:
+        size = branch.size(groups)
+    return (reads, mutates, size)
+    

@@ -29,7 +29,6 @@
 
 
 from rxpy.engine.support import Loops, Groups
-from rxpy.lib import RxpyException
 
 
 class State(object):
@@ -43,11 +42,12 @@ class State(object):
         self.__loops = loops
         self.match = False
         
-    def clone(self, graph=None):
-        try:
-            groups = self.__groups.clone()
-        except AttributeError:
-            groups = list(self.__groups)
+    def clone(self, graph=None, groups=None):
+        if groups is None:
+            try:
+                groups = self.__groups.clone()
+            except AttributeError:
+                groups = list(self.__groups)
         try:
             loops = self.__loops.clone()
         except AttributeError:

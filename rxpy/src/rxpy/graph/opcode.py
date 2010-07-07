@@ -1,4 +1,3 @@
-from rxpy.lib import RxpyException
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -37,7 +36,7 @@ See `BaseNode` for a general description of nodes.
 '''
 
 from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
-    GraphException, BaseEscapedNode, CharSet, ReadsGroup
+    GraphException, BaseEscapedNode, CharSet, ReadsGroup, BaseGroupReference
     
     
 class String(BaseNode):
@@ -63,13 +62,15 @@ class String(BaseNode):
             known = set()
         if self not in known:
             known.add(self)
-            return len(self.text) + self.next[0].size(groups, known)
+            next = self.next[0].size(groups, known)
+            if next is not None:
+                return len(self.text) + next
     
     def visit(self, visitor, state=None):
         return visitor.string(self.next, self.text, state)
 
 
-class StartGroup(BaseNode):
+class StartGroup(BaseGroupReference):
     '''
     Mark the start of a group (to be saved).
     
@@ -79,9 +80,8 @@ class StartGroup(BaseNode):
     '''
     
     def __init__(self, number):
-        super(StartGroup, self).__init__(size=0)
         assert isinstance(number, int)
-        self.number = number
+        super(StartGroup, self).__init__(number, consumer=False, size=0)
         
     def __str__(self):
         return "("
@@ -90,7 +90,7 @@ class StartGroup(BaseNode):
         return visitor.start_group(self.next, self.number, state)
 
 
-class EndGroup(BaseNode):
+class EndGroup(BaseGroupReference):
     '''
     Mark the end of a group (to be saved).
     
@@ -100,9 +100,8 @@ class EndGroup(BaseNode):
     '''
     
     def __init__(self, number):
-        super(EndGroup, self).__init__(size=0)
         assert isinstance(number, int)
-        self.number = number
+        super(EndGroup, self).__init__(number, consumer=False, size=0)
         
     def __str__(self):
         return ")"
@@ -129,7 +128,7 @@ class Split(BaseSplitNode):
     '''
     
     def __init__(self, label, lazy=False):
-        super(Split, self).__init__(lazy=lazy)
+        super(Split, self).__init__(lazy=lazy, consumer=False)
         self.label = label + ('?' if lazy else '')
         
     def __str__(self):
@@ -142,10 +141,12 @@ class Split(BaseSplitNode):
         if known is None:
             known = set()
         known.add(self)
+        # avoid triggering loop detection on different paths
+        avoid_loops = set(known) 
         size = self.next[0].size(groups, known)
         if size is not None:
             for next in self.next[1:]:
-                if size != next.size(groups, known):
+                if size != next.size(groups, set(avoid_loops)):
                     return None
             return size
         else:
@@ -222,6 +223,9 @@ class StartOfLine(BaseLineNode):
       match is successful. 
     '''
     
+    def __init__(self, multiline):
+        super(StartOfLine, self).__init__(multiline, consumer=False, size=0)
+    
     def __str__(self):
         return '^'
     
@@ -241,6 +245,9 @@ class EndOfLine(BaseLineNode):
       match is successful. 
     '''
     
+    def __init__(self, multiline):
+        super(EndOfLine, self).__init__(multiline, consumer=False, size=0)
+    
     def __str__(self):
         return '$'
     
@@ -248,7 +255,7 @@ class EndOfLine(BaseLineNode):
         return visitor.end_of_line(self.next, self.multiline, state)
 
 
-class GroupReference(BaseNode, ReadsGroup):
+class GroupReference(BaseGroupReference, ReadsGroup):
     '''
     Match the text previously matched by the given group.
     
@@ -259,9 +266,7 @@ class GroupReference(BaseNode, ReadsGroup):
     '''
     
     def __init__(self, number):
-        super(GroupReference, self).__init__()
-        assert isinstance(number, int)
-        self.number = number
+        super(GroupReference, self).__init__(number)
         
     def __str__(self):
         return '\\' + str(self.number)
@@ -365,7 +370,7 @@ class Repeat(BaseNode):
                               state)
     
     
-class GroupConditional(BaseSplitNode, ReadsGroup):
+class GroupConditional(BaseSplitNode, BaseGroupReference, ReadsGroup):
     '''
     Branch the graph, depending on the existence of a group.
 
@@ -380,9 +385,7 @@ class GroupConditional(BaseSplitNode, ReadsGroup):
     '''
     
     def __init__(self, number, label, lazy=True):
-        super(GroupConditional, self).__init__(lazy=lazy)
-        assert isinstance(number, int)
-        self.number = number
+        super(GroupConditional, self).__init__(number=number, lazy=lazy)
         self.label = label
         
     def __str__(self):
@@ -428,7 +431,7 @@ class Digit(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Digit, self).__init__('d', inverted)
+        super(Digit, self).__init__('d', inverted, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.digit(self.next, self.inverted, state)
@@ -460,7 +463,7 @@ class Word(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Word, self).__init__('w', inverted)
+        super(Word, self).__init__('w', inverted, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.word(self.next, self.inverted, state)

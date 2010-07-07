@@ -32,21 +32,11 @@ from bisect import bisect_left
 from collections import deque
 
 from rxpy.lib import RxpyException, unimplemented
-from traceback import print_exc
 
 
 class GraphException(Exception):
     pass
 
-
-def linear_iterator(node):
-    '''
-    Generate a sequence of nodes, taking the first child at each.
-    '''
-    while node:
-        yield node
-        node = node.next[0]
-        
 
 def edge_iterator(node):
     '''
@@ -65,10 +55,26 @@ def edge_iterator(node):
                     yield edge
                 visited.add(edge)
                 
+                
+def node_iterator(node):
+    '''
+    Generate a sequence of all the nodes reachable in the graph starting 
+    from the given node (DFS).
+    '''
+    stack = [node]
+    visited = set()
+    while stack:
+        node = stack.pop()
+        yield node
+        visited.add(node)
+        for next in node.next:
+            if next not in visited:
+                stack.append(next)
+                
 
 def contains_instance(graph, type_):
-    for (n1, n2) in edge_iterator(graph):
-        if isinstance(n1, type_) or isinstance(n2, type_):
+    for node in node_iterator(graph):
+        if isinstance(node, type_):
             return True
     return False
         
@@ -259,8 +265,8 @@ class BaseSplitNode(BaseNode):
     children in the order given. 
     '''
     
-    def __init__(self, lazy=False):
-        super(BaseSplitNode, self).__init__()
+    def __init__(self, lazy=False, **kargs):
+        super(BaseSplitNode, self).__init__(**kargs)
         self.lazy = lazy
         self.__connected = False
         
@@ -277,29 +283,39 @@ class BaseSplitNode(BaseNode):
         return self
     
     
+class BaseGroupReference(BaseNode):
+    
+    def __init__(self, number, **kargs):
+        super(BaseGroupReference, self).__init__(**kargs)
+        self.number = number
+        
+    def resolve(self, state):
+        self.number = state.index_for_name_or_count(self.number)
+        
+
 class ReadsGroup(object):
     '''
-    Used to identify opcdes that require groups.
+    Used to identify opcodes that require groups.
     '''
 
 
 class BaseLineNode(BaseNode):
 
-    def __init__(self, multiline, consumer=False, size=0):
+    def __init__(self, multiline, **kargs):
         '''
         Note that the default value of `size` has changed from `BaseNode`.
         '''
-        super(BaseLineNode, self).__init__(consumer=consumer, size=size)
+        super(BaseLineNode, self).__init__(**kargs)
         self.multiline = multiline
     
 
 class BaseEscapedNode(BaseNode):
     
-    def __init__(self, character, inverted=False, consumer=True, size=1):
+    def __init__(self, character, inverted=False, **kargs):
         '''
         Note that the default value of `size` has changed from `BaseNode`.
         '''
-        super(BaseEscapedNode, self).__init__(consumer=consumer, size=size)
+        super(BaseEscapedNode, self).__init__(**kargs)
         self._character = character
         self.inverted = inverted
         

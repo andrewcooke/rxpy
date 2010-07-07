@@ -291,3 +291,36 @@ class EngineTest(TestCase):
         assert result
         assert result.group(1) == 'a'
         assert result.group(2) == 'b'
+
+        assert engine(parse('(.).(?<=(?(1)))'), 'ab')
+        try:
+            assert not engine(parse('(.).(?<=(?(2)))'), 'ab')
+            assert False, 'expected error'
+        except:
+            pass
+        
+        assert engine(parse('(a)b(?<=b)(c)'), 'abc')
+        assert not engine(parse('(a)b(?<=c)(c)'), 'abc')
+        assert engine(parse('(a)b(?=c)(c)'), 'abc')
+        assert not engine(parse('(a)b(?=b)(c)'), 'abc')
+        
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)b|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?<=(?(2)x|b))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?<=(?(1)c|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?<=(?(1)b|x))c'), 'abc')
+        
+        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?=(?(2)c|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
+        assert not engine(parse('(?:(a)|(x))b(?=(?(1)b|x))c'), 'abc')
+        assert engine(parse('(?:(a)|(x))b(?=(?(1)c|x))c'), 'abc')
+      
+        assert not engine(parse('(a)b(?<=(?(2)x|c))(c)'), 'abc')
+        assert not engine(parse('(a)b(?<=(?(2)b|x))(c)'), 'abc')
+        assert not engine(parse('(a)b(?<=(?(1)c|x))(c)'), 'abc')
+        assert engine(parse('(a)b(?<=(?(1)b|x))(c)'), 'abc')
+        
+        assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
+        assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
+        assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')

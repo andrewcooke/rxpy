@@ -397,7 +397,6 @@ class GroupConditionalBuilder(Builder):
                 return YesNoBuilder(self, self._state, self.__parent_sequence, ')')
             
         # final callback - build yes and no (if present)
-        group = self._state.index_for_name_or_count(self.__name)
         yes = self.__yes.build_dag()
         no = yesno.build_dag() if yesno else None
         
@@ -406,17 +405,17 @@ class GroupConditionalBuilder(Builder):
         # empty sequences i think...)
         if yes:
             if no:
-                alternatives = Alternatives([no, yes], GroupConditional(group, '...|...'))
+                alternatives = Alternatives([no, yes], GroupConditional(self.__name, '...|...'))
                 self.__parent_sequence._nodes.append(alternatives)
             else:
                 # Single alternative, which will be second child once connected
                 # in graph (GroupConditional is lazy Split)
-                conditional = GroupConditional(group, '...')
+                conditional = GroupConditional(self.__name, '...')
                 conditional.next = [yes.start]
                 self.__parent_sequence._nodes.append(Merge(yes, conditional))
         else:
             if no:
-                conditional = GroupConditional(group, '|...', False)
+                conditional = GroupConditional(self.__name, '|...', False)
                 conditional.next = [no.start]
                 self.__parent_sequence._nodes.append(Merge(no, conditional))
             else:
@@ -758,14 +757,6 @@ class GroupReferenceBuilder(Builder):
                 return False
         return True
     
-    def __decode(self):
-        try:
-            index = int(self.__buffer)
-            assert index <= self._state.group_count
-            return GroupReference(index)
-        except:
-            raise RxpyException('Bad group reference: ' + self.__buffer)
-        
     def append_character(self, character):
         if character and (
                 (character in digits and len(self.__buffer) < 2) or 
@@ -779,7 +770,7 @@ class GroupReferenceBuilder(Builder):
             else:
                 return self
         else:
-            self.__parent_sequence._nodes.append(self.__decode())
+            self.__parent_sequence._nodes.append(GroupReference(self.__buffer))
             return self.__parent_sequence.append_character(character)
     
 

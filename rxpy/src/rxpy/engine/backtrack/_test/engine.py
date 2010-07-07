@@ -76,6 +76,12 @@ class EngineTest(TestCase):
     def test_group_reference(self):
         assert engine(parse('(.)\\1'), 'aa')
         assert not engine(parse('(.)\\1'), 'ab')
+        parse('\\1(.)')
+        try:
+            parse('\\1')
+            assert False, 'expected error'
+        except:
+            pass
  
     def test_split(self):
         assert engine(parse('a*b'), 'b')
@@ -125,6 +131,13 @@ class EngineTest(TestCase):
         assert not engine(parse('.(.).(?<=(\\1))'), 'xxa')
         
         assert engine(parse('(.).(?<=a)'), 'xa', ticks=9)
+
+        assert engine(parse('(.).(?<=(?:a|z))'), 'xa', ticks=10)
+        assert engine(parse('(.).(?<=(a|z))'), 'xa', ticks=12)
+        # only one more tick with an extra character because we avoid starting
+        # from the start in this case
+        assert engine(parse('.(.).(?<=(?:a|z))'), 'xxa', ticks=11)
+        assert engine(parse('.(.).(?<=(a|z))'), 'xxa', ticks=13)
         
     def test_lookback_bug_1(self):
         result = engine(parse('.*(?<!abc)(d.f)'), 'abcdefdof')
@@ -311,31 +324,13 @@ class EngineTest(TestCase):
         assert not engine(parse('(?:(a)|(x))b(?=(?(1)b|x))c'), 'abc')
         assert engine(parse('(?:(a)|(x))b(?=(?(1)c|x))c'), 'abc')
       
-        # TODO - timing tests for shortcut?
-      
-        try:
-            assert not engine(parse('(a)b(?<=(?(2)x|c))(c)'), 'abc')
-            assert False, 'expected error'
-        except:
-            pass
-        try:
-            assert not engine(parse('(a)b(?<=(?(2)b|x))(c)'), 'abc')
-            assert False, 'expected error'
-        except:
-            pass
+        assert not engine(parse('(a)b(?<=(?(2)x|c))(c)'), 'abc')
+        assert not engine(parse('(a)b(?<=(?(2)b|x))(c)'), 'abc')
         assert not engine(parse('(a)b(?<=(?(1)c|x))(c)'), 'abc')
         assert engine(parse('(a)b(?<=(?(1)b|x))(c)'), 'abc')
         
-        try:
-            assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
-            assert False, 'expected error'
-        except:
-            pass
-        try:
-            assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
-            assert False, 'expected error'
-        except:
-            pass
+        assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
+        assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
         assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
         
         

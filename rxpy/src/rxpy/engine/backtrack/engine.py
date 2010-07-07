@@ -38,9 +38,7 @@ for example).
 '''                                    
 
 from rxpy.engine.base import BaseEngine
-from rxpy.engine.support import Groups
-from rxpy.graph.opcode import StartGroup
-from rxpy.graph.support import contains_instance
+from rxpy.engine.support import Groups, lookahead_logic
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.lib import _STRINGS
 
@@ -438,17 +436,14 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
         if node not in self.__lookaheads:
             self.__lookaheads[node] = {}
         if state.offset in self.__lookaheads[node]:
-            mutates = False
+            reads, mutates = False, False
             success = self.__lookaheads[node][state.offset]
         else:
-            # we need to match the lookahead
+            (reads, mutates, size) = lookahead_logic(next[1], forwards, state.groups)
             search = False
-            mutates = contains_instance(next[1], StartGroup)
             if forwards:
                 clone = State(state.text, state.groups.clone())
             else:
-                # use groups to calculate size if they are unchanged in lookback
-                size = None if mutates else next[1].size(state.groups)
                 if size is None: 
                     subtext = self.__text[0:state.offset]
                     previous = None
@@ -460,7 +455,7 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
                 clone = State(subtext, state.groups.clone(), previous=previous)
             (match, clone) = self.__run(next[1], clone, search=search)
             success = match == equal
-            if not mutates:
+            if not (reads or mutates):
                 self.__lookaheads[node][state.offset] = success
         # if lookahead succeeded, continue
         if success:

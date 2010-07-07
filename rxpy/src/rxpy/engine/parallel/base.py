@@ -31,10 +31,9 @@ from rxpy.engine.base import BaseEngine
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.lib import _STRINGS
 from rxpy.engine.parallel.support import State, States
-from rxpy.engine.support import Groups
+from rxpy.engine.support import Groups, lookahead_logic
 from rxpy.graph.temp import Sequence
-from rxpy.graph.opcode import String, StartGroup
-from rxpy.graph.support import contains_instance, ReadsGroup
+from rxpy.graph.opcode import String
 
 
 class ParallelEngine(BaseEngine, BaseVisitor):
@@ -164,7 +163,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                         Sequence([String(c) for c in text], self._parser_state)
                 graph = self.__groups[text].clone()
                 graph = graph.concatenate(next[0])
-                return (None, [state.clone(graph)])
+                return (None, [state.clone(graph=graph)])
             else:
                 return (None, [state.advance()])
         except KeyError:
@@ -184,6 +183,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, states)
     
     def match(self, state):
+        # NOOOOOOOOOOOOOOOOOOOOOOOo
         return (state.end_group(0, self.__offset), [])
 
     def dot(self, next, multiline, state):
@@ -212,39 +212,40 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         if self.__offset not in self.__lookaheads[node]:
             # we need to match the lookahead
             search = False
-            groups = None
+            (reads, mutates, size) = lookahead_logic(next[1], forwards, state.groups)
             if forwards:
-                offset = self.__offset
                 subtext = self.__text
+                offset = self.__offset
             else:
-                # use groups to calculate size if they are unchanged in lookback
-                groups = None if contains_instance(next[1], StartGroup) \
-                            else state.groups
-                # calculate lookback size if possible
-                try:
-                    offset = self.__offset - \
-                        next[1].size(None 
-                                     if contains_instance(next[1], StartGroup)
-                                     else state.groups)
-                except Exception:
+                subtext = self.__text[0:self.__offset]
+                if size is None:
                     offset = 0
                     search = True
-                subtext = self.__text[0:self.__offset]
-            if contains_instance(next[1], ReadsGroup):
+                else:
+                    offset = self.__offset - size
+            if reads or mutates:
                 groups = state.groups
                 new_state = lambda: engine._new_state(groups=groups)
             else:
                 groups = None
                 new_state = lambda: engine._new_state(text=subtext)
             engine = self._new_engine(next[1])
-            match = bool(engine.run_state(state.clone(next[1]), subtext, 
-                                          pos=offset, search=search,
-                                          new_state=new_state))
+            match = engine.run_state(state.clone(graph=next[1], groups=groups), 
+                                     subtext, pos=offset, search=search,
+                                     new_state=new_state)
             self.ticks += engine.ticks
-            self.__lookaheads[node][self.__offset] = match == equal
+            success = bool(match) == equal
+            if not (mutates or reads):
+                self.__lookaheads[node][self.__offset] = success
+        else:
+            mutates = False
+            success = self.__lookaheads[node][self.__offset]
         # if lookahead succeeded, continue
-        if self.__lookaheads[node][self.__offset]:
-            return (None, [state.advance()])
+        if success:
+            if mutates:
+                return (None, [state.clone(groups=match.groups).advance()])
+            else:
+                return (None, [state.advance()])
         else:
             return (None, [])
 
