@@ -339,11 +339,13 @@ class EngineTest(TestCase):
             assert False, 'expected error'
         except:
             pass
+        parse('a{1,1}*')
         try:
             parse('a{0,1}*')
             assert False, 'expected error'
         except:
             pass
+        parse('(?_l)a{1,1}*')
         try:
             parse('(?_l)a{0,1}*')
             assert False, 'expected error'

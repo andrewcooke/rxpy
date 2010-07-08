@@ -166,9 +166,8 @@ class Merge(object):
     def start(self):
         return self._nodes[-1].start
 
-    @property
-    def consumer(self):
-        return self.start.consumer
+    def consumer(self, lenient):
+        return self.start.consumer(lenient)
     
     def __str__(self):
         return str(self.start)

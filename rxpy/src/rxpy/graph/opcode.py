@@ -379,12 +379,12 @@ class Repeat(BaseNode):
             known.add(self)
             return self.begin * self.next[1].size(groups, known)
     
-    @property
     def consumer(self, lenient):
         if not self.begin:
             return lenient
         else:
-            return next[1].consumer(lenient)
+            # this gets the loop part, whether or not connected
+            return self.next[-1].consumer(lenient)
     
     def visit(self, visitor, state=None):
         return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
