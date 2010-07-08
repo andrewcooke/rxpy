@@ -119,43 +119,43 @@ class VisitorTest(TestCase):
         assert engine(self.parse('1?2'), [1,2])
         assert not engine(self.parse('1?2'), [1,1,2])
         
-        assert engine(self.parse('1*2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1*2', flags=ParserState._LOOPS), [1,2])
-        assert engine(self.parse('1*2', flags=ParserState._LOOPS), [1,1,2])
-        assert not engine(self.parse('1+2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1+2', flags=ParserState._LOOPS), [1,2])
-        assert engine(self.parse('1+2', flags=ParserState._LOOPS), [1,1,2])
-        assert engine(self.parse('1?2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1?2', flags=ParserState._LOOPS), [1,2])
-        assert not engine(self.parse('1?2', flags=ParserState._LOOPS), [1,1,2])
+        assert engine(self.parse('1*2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1*2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert engine(self.parse('1*2', flags=ParserState._LOOP_UNROLL), [1,1,2])
+        assert not engine(self.parse('1+2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1+2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert engine(self.parse('1+2', flags=ParserState._LOOP_UNROLL), [1,1,2])
+        assert engine(self.parse('1?2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1?2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert not engine(self.parse('1?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
 
     def test_counted(self):
-        groups = engine(self.parse('1{2}', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{2}', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(self.parse('1{1,2}', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{1,2}', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(self.parse('1{1,}', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{1,}', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(self.parse('1{2}?', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{2}?', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(self.parse('1{1,2}?', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{1,2}?', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(self.parse('1{1,}?', flags=ParserState._LOOPS), [1,1,1])
+        groups = engine(self.parse('1{1,}?', flags=ParserState._LOOP_UNROLL), [1,1,1])
         assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(self.parse('1{1,2}?2', flags=ParserState._LOOPS), [1,1,2])
+        groups = engine(self.parse('1{1,2}?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(self.parse('1{1,}?2', flags=ParserState._LOOPS), [1,1,2])
+        groups = engine(self.parse('1{1,}?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         
-        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOPS), [1,2])
-        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOPS), [1,1,2])
-        assert not engine(self.parse('1{1,}?2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1{1,}?2', flags=ParserState._LOOPS), [1,2])
-        assert engine(self.parse('1{1,}?2', flags=ParserState._LOOPS), [1,1,2])
-        assert engine(self.parse('1{0,1}?2', flags=ParserState._LOOPS), [2])
-        assert engine(self.parse('1{0,1}?2', flags=ParserState._LOOPS), [1,2])
-        assert not engine(self.parse('1{0,1}?2', flags=ParserState._LOOPS), [1,1,2])
+        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert engine(self.parse('1{0,}?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
+        assert not engine(self.parse('1{1,}?2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1{1,}?2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert engine(self.parse('1{1,}?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
+        assert engine(self.parse('1{0,1}?2', flags=ParserState._LOOP_UNROLL), [2])
+        assert engine(self.parse('1{0,1}?2', flags=ParserState._LOOP_UNROLL), [1,2])
+        assert not engine(self.parse('1{0,1}?2', flags=ParserState._LOOP_UNROLL), [1,1,2])
 
         groups = engine(self.parse('1{2}'), [1,1,1])
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]

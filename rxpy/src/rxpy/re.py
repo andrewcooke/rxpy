@@ -54,4 +54,4 @@ error = _re.error
 escape = _re.escape    
 Scanner = _re.Scanner    
 
-(I, M, S, U, X, A, _L, _S, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS, _UNSAFE) = _re.FLAGS
+(I, M, S, U, X, A, _L, _S, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _STRINGS, _UNSAFE) = _re.FLAGS

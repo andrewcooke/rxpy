@@ -674,20 +674,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_count(self):
-        self.assert_graphs(parse('ab{1,2}c', flags=ParserState._LOOPS), 
-"""strict digraph {
- 0 [label="a"]
- 1 [label="{1,2}"]
- 2 [label="c"]
- 3 [label="b"]
- 4 [label="Match"]
- 0 -> 1
- 1 -> 2
- 1 -> 3
- 3 -> 1
- 2 -> 4
-}""")
-        self.assert_graphs(parse('ab{1,2}c(?_l)'), 
+        self.assert_graphs(parse('ab{1,2}c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -702,7 +689,7 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateful_count(self):
-        self.assert_graphs(parse('ab{1,2}?c', flags=ParserState._LOOPS), 
+        self.assert_graphs(parse('ab{1,2}?c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}?"]
@@ -717,7 +704,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_open_count(self):
-        self.assert_graphs(parse('ab{1,}c', flags=ParserState._LOOPS), 
+        self.assert_graphs(parse('ab{1,}c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,}"]
@@ -732,7 +719,7 @@ r"""strict digraph {
 }""")
         
     def test_stateful_fixed_count(self):
-        self.assert_graphs(parse('ab{2}c', flags=ParserState._LOOPS), 
+        self.assert_graphs(parse('ab{2}c'), 
 """strict digraph {
  0 [label="a"]
  1 [label="{2}"]
@@ -748,7 +735,7 @@ r"""strict digraph {
 
     def test_stateful_group_count(self):
         self.assert_graphs(parse('a(?:bc){1,2}d', 
-                                 flags=ParserState._LOOPS, engine=BacktrackingEngine), 
+                                 engine=BacktrackingEngine), 
 """strict digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -763,7 +750,21 @@ r"""strict digraph {
 }""")
         
     def test_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{1,2}c', engine=BacktrackingEngine,
+                                 flags=ParserState._LOOP_UNROLL), 
+"""strict digraph {
+ 0 [label="ab"]
+ 1 [label="...?"]
+ 2 [label="b"]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 3
+}""")
+        self.assert_graphs(parse('ab{1,2}c(?_l)', engine=BacktrackingEngine), 
 """strict digraph {
  0 [label="ab"]
  1 [label="...?"]
@@ -778,7 +779,8 @@ r"""strict digraph {
 }""")
         
     def test_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{3,}c', engine=BacktrackingEngine,
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abbb"]
  1 [label="...*"]
@@ -793,7 +795,8 @@ r"""strict digraph {
 }""")
         
     def test_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{2}c', engine=BacktrackingEngine,
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abbc"]
  1 [label="Match"]
@@ -801,7 +804,8 @@ r"""strict digraph {
 }""")
         
     def test_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}d', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('a(?:bc){1,2}d', engine=BacktrackingEngine,
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abc"]
  1 [label="...?"]
@@ -816,7 +820,8 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}?c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{1,2}?c', engine=BacktrackingEngine, 
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="ab"]
  1 [label="...??"]
@@ -831,7 +836,8 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}?c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{3,}?c', engine=BacktrackingEngine, 
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abbb"]
  1 [label="...*?"]
@@ -846,7 +852,8 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}?c', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('ab{2}?c', engine=BacktrackingEngine, 
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abbc"]
  1 [label="Match"]
@@ -854,7 +861,8 @@ r"""strict digraph {
 }""")
         
     def test_lazy_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}?d', engine=BacktrackingEngine), 
+        self.assert_graphs(parse('a(?:bc){1,2}?d', engine=BacktrackingEngine,
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="abc"]
  1 [label="...??"]
@@ -1043,7 +1051,8 @@ r"""strict digraph {
  3 -> 4
  1 -> 3
 }""")
-        self.assert_graphs(parse('a(?:b|(c|e){1,2}?|d)+?(.)'), 
+        self.assert_graphs(parse('a(?:b|(c|e){1,2}?|d)+?(.)', 
+                                 flags=ParserState._LOOP_UNROLL), 
 """strict digraph {
  0 [label="a"]
  1 [label="...|..."]
@@ -1114,20 +1123,36 @@ r"""strict digraph {
         self.assert_graphs(parse('(?(1)(a))*'), 
 """strict digraph {
  0 [label="...*"]
- 1 [label="!"]
+ 1 [label="(?(1)...)"]
  2 [label="Match"]
- 3 [label="(?(1)...)"]
+ 3 [label="!"]
  4 [label="("]
  5 [label="a"]
  6 [label=")"]
  0 -> 1
  0 -> 2
  1 -> 3
- 3 -> 0
- 3 -> 4
+ 1 -> 4
  4 -> 5
  5 -> 6
- 6 -> 0
+ 6 -> 3
+ 3 -> 0
+}""")
+        self.assert_graphs(parse('(?(1)(a))*', flags=ParserState._UNSAFE), 
+"""strict digraph {
+ 0 [label="...*"]
+ 1 [label="(?(1)...)"]
+ 2 [label="Match"]
+ 3 [label="("]
+ 4 [label="a"]
+ 5 [label=")"]
+ 0 -> 1
+ 0 -> 2
+ 1 -> 0
+ 1 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 0
 }""")
 
     def assert_flags(self, regexp, flags):
@@ -1147,7 +1172,7 @@ r"""strict digraph {
         self.assert_flags('(?u)', ParserState.UNICODE)
         self.assert_flags('(?x)', ParserState.VERBOSE)
         self.assert_flags('(?a)', ParserState.ASCII)
-        self.assert_flags('(?_l)', ParserState._LOOPS)
+        self.assert_flags('(?_l)', ParserState._LOOP_UNROLL)
         try:
             self.assert_flags('(?imsuxa_l)', 0)
             assert False
@@ -1156,4 +1181,4 @@ r"""strict digraph {
         self.assert_flags('(?imsux_l)', 
                           ParserState.IGNORECASE | ParserState.MULTILINE | 
                           ParserState.DOTALL | ParserState.UNICODE |
-                          ParserState.VERBOSE | ParserState._LOOPS)
+                          ParserState.VERBOSE | ParserState._LOOP_UNROLL)

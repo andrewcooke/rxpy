@@ -53,8 +53,8 @@ class Match(Exception):
 
 class Loops(object):
     '''
-    The state needed to track explicit repeats (used in the `_LOOPS` flag
-    was set).  This assumes that loops are nested (as they must be).
+    The state needed to track explicit repeats.  This assumes that loops are 
+    nested (as they must be).
     '''
     
     def __init__(self, counts=None, order=None):

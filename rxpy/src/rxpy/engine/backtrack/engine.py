@@ -38,7 +38,7 @@ for example).
 '''                                    
 
 from rxpy.engine.base import BaseEngine
-from rxpy.engine.support import Groups, lookahead_logic
+from rxpy.engine.support import Groups, lookahead_logic, Loops
 from rxpy.graph.visitor import BaseVisitor
 from rxpy.lib import _STRINGS
 
@@ -273,38 +273,6 @@ class Stack(object):
     
     def __nonzero__(self):
         return self.__bool__()
-    
-
-class Loops(object):
-    '''
-    The state needed to track explicit repeats (used in the `_LOOPS` flag
-    was set).  This assumes that loops are nested (as they must be).
-    '''
-    
-    def __init__(self, counts=None, order=None):
-        self.__counts = counts if counts else []
-        self.__order = order if order else {}
-        
-    def increment(self, node):
-        if node not in self.__order:
-            order = len(self.__counts)
-            self.__order[node] = order
-            self.__counts.append(0)
-        else:
-            order = self.__order[node]
-            self.__counts = self.__counts[0:order+1]
-            self.__counts[order] += 1
-        return self.__counts[order]
-    
-    def drop(self, node):
-        self.__counts = self.__counts[0:self.__order[node]]
-        del self.__order[node]
-        
-    def clone(self):
-        return Loops(list(self.__counts), dict(self.__order))
-    
-    def __eq__(self, other):
-        return self.__counts == other.__counts and self.__order == other.__order
     
 
 class BacktrackingEngine(BaseEngine, BaseVisitor):

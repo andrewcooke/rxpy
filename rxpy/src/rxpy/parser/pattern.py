@@ -183,7 +183,11 @@ class RepeatBuilder(Builder):
     def build_plus(parent_sequence, latest, lazy, state):
         RepeatBuilder.assert_consumer(latest)
         split = Split('...+', lazy)
-        seq = Sequence([latest, split], state)
+        nodes = [latest]
+        if not (latest.consumer(False) or (state.flags & ParserState._UNSAFE)):
+            nodes.append(CheckPoint())
+        nodes.append(split)
+        seq = Sequence(nodes, state)
         split.next = [seq.start]
         parent_sequence._nodes.append(seq)
         
@@ -191,11 +195,9 @@ class RepeatBuilder(Builder):
     def build_star(parent_sequence, latest, lazy, state):
         RepeatBuilder.assert_consumer(latest)
         split = Split('...*', lazy)
-        if latest.consumer(False) or (state.flags & ParserState._UNSAFE):
-            nodes = []
-        else:
-            nodes = [CheckPoint()]
-        nodes.append(latest)
+        nodes = [latest]
+        if not (latest.consumer(False) or (state.flags & ParserState._UNSAFE)):
+            nodes.append(CheckPoint())
         seq = Sequence(nodes, state).concatenate(split)
         split.next = [seq.start]
         parent_sequence._nodes.append(split)
@@ -783,7 +785,7 @@ class GroupReferenceBuilder(Builder):
 class CountBuilder(Builder):
     '''
     Parse explicit counted repeats - expressions of the form ...{n,m}.
-    If the `_LOOPS` flag is not set then this expands the expression 
+    If the `_LOOP_UNROLL` flag is set then this expands the expression 
     as an explicit series of repetitions, so 'a{2,4}' would become
     equivalent to 'aaa?a?'
     '''
@@ -852,11 +854,7 @@ class CountBuilder(Builder):
         if not self._parent_sequence._nodes:
             raise RxpyException('Nothing to repeat')
         latest = self._parent_sequence._nodes.pop()
-        if self._state.flags & ParserState._LOOPS:
-            self.build_count(self._parent_sequence, latest, self._begin, 
-                             self._end if self._range else self._begin, 
-                             self._lazy)
-        else:
+        if self._state.flags & ParserState._LOOP_UNROLL:
             for _i in range(self._begin):
                 self._parent_sequence._nodes.append(latest.clone())
             if self._range:
@@ -868,14 +866,23 @@ class CountBuilder(Builder):
                     for _i in range(self._end - self._begin):
                         RepeatBuilder.build_optional(
                                 self._parent_sequence, latest.clone(), self._lazy)
+        else:
+            self.build_count(self._parent_sequence, latest, self._begin, 
+                             self._end if self._range else self._begin, 
+                             self._lazy, self._state)
     
     @staticmethod
-    def build_count(parent_sequence, latest, begin, end, lazy):
+    def build_count(parent_sequence, latest, begin, end, lazy, state):
         '''
         If end is None, then range is open.
         '''
         count = Repeat(begin, end, lazy)
-        count.next = [latest.concatenate(count)]
+        nodes = [latest]
+        if end is None and (
+                not (latest.consumer(False) or (state.flags & ParserState._UNSAFE))):
+            nodes.append(CheckPoint())
+        seq = Sequence(nodes, state)
+        count.next = [seq.concatenate(count)]
         parent_sequence._nodes.append(count)
                         
         
