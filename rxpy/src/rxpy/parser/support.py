@@ -51,7 +51,7 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _L, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS) = _FLAGS
+    (I, M, S, U, X, A, _L, _S, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS, _UNSAFE) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
                  require=0, refuse=0):
@@ -271,7 +271,12 @@ def parse(text, state, class_, mutable_flags=True):
     If the expression sets flags then it is parsed again.  If it changes flags
     on the second parse then an error is raised.
     '''
-    graph = class_(state).parse(text)
+    try:
+        graph = class_(state).parse(text)
+    except RxpyException as e:
+        # suppress error if we will parse again
+        if not (mutable_flags and state.has_new_flags):
+            raise e
     if mutable_flags and state.has_new_flags:
         state = state.clone_with_new_flags()
         graph = class_(state).parse(text)

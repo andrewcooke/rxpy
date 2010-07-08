@@ -124,9 +124,6 @@ class EscapeTest(TestCase):
         assert not compile('(?:(a)|(x))b(?=(?(1)b|x))c').match('abc')
         assert compile('(?:(a)|(x))b(?=(?(1)c|x))c').match('abc')
       
-        # these are similar but, in my opinion, shouldn't even compile
-        # (group used before defined)
-      
         #assert not compile('(a)b(?<=(?(2)x|c))(c)').match('abc') # this matches!
         assert not compile('(a)b(?<=(?(2)b|x))(c)').match('abc')
         #assert not compile('(a)b(?<=(?(1)c|x))(c)').match('abc') # this matches!
@@ -143,3 +140,16 @@ class EscapeTest(TestCase):
         except:
             pass
         
+    def test_empty_loops(self):
+        try:
+            compile('a**')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            assert compile('a{0,1}*').match('a')
+            assert False, 'expected error'
+        except:
+            pass
+        assert compile('(a|)*').match('ab')
+        assert compile('(a|)\\1*').match('b')

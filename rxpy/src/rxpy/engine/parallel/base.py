@@ -183,7 +183,6 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, states)
     
     def match(self, state):
-        # NOOOOOOOOOOOOOOOOOOOOOOOo
         return (state.end_group(0, self.__offset), [])
 
     def dot(self, next, multiline, state):

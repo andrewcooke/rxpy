@@ -333,6 +333,20 @@ class EngineTest(TestCase):
         assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
         assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
         
-        
-
-        
+    def test_empty_loops(self):
+        try:
+            parse('a**')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            parse('a{0,1}*')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            parse('(?_l)a{0,1}*')
+            assert False, 'expected error'
+        except:
+            pass
+        assert engine(parse('(a|)*'), 'ab')

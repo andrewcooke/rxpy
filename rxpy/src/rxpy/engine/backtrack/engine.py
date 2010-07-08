@@ -62,12 +62,14 @@ class State(object):
     State for a particular position moment / graph position / text offset.
     '''
     
-    def __init__(self, text, groups, previous=None, offset=0, loops=None):
+    def __init__(self, text, groups, previous=None, offset=0, loops=None,
+                 check_points=None):
         self.__text = text
         self.__groups = groups
         self.__previous = previous
         self.__offset = offset
         self.__loops = loops if loops else Loops()
+        self.__check_points = check_points
     
     def clone(self, offset=None, groups=None):
         '''
@@ -87,20 +89,30 @@ class State(object):
             if delta:
                 previous = self.__text[delta-1]
             text = self.__text[delta:]
-        return State(text, groups, previous, offset, self.__loops.clone())
+        check_points = set(self.__check_points) if self.__check_points else None
+        return State(text, groups, previous=previous, offset=offset, 
+                     loops=self.__loops.clone(), check_points=check_points)
         
     def advance(self):
         '''
         Used in search to increment start point.
         '''
         if self.__text:
-            self.__offset += 1
+            self.__increment()
             self.__groups.start_group(0, self.__offset)
-            self.__previous = self.__text[0]
-            self.__text = self.__text[1:]
             return True
         else:
             return False
+        
+    def __increment(self, length=1):
+        '''
+        Increment offset during match.
+        '''
+        if length:
+            self.__check_points = None
+            self.__previous = self.__text[length-1]
+            self.__text = self.__text[length:]
+            self.__offset += length
     
     # below are methods that correspond roughly to opcodes in the graph.
     # these are called from the visitor.
@@ -109,10 +121,7 @@ class State(object):
         try:
             l = len(text)
             if self.__text[0:l] == text:
-                if l:
-                    self.__previous = self.__text[l-1]
-                    self.__text = self.__text[l:]
-                    self.__offset += l
+                self.__increment(l)
                 return self
         except IndexError:
             pass
@@ -121,9 +130,7 @@ class State(object):
     def character(self, charset):
         try:
             if self.__text[0] in charset:
-                self.__previous = self.__text[0]
-                self.__text = self.__text[1:]
-                self.__offset += 1
+                self.__increment()
                 return self
         except IndexError:
             pass
@@ -147,9 +154,7 @@ class State(object):
     def dot(self, multiline=True):
         try:
             if self.__text[0] and (multiline or self.__text[0] != '\n'):
-                self.__previous = self.__text[0]
-                self.__text = self.__text[1:]
-                self.__offset += 1
+                self.__increment()
                 return self
         except IndexError:
             pass
@@ -176,6 +181,14 @@ class State(object):
         groups and loops values identical (so we only differ by offset)?
         '''
         return self.__groups == other.__groups and self.__loops == other.__loops
+    
+    def check_point(self, token):
+        if self.__check_points is None:
+            self.__check_points = set([token])
+        else:
+            if token in self.__check_points:
+                raise Fail
+        return self
 
     @property
     def groups(self):
@@ -530,3 +543,6 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
         except IndexError:
             pass
         raise Fail
+
+    def check_point(self, next, token, state):
+        return (next[0], state.check_point(token))

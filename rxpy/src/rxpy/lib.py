@@ -53,9 +53,9 @@ class RxpyException(Exception):
     '''
     
     
-(I, M, S, U, X, A, _L, _S) = map(lambda x: 2**x, range(8))
-(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS) = (I, M, S, U, X, A, _L, _S)
-_FLAGS = (I, M, S, U, X, A, _L, _S, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS)
+(I, M, S, U, X, A, _L, _S, _U) = map(lambda x: 2**x, range(9))
+(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS, _UNSAFE) = (I, M, S, U, X, A, _L, _S, _U)
+_FLAGS = (I, M, S, U, X, A, _L, _S, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOPS, _STRINGS, _UNSAFE)
 
 FLAG_NAMES = {I: 'I/IGNORECASE',
               M: 'M/MULTILINE',
@@ -64,7 +64,8 @@ FLAG_NAMES = {I: 'I/IGNORECASE',
               X: 'X/VERBOSE',
               A: 'A/ASCII',
               _L: '_L/_LOOPS',
-              _S: '_S/_STRINGS'}
+              _S: '_S/_STRINGS',
+              _U: '_U/_UNSAFE'}
 
 def refuse_flags(flags):
     names = [FLAG_NAMES[key] for key in FLAG_NAMES if key & flags]

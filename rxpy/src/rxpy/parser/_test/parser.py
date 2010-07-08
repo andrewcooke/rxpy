@@ -1091,6 +1091,44 @@ r"""strict digraph {
  11 -> 13
  2 -> 5
 }""")
+        
+    def test_check_point(self):
+        self.assert_graphs(parse('(a|b)*'), 
+"""strict digraph {
+ 0 [label="...*"]
+ 1 [label="("]
+ 2 [label="Match"]
+ 3 [label="...|..."]
+ 4 [label="a"]
+ 5 [label="b"]
+ 6 [label=")"]
+ 0 -> 1
+ 0 -> 2
+ 1 -> 3
+ 3 -> 4
+ 3 -> 5
+ 5 -> 6
+ 6 -> 0
+ 4 -> 6
+}""")
+        self.assert_graphs(parse('(?(1)(a))*'), 
+"""strict digraph {
+ 0 [label="...*"]
+ 1 [label="!"]
+ 2 [label="Match"]
+ 3 [label="(?(1)...)"]
+ 4 [label="("]
+ 5 [label="a"]
+ 6 [label=")"]
+ 0 -> 1
+ 0 -> 2
+ 1 -> 3
+ 3 -> 0
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+ 6 -> 0
+}""")
 
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)

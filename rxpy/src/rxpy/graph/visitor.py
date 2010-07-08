@@ -83,3 +83,7 @@ class BaseVisitor(object):
     
     def word(self, next, inverted, state=None):
         raise UnsupportedOperation('word')
+    
+    def check_point(self, next, id, state=None):
+        raise UnsupportedOperation('check_point')
+

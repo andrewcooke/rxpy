@@ -43,7 +43,7 @@ from string import digits, ascii_letters
 from rxpy.lib import RxpyException
 from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
     EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, Digit, Word,\
-    Space, Lookahead, GroupReference, Repeat
+    Space, Lookahead, GroupReference, Repeat, CheckPoint
 from rxpy.graph.temp import Sequence, Alternatives, Merge
 from rxpy.parser.support import Builder, ParserState, OCTAL, parse
 
@@ -159,7 +159,7 @@ class RepeatBuilder(Builder):
             self.build_plus(self._parent_sequence, self._latest, lazy,
                             self._state)
         elif self._initial_character == '*':
-            self.build_star(self._parent_sequence, self._latest, lazy)
+            self.build_star(self._parent_sequence, self._latest, lazy, self._state)
         else:
             raise RxpyException('Bad initial character for RepeatBuilder')
             
@@ -170,7 +170,7 @@ class RepeatBuilder(Builder):
         
     @staticmethod
     def assert_consumer(latest):
-        if not latest.consumer:
+        if not latest.consumer(True):
             raise RxpyException('Cannot repeat ' + str(latest))
         
     @staticmethod
@@ -188,10 +188,16 @@ class RepeatBuilder(Builder):
         parent_sequence._nodes.append(seq)
         
     @staticmethod
-    def build_star(parent_sequence, latest, lazy):
+    def build_star(parent_sequence, latest, lazy, state):
         RepeatBuilder.assert_consumer(latest)
         split = Split('...*', lazy)
-        split.next = [latest.concatenate(split)]
+        if latest.consumer(False) or (state.flags & ParserState._UNSAFE):
+            nodes = []
+        else:
+            nodes = [CheckPoint()]
+        nodes.append(latest)
+        seq = Sequence(nodes, state).concatenate(split)
+        split.next = [seq.start]
         parent_sequence._nodes.append(split)
         
                 
@@ -856,7 +862,8 @@ class CountBuilder(Builder):
             if self._range:
                 if self._end is None:
                     RepeatBuilder.build_star(
-                            self._parent_sequence, latest.clone(), self._lazy)
+                            self._parent_sequence, latest.clone(), 
+                            self._lazy, self._state)
                 else:
                     for _i in range(self._end - self._begin):
                         RepeatBuilder.build_optional(

@@ -80,12 +80,11 @@ class Sequence(object):
     def __str__(self):
         return ''.join(map(str, self._nodes))
     
-    @property
-    def consumer(self):
+    def consumer(self, lenient):
         for node in self._nodes:
-            if node.consumer:
+            if node.consumer(lenient):
                 return True
-        return False
+        return lenient
     
     @property
     def start(self):
@@ -119,12 +118,11 @@ class Alternatives(object):
         self.__sequences = sequences
         self.__split = split
         
-    @property
-    def consumer(self):
+    def consumer(self, lenient):
+        all = True
         for sequence in self.__sequences:
-            if sequence.consumer:
-                return True
-        return False
+            all = all and sequence.consumer(lenient)
+        return all
     
     def concatenate(self, next):
         # be careful here to handle empty sequences correctly
@@ -147,6 +145,7 @@ class Alternatives(object):
     def start(self):
         return self.__split
 
+
 class Merge(object):
     '''
     Another temporary node, supporting the merge of several different arcs.
@@ -167,3 +166,10 @@ class Merge(object):
     def start(self):
         return self._nodes[-1].start
 
+    @property
+    def consumer(self):
+        return self.start.consumer
+    
+    def __str__(self):
+        return str(self.start)
+    

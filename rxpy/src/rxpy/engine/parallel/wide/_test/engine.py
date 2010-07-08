@@ -35,8 +35,8 @@ from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 
 
-def engine(parse, text, search=False, ticks=None):
-    engine = WideEngine(*parse)
+def engine(parse, text, search=False, ticks=None, hash_state=False):
+    engine = WideEngine(*parse, hash_state=hash_state)
     results = engine.run(text, search=search)
     if ticks:
         assert engine.ticks == ticks, engine.ticks
@@ -324,3 +324,21 @@ class EngineTest(TestCase):
         assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
         assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
         assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
+
+    def test_empty_loops(self):
+        try:
+            parse('a**')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            parse('a{0,1}*')
+            assert False, 'expected error'
+        except:
+            pass
+        try:
+            parse('(?_l)a{0,1}*')
+            assert False, 'expected error'
+        except:
+            pass
+        assert engine(parse('(a|)*'), 'ab')

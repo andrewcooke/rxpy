@@ -35,9 +35,10 @@ input) and implicitly advance the position (if appropriate) on success.
 See `BaseNode` for a general description of nodes.
 '''
 
-from rxpy.graph.support import BaseNode, BaseSplitNode, BaseLineNode,\
-    GraphException, BaseEscapedNode, CharSet, ReadsGroup, BaseGroupReference
-    
+from rxpy.graph.base import BaseNode, BaseSplitNode, BaseLineNode,\
+    BaseEscapedNode, BaseGroupReference
+from rxpy.graph.support import GraphException, ReadsGroup, CharSet 
+
     
 class String(BaseNode):
     '''
@@ -51,7 +52,7 @@ class String(BaseNode):
     '''
     
     def __init__(self, text):
-        super(String, self).__init__()
+        super(String, self).__init__(consumer=True)
         self.text = text
         
     def __str__(self):
@@ -128,7 +129,7 @@ class Split(BaseSplitNode):
     '''
     
     def __init__(self, label, lazy=False):
-        super(Split, self).__init__(lazy=lazy, consumer=False)
+        super(Split, self).__init__(lazy=lazy, consumer=None)
         self.label = label + ('?' if lazy else '')
         
     def __str__(self):
@@ -151,6 +152,12 @@ class Split(BaseSplitNode):
             return size
         else:
             return None
+        
+    def consumer(self, lenient):
+        for next in self.next:
+            if next.consumer(lenient):
+                return True
+        return lenient
 
 
 class Match(BaseNode):
@@ -160,6 +167,9 @@ class Match(BaseNode):
     
     - `next` is undefined.
     '''
+    
+    def __init__(self):
+        super(Match, self).__init__(consumer=False, size=0)
     
     def __str__(self):
         return 'Match'
@@ -181,6 +191,9 @@ class NoMatch(BaseNode):
     
     - `next` is undefined.
     '''
+    
+    def __init__(self):
+        super(NoMatch, self).__init__(consumer=False, size=0)
     
     def __str__(self):
         return 'NoMatch'
@@ -266,7 +279,7 @@ class GroupReference(BaseGroupReference, ReadsGroup):
     '''
     
     def __init__(self, number):
-        super(GroupReference, self).__init__(number)
+        super(GroupReference, self).__init__(number, consumer=None)
         
     def __str__(self):
         return '\\' + str(self.number)
@@ -303,7 +316,7 @@ class Lookahead(BaseSplitNode):
     '''
     
     def __init__(self, equal, forwards):
-        super(Lookahead, self).__init__(lazy=True)
+        super(Lookahead, self).__init__(lazy=True, consumer=False, size=0)
         self.equal = equal
         self.forwards = forwards
         
@@ -328,8 +341,9 @@ class Repeat(BaseNode):
     
     - `lazy` indicates that matching should be lazy if `True`.
     
-    - `next` contains two values.  `next[1]` is the expression to repeat;
-      `next[0]` is the continuation of the match after repetition has finished.
+    - `next` contains two values.  `next[1]` is the expression to repeat
+      (which loops back to here); `next[0]` is the continuation of the match 
+      after repetition has finished.
     '''
     
     def __init__(self, begin, end, lazy):
@@ -365,6 +379,13 @@ class Repeat(BaseNode):
             known.add(self)
             return self.begin * self.next[1].size(groups, known)
     
+    @property
+    def consumer(self, lenient):
+        if not self.begin:
+            return lenient
+        else:
+            return next[1].consumer(lenient)
+    
     def visit(self, visitor, state=None):
         return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
                               state)
@@ -385,7 +406,7 @@ class GroupConditional(BaseSplitNode, BaseGroupReference, ReadsGroup):
     '''
     
     def __init__(self, number, label, lazy=True):
-        super(GroupConditional, self).__init__(number=number, lazy=lazy)
+        super(GroupConditional, self).__init__(number=number, lazy=lazy, consumer=None)
         self.label = label
         
     def __str__(self):
@@ -431,7 +452,7 @@ class Digit(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Digit, self).__init__('d', inverted, size=1)
+        super(Digit, self).__init__('d', inverted, consumer=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.digit(self.next, self.inverted, state)
@@ -447,7 +468,7 @@ class Space(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Space, self).__init__('s', inverted)
+        super(Space, self).__init__('s', inverted, consumer=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.space(self.next, self.inverted, state)
@@ -463,7 +484,7 @@ class Word(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Word, self).__init__('w', inverted, size=1)
+        super(Word, self).__init__('w', inverted, consumer=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.word(self.next, self.inverted, state)
@@ -493,7 +514,7 @@ class Character(BaseNode):
     
     def __init__(self, intervals, alphabet, classes=None, 
                  inverted=False, complete=False):
-        super(Character, self).__init__(size=1)
+        super(Character, self).__init__(consumer=True, size=1)
         self.__simple = CharSet(intervals, alphabet)
         self.alphabet = alphabet
         self.classes = classes if classes else []
@@ -567,3 +588,18 @@ class Character(BaseNode):
                 return self.__simple.simplify(self.alphabet, self)
     
         
+class CheckPoint(BaseNode):
+    '''
+    Repetition of this point should include consumption of input.  This lets
+    us detect and about infinite loops while using as little state and logic
+    in the engine as possible.
+    '''
+    
+    def __init__(self):
+        super(CheckPoint, self).__init__(consumer=False, size=0)
+        
+    def visit(self, visitor, state=None):
+        return visitor.check_point(self.next, self, state)
+
+    def __str__(self):
+        return '!'
