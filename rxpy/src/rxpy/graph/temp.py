@@ -153,8 +153,9 @@ class Merge(object):
     The last node given is the entry point when concatenated.
     '''
     
-    def __init__(self, *nodes):
+    def __init__(self, consumes, *nodes):
         self._nodes = nodes
+        self.consumes = consumes
 
     def concatenate(self, next):
         last = None
@@ -167,8 +168,16 @@ class Merge(object):
         return self._nodes[-1].start
 
     def consumer(self, lenient):
-        return self.start.consumer(lenient)
+        if self.consumes is None:
+            return lenient
+        else:
+            return self.consumes
     
     def __str__(self):
         return str(self.start)
     
+    def clone(self, cache):
+        if cache is None:
+            cache = {}
+        return Merge(self.consumes,
+                     *(node.clone(cache) for node in self._nodes))

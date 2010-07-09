@@ -38,15 +38,54 @@ those references (ultimately accumulating the graph nodes in the root
 `SequenceBuilder`).
 '''
 
+from itertools import count
 from string import digits, ascii_letters
 
 from rxpy.lib import RxpyException
 from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
-    EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, Digit, Word,\
-    Space, Lookahead, GroupReference, Repeat, CheckPoint
+    EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, \
+    Digit, Word, Space, Lookahead, GroupReference, Repeat, CheckPoint
 from rxpy.graph.temp import Sequence, Alternatives, Merge
 from rxpy.parser.support import Builder, ParserState, OCTAL, parse
 
+
+class EmptyException(RxpyException):
+    '''
+    Indicate that an empty expression is being repeated.  This is caught and
+    converted into an EmptyException.
+    '''
+    
+    def update(self, pattern, offset):
+        if offset > 30:
+            pattern = '...' + pattern[offset-33:]
+            spaces = 30
+        else:
+            spaces = offset
+        padding = spaces * ' '
+        self.pattern = pattern
+        self.offset = offset
+        self.args = (
+'''Repeated empty match.
+
+  %s
+  %s^
+
+A sub-pattern that may match the empty string is being repeated.  This usually
+indicates an error since an empty match can repeat indefinitely.
+
+If you are sure that the pattern is correct then compile using the _EMPTY
+flag to suppress this error; the engine will then match the empty string at
+most once.
+
+You can also suppress the "at most once" limitation with the _UNSAFE flag, but
+this may result in a match that does not terminate.''' % (pattern, padding),)
+        
+    def __str__(self):
+        try:
+            return self.args[0]
+        except IndexError:
+            return 'Repeated empty match.'
+    
 
 class SequenceBuilder(Builder):
     '''
@@ -64,9 +103,13 @@ class SequenceBuilder(Builder):
         Parse a regular expression.
         '''
         builder = self
-        for character in text:
-            builder = builder.append_character(character)
-        builder = builder.append_character(None)
+        try:
+            for (character, index) in zip(text, count()):
+                builder = builder.append_character(character)
+            builder = builder.append_character(None)
+        except EmptyException as e:
+            e.update(text, index)
+            raise
         if self != builder:
             raise RxpyException('Incomplete expression')
         return self.build_complete()
@@ -169,20 +212,20 @@ class RepeatBuilder(Builder):
             return self._parent_sequence.append_character(character)
         
     @staticmethod
-    def assert_consumer(latest):
-        if not latest.consumer(True):
-            raise RxpyException('Cannot repeat ' + str(latest))
+    def assert_consumer(latest, state):
+        if not latest.consumer(True) and not state.flags & ParserState._EMPTY:
+            raise EmptyException
         
     @staticmethod
     def build_optional(parent_sequence, latest, lazy):
-        split = Split('...?', lazy)
+        split = Split('...?', lazy, consumes=False)
         split.next = [latest.start]
-        parent_sequence._nodes.append(Merge(latest, split))
+        parent_sequence._nodes.append(Merge(False, latest, split))
     
     @staticmethod
     def build_plus(parent_sequence, latest, lazy, state):
-        RepeatBuilder.assert_consumer(latest)
-        split = Split('...+', lazy)
+        RepeatBuilder.assert_consumer(latest, state)
+        split = Split('...+', lazy, consumes=True)
         nodes = [latest]
         if not (latest.consumer(False) or (state.flags & ParserState._UNSAFE)):
             nodes.append(CheckPoint())
@@ -193,8 +236,8 @@ class RepeatBuilder(Builder):
         
     @staticmethod
     def build_star(parent_sequence, latest, lazy, state):
-        RepeatBuilder.assert_consumer(latest)
-        split = Split('...*', lazy)
+        RepeatBuilder.assert_consumer(latest, state)
+        split = Split('...*', lazy, consumes=True)
         nodes = [latest]
         if not (latest.consumer(False) or (state.flags & ParserState._UNSAFE)):
             nodes.append(CheckPoint())
@@ -420,12 +463,12 @@ class GroupConditionalBuilder(Builder):
                 # in graph (GroupConditional is lazy Split)
                 conditional = GroupConditional(self.__name, '...')
                 conditional.next = [yes.start]
-                self.__parent_sequence._nodes.append(Merge(yes, conditional))
+                self.__parent_sequence._nodes.append(Merge(None, yes, conditional))
         else:
             if no:
                 conditional = GroupConditional(self.__name, '|...', False)
                 conditional.next = [no.start]
-                self.__parent_sequence._nodes.append(Merge(no, conditional))
+                self.__parent_sequence._nodes.append(Merge(None, no, conditional))
             else:
                 # no point in doing anything at all!
                 pass
@@ -907,3 +950,4 @@ def parse_groups(texts, engine, flags=0, alphabet=None):
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
     return (state, sequence.build_complete())
+        

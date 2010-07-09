@@ -54,14 +54,16 @@ class BaseNode(object):
     individual sub-nodes.
     '''
     
-    def __init__(self, consumer=True, size=None):
+    def __init__(self, consumes=True, size=None):
         '''
         Subclasses should pay attention to the relationship between 
         constructor kargs and attributes assumed in `.clone`.
         '''
         self.next = []
-        self.__consumer = consumer
-        self.__size = size
+        self.consumes = consumes
+        self.size = size
+        # these fields are not passed to constructors on cloning
+        self._fixed = set(['next', 'consumes', 'size'])
         
     def consumer(self, lenient):
         '''
@@ -69,12 +71,12 @@ class BaseNode(object):
         detect errors (if False, repeating with * or + would not terminate)
         during *assembly* and, as such, relies on Sequence to inspect contents.
         '''
-        if self.__consumer is None:
+        if self.consumes is None:
             return lenient
         else:
-            return self.__consumer
+            return self.consumes
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         '''
         The number of characters matched by this and subsequence nodes, if
         known, otherwise None.  Nodes must give a single, fixed number or
@@ -83,11 +85,11 @@ class BaseNode(object):
         '''
         if known is None:
             known = set()
-        if len(self.next) == 1 and self not in known and self.__size is not None:
+        if len(self.next) == 1 and self not in known and self.size is not None:
             known.add(self)
-            other = self.next[0].size(groups, known)
+            other = self.next[0].length(groups, known)
             if other is not None:
-                return self.__size + other
+                return self.size + other
             
     @property
     def start(self):
@@ -194,7 +196,7 @@ class BaseNode(object):
         '''
         return dict((name, getattr(self, name))
                      for name in self.__dict__ 
-                     if not name.startswith('_') and name != 'next')
+                     if not name.startswith('_') and name not in self._fixed)
         
     @unimplemented
     def visit(self, visitor, state=None):

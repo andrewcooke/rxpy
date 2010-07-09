@@ -68,7 +68,7 @@ class ReprTest(GraphTest):
         parse('a(?:b|(c|e){1,2}?|d)+?(.)')
 
     def test_w3_bug(self):
-        self.assert_graphs(parse('\w{3}$'),
+        self.assert_graphs(parse('\w{3}(?_l)$'),
 """strict digraph {
  0 [label="\\\\w"]
  1 [label="\\\\w"]
@@ -92,7 +92,7 @@ class ReprTest(GraphTest):
  2 -> 3
  3 -> 4
 }""")
-        self.assert_graphs(parse('(\w){3}$'),
+        self.assert_graphs(parse('(\w){3}$(?_l)'),
 """strict digraph {
  0 [label="("]
  1 [label="\\\\w"]

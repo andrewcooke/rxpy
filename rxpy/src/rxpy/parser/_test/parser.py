@@ -1154,6 +1154,29 @@ r"""strict digraph {
  4 -> 5
  5 -> 0
 }""")
+        
+#    def test_empty_bug(self):
+#        self.assert_graphs(parse('(?_l)a{0,1}*'), 
+#"""""")
+
+    def test_merge_clone_bug(self):
+        self.assert_graphs(parse('(?_l)(?:a?){1,2}'), 
+"""strict digraph {
+ 0 [label="...?"]
+ 1 [label="a"]
+ 2 [label="...?"]
+ 3 [label="...?"]
+ 4 [label="Match"]
+ 5 [label="a"]
+ 0 -> 1
+ 0 -> 2
+ 2 -> 3
+ 2 -> 4
+ 3 -> 5
+ 3 -> 4
+ 5 -> 4
+ 1 -> 2
+}""")
 
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)

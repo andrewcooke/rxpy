@@ -59,6 +59,7 @@ def node_iterator(node):
     Generate a sequence of all the nodes reachable in the graph starting 
     from the given node (DFS).
     '''
+    from rxpy.graph.opcode import Lookahead
     stack = [node]
     visited = set()
     while stack:

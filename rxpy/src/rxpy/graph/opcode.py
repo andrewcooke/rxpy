@@ -52,18 +52,18 @@ class String(BaseNode):
     '''
     
     def __init__(self, text):
-        super(String, self).__init__(consumer=True)
+        super(String, self).__init__(consumes=True)
         self.text = text
         
     def __str__(self):
         return self.text
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         if known is None:
             known = set()
         if self not in known:
             known.add(self)
-            next = self.next[0].size(groups, known)
+            next = self.next[0].length(groups, known)
             if next is not None:
                 return len(self.text) + next
     
@@ -82,7 +82,7 @@ class StartGroup(BaseGroupReference):
     
     def __init__(self, number):
         assert isinstance(number, int)
-        super(StartGroup, self).__init__(number, consumer=False, size=0)
+        super(StartGroup, self).__init__(number, consumes=False, size=0)
         
     def __str__(self):
         return "("
@@ -102,7 +102,7 @@ class EndGroup(BaseGroupReference):
     
     def __init__(self, number):
         assert isinstance(number, int)
-        super(EndGroup, self).__init__(number, consumer=False, size=0)
+        super(EndGroup, self).__init__(number, consumes=False, size=0)
         
     def __str__(self):
         return ")"
@@ -128,9 +128,10 @@ class Split(BaseSplitNode):
       entry in some cases, for example).
     '''
     
-    def __init__(self, label, lazy=False):
-        super(Split, self).__init__(lazy=lazy, consumer=None)
+    def __init__(self, label, lazy=False, consumes=None):
+        super(Split, self).__init__(lazy=lazy, consumes=consumes)
         self.label = label + ('?' if lazy else '')
+        self._fixed.remove('consumes')
         
     def __str__(self):
         return self.label
@@ -138,16 +139,16 @@ class Split(BaseSplitNode):
     def visit(self, visitor, state=None):
         return visitor.split(self.next, state)
 
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         if known is None:
             known = set()
         known.add(self)
         # avoid triggering loop detection on different paths
         avoid_loops = set(known) 
-        size = self.next[0].size(groups, known)
+        size = self.next[0].length(groups, known)
         if size is not None:
             for next in self.next[1:]:
-                if size != next.size(groups, set(avoid_loops)):
+                if size != next.length(groups, set(avoid_loops)):
                     return None
             return size
         else:
@@ -169,7 +170,7 @@ class Match(BaseNode):
     '''
     
     def __init__(self):
-        super(Match, self).__init__(consumer=False, size=0)
+        super(Match, self).__init__(consumes=False, size=0)
     
     def __str__(self):
         return 'Match'
@@ -177,7 +178,7 @@ class Match(BaseNode):
     def visit(self, visitor, state=None):
         return visitor.match(state)
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         return 0
 
 
@@ -193,7 +194,7 @@ class NoMatch(BaseNode):
     '''
     
     def __init__(self):
-        super(NoMatch, self).__init__(consumer=False, size=0)
+        super(NoMatch, self).__init__(consumes=False, size=0)
     
     def __str__(self):
         return 'NoMatch'
@@ -215,7 +216,7 @@ class Dot(BaseLineNode):
     '''
     
     def __init__(self, multiline):
-        super(Dot, self).__init__(multiline, consumer=True, size=1)
+        super(Dot, self).__init__(multiline, consumes=True, size=1)
 
     def __str__(self):
         return '.'
@@ -237,7 +238,7 @@ class StartOfLine(BaseLineNode):
     '''
     
     def __init__(self, multiline):
-        super(StartOfLine, self).__init__(multiline, consumer=False, size=0)
+        super(StartOfLine, self).__init__(multiline, consumes=False, size=0)
     
     def __str__(self):
         return '^'
@@ -259,7 +260,7 @@ class EndOfLine(BaseLineNode):
     '''
     
     def __init__(self, multiline):
-        super(EndOfLine, self).__init__(multiline, consumer=False, size=0)
+        super(EndOfLine, self).__init__(multiline, consumes=False, size=0)
     
     def __str__(self):
         return '$'
@@ -279,7 +280,7 @@ class GroupReference(BaseGroupReference, ReadsGroup):
     '''
     
     def __init__(self, number):
-        super(GroupReference, self).__init__(number, consumer=None)
+        super(GroupReference, self).__init__(number, consumes=None)
         
     def __str__(self):
         return '\\' + str(self.number)
@@ -287,7 +288,7 @@ class GroupReference(BaseGroupReference, ReadsGroup):
     def visit(self, visitor, state=None):
         return visitor.group_reference(self.next, self.number, state)
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         if known is None:
             known = set()
         if self not in known:
@@ -316,7 +317,7 @@ class Lookahead(BaseSplitNode):
     '''
     
     def __init__(self, equal, forwards):
-        super(Lookahead, self).__init__(lazy=True, consumer=False, size=0)
+        super(Lookahead, self).__init__(lazy=True, consumes=False, size=0)
         self.equal = equal
         self.forwards = forwards
         
@@ -372,16 +373,16 @@ class Repeat(BaseNode):
             text += '?'
         return text
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         if known is None:
             known = set()
         if self.end == self.begin and self not in known:
             known.add(self)
-            return self.begin * self.next[1].size(groups, known)
+            return self.begin * self.next[1].length(groups, known)
     
     def consumer(self, lenient):
         if not self.begin:
-            return lenient
+            return False
         else:
             # this gets the loop part, whether or not connected
             return self.next[-1].consumer(lenient)
@@ -406,21 +407,21 @@ class GroupConditional(BaseSplitNode, BaseGroupReference, ReadsGroup):
     '''
     
     def __init__(self, number, label, lazy=True):
-        super(GroupConditional, self).__init__(number=number, lazy=lazy, consumer=None)
+        super(GroupConditional, self).__init__(number=number, lazy=lazy, consumes=None)
         self.label = label
         
     def __str__(self):
         return '(?(' + str(self.number) + ')' + self.label + ')'
     
-    def size(self, groups, known=None):
+    def length(self, groups, known=None):
         if known is None:
             known = set()
         if self not in known:
             known.add(self)
             if groups.data(self.number) is not None:
-                return self.next[1].size(groups, known)
+                return self.next[1].length(groups, known)
             else:
-                return self.next[0].size(groups, known)
+                return self.next[0].length(groups, known)
     
     def visit(self, visitor, state=None):
         return visitor.group_conditional(self.next, self.number, state)
@@ -436,7 +437,7 @@ class WordBoundary(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(WordBoundary, self).__init__('b', inverted, consumer=False, size=0)
+        super(WordBoundary, self).__init__('b', inverted, consumes=False, size=0)
 
     def visit(self, visitor, state=None):
         return visitor.word_boundary(self.next, self.inverted, state)
@@ -452,7 +453,7 @@ class Digit(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Digit, self).__init__('d', inverted, consumer=True, size=1)
+        super(Digit, self).__init__('d', inverted, consumes=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.digit(self.next, self.inverted, state)
@@ -468,7 +469,7 @@ class Space(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Space, self).__init__('s', inverted, consumer=True, size=1)
+        super(Space, self).__init__('s', inverted, consumes=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.space(self.next, self.inverted, state)
@@ -484,7 +485,7 @@ class Word(BaseEscapedNode):
     '''
     
     def __init__(self, inverted=False):
-        super(Word, self).__init__('w', inverted, consumer=True, size=1)
+        super(Word, self).__init__('w', inverted, consumes=True, size=1)
 
     def visit(self, visitor, state=None):
         return visitor.word(self.next, self.inverted, state)
@@ -514,7 +515,7 @@ class Character(BaseNode):
     
     def __init__(self, intervals, alphabet, classes=None, 
                  inverted=False, complete=False):
-        super(Character, self).__init__(consumer=True, size=1)
+        super(Character, self).__init__(consumes=True, size=1)
         self.__simple = CharSet(intervals, alphabet)
         self.alphabet = alphabet
         self.classes = classes if classes else []
@@ -596,7 +597,8 @@ class CheckPoint(BaseNode):
     '''
     
     def __init__(self):
-        super(CheckPoint, self).__init__(consumer=False, size=0)
+        # guarantees consumption of region
+        super(CheckPoint, self).__init__(consumes=True, size=0)
         
     def visit(self, visitor, state=None):
         return visitor.check_point(self.next, self, state)

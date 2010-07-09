@@ -211,6 +211,6 @@ def lookahead_logic(branch, forwards, groups):
     if forwards or (reads and mutates):
         size = None
     else:
-        size = branch.size(groups)
+        size = branch.length(groups)
     return (reads, mutates, size)
     

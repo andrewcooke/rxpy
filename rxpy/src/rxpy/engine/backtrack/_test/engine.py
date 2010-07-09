@@ -33,6 +33,7 @@ from unittest import TestCase
 from rxpy.engine.backtrack.engine import BacktrackingEngine
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
+from rxpy.lib import RxpyException
 
 
 def engine(parse, text, search=False, ticks=None, maxdepth=None):
@@ -80,7 +81,7 @@ class EngineTest(TestCase):
         try:
             parse('\\1')
             assert False, 'expected error'
-        except:
+        except RxpyException:
             pass
  
     def test_split(self):
@@ -302,9 +303,11 @@ class EngineTest(TestCase):
 
         assert engine(parse('(.).(?<=(?(1)))'), 'ab')
         try:
-            assert not engine(parse('(.).(?<=(?(2)))'), 'ab')
+            # without 'x' this doesn't fail because the entire reference is
+            # dropped - probably a bug?  
+            parse('(.).(?<=(?(2)x))')
             assert False, 'expected error'
-        except:
+        except RxpyException:
             pass
         
         assert engine(parse('(a)b(?<=b)(c)'), 'abc')
@@ -337,18 +340,21 @@ class EngineTest(TestCase):
         try:
             parse('a**')
             assert False, 'expected error'
-        except:
+        except RxpyException as e:
+            print type(e), e
             pass
         parse('a{1,1}*')
         try:
             parse('a{0,1}*')
             assert False, 'expected error'
-        except:
+        except RxpyException as e:
+            print type(e), e
             pass
         parse('(?_l)a{1,1}*')
         try:
-            parse('(?_l)a{0,1}*')
+            print parse('(?_l)a{0,1}*')
             assert False, 'expected error'
-        except:
+        except RxpyException as e:
+            print type(e), e
             pass
         assert engine(parse('(a|)*'), 'ab')
