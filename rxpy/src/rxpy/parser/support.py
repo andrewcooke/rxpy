@@ -273,10 +273,10 @@ def parse(text, state, class_, mutable_flags=True):
     '''
     try:
         graph = class_(state).parse(text)
-    except RxpyException as e:
+    except RxpyException:
         # suppress error if we will parse again
         if not (mutable_flags and state.has_new_flags):
-            raise e
+            raise
     if mutable_flags and state.has_new_flags:
         state = state.clone_with_new_flags()
         graph = class_(state).parse(text)

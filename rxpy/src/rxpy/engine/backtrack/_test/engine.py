@@ -337,24 +337,27 @@ class EngineTest(TestCase):
         assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
         
     def test_empty_loops(self):
-        try:
-            parse('a**')
-            assert False, 'expected error'
-        except RxpyException as e:
-            print type(e), e
-            pass
-        parse('a{1,1}*')
-        try:
-            parse('a{0,1}*')
-            assert False, 'expected error'
-        except RxpyException as e:
-            print type(e), e
-            pass
-        parse('(?_l)a{1,1}*')
-        try:
-            print parse('(?_l)a{0,1}*')
-            assert False, 'expected error'
-        except RxpyException as e:
-            print type(e), e
-            pass
-        assert engine(parse('(a|)*'), 'ab')
+#        try:
+#            parse('a**')
+#            assert False, 'expected error'
+#        except RxpyException:
+#            pass
+#        parse('a{1,1}*')
+#        try:
+#            parse('a{0,1}*')
+#            assert False, 'expected error'
+#        except RxpyException:
+#            pass
+#        parse('(?_l)a{1,1}*')
+#        try:
+#            parse('(?_l)a{0,1}*')
+#            assert False, 'expected error'
+#        except RxpyException:
+#            pass
+#        try:
+#            parse('(a|)*')
+#            assert False, 'expected error'
+#        except RxpyException:
+#            pass
+        parse('a(?:b|(c|e){1,2}?|d)+?')
+    

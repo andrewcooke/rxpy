@@ -84,7 +84,7 @@ class Sequence(object):
         for node in self._nodes:
             if node.consumer(lenient):
                 return True
-        return lenient
+        return False
     
     @property
     def start(self):
