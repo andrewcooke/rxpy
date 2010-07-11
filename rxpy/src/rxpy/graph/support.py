@@ -45,13 +45,13 @@ def edge_iterator(node):
     visited = set()
     while stack:
         node = stack.pop()
-        for next in node.next:
-            edge = (node, next)
-            if edge not in visited:
-                if next:
+        if node not in visited:
+            visited.add(node)
+            for next in node.next:
+                edge = (node, next)
+                yield edge
+                if next not in visited:
                     stack.append(next)
-                    yield edge
-                visited.add(edge)
                 
                 
 def node_iterator(node):

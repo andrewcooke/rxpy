@@ -36,6 +36,7 @@ from string import digits, ascii_letters
 
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
+#from rxpy.graph.post import resolve_group_names, post_process
 from rxpy.lib import _FLAGS, RxpyException, refuse_flags
 
 
@@ -50,7 +51,7 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _L, _S, _E, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _STRINGS, _EMPTY, _UNSAFE) = _FLAGS
+    (I, M, S, U, X, A, _L, _C, _E, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
                  require=0, refuse=0):
@@ -263,23 +264,23 @@ class Builder(object):
         '''
 
         
-#def parse(text, state, class_, mutable_flags=True):
-#    '''
-#    Parse the text using the given builder.
-#    
-#    If the expression sets flags then it is parsed again.  If it changes flags
-#    on the second parse then an error is raised.
-#    '''
-#    try:
-#        graph = class_(state).parse(text)
-#    except RxpyException:
-#        # suppress error if we will parse again
-#        if not (mutable_flags and state.has_new_flags):
-#            raise
-#    if mutable_flags and state.has_new_flags:
-#        state = state.clone_with_new_flags()
-#        graph = class_(state).parse(text)
+def parse(text, state, class_, mutable_flags=True):
+    '''
+    Parse the text using the given builder.
+    
+    If the expression sets flags then it is parsed again.  If it changes flags
+    on the second parse then an error is raised.
+    '''
+    try:
+        graph = class_(state).parse(text)
+    except RxpyException:
+        # suppress error if we will parse again
+        if not (mutable_flags and state.has_new_flags):
+            raise
+    if mutable_flags and state.has_new_flags:
+        state = state.clone_with_new_flags()
+        graph = class_(state).parse(text)
 #    graph = post_process(graph, resolve_group_names(state))
-#    if state.has_new_flags:
-#        raise RxpyException('Inconsistent flags')
-#    return (state, graph)
+    if state.has_new_flags:
+        raise RxpyException('Inconsistent flags')
+    return (state, graph)

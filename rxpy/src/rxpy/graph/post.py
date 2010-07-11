@@ -27,27 +27,26 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-'''
-A replacement for Python's `re` package that uses the parallel engine.
-'''
+from rxpy.graph.support import node_iterator
+from rxpy.lib import RxpyException
+from rxpy.graph.opcode import GroupReference, GroupConditional
 
-from rxpy.compat.module import Re
-from rxpy.engine.parallel.wide.engine import WideEngine
 
-_re = Re(WideEngine)
+def resolve_group_names(state):
+    '''
+    Returns a list of actions that can be passed to the post-processor.
+    '''
+    resolve = lambda node: node.resolve(state)
+    return [(GroupReference, resolve), (GroupConditional, resolve)]
 
-compile = _re.compile
-RegexObject = _re.RegexObject
-MatchIterator = _re.MatchIterator
-match = _re.match    
-search = _re.search
-findall = _re.findall
-finditer = _re.finditer    
-sub = _re.sub    
-subn = _re.subn    
-split = _re.split    
-error = _re.error
-escape = _re.escape    
-Scanner = _re.Scanner    
 
-(I, M, S, U, X, A, _L, _C, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _UNSAFE) = _re.FLAGS
+def post_process(graph, actions):
+    map = {}
+    for (type_, function) in actions:
+        if type_ not in map:
+            map[type_] = function
+        else:
+            raise RxpyException('Conflicting actions for ' + str(type_))
+    for node in node_iterator(graph):
+        map.get(type(node), lambda x: None)(node)
+    return graph

@@ -1,3 +1,4 @@
+from rxpy.parser.support import ParserState
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -102,7 +103,7 @@ class EndGroup(BaseGroupReference):
         return visitor.end_group(self.next, self.number, state)
 
 
-class Split(BaseLabelledNode, BaseNode):
+class Split(BaseLabelledNode):
     '''
     Branch the graph, providing alternative matches for the current context
     (eg via backtracking on failure).
@@ -120,7 +121,7 @@ class Split(BaseLabelledNode, BaseNode):
     def __init__(self, label, consumes=None):
         super(Split, self).__init__(label=label, consumes=consumes, 
                                     size=None if consumes is None else 0)
-        self._fixed.remove('consumes') # set via constructor
+        self.fixed.remove('consumes') # set via constructor
         
     def visit(self, visitor, state=None):
         return visitor.split(self.next, state)
@@ -303,7 +304,7 @@ class Lookahead(BaseNode):
     '''
     
     def __init__(self, equal, forwards):
-        super(Lookahead, self).__init__(lazy=True, consumes=False, size=0)
+        super(Lookahead, self).__init__(consumes=False, size=0)
         self.equal = equal
         self.forwards = forwards
         
@@ -318,9 +319,7 @@ class Lookahead(BaseNode):
 
 class Repeat(BaseNode):
     '''
-    A numerical repeat.  This node is only present if the `_LOOP_UNROLL` flag was
-    used during compilation (otherwise numerical repeats are rewritten as 
-    appropriate splits/loops).
+    A numerical repeat.
     
     - `begin` is the minimum count value.
     
@@ -334,9 +333,10 @@ class Repeat(BaseNode):
     '''
     
     def __init__(self, begin, end, lazy):
-        super(Repeat, self).__init__(lazy=lazy, consumes=None, size=None)
+        super(Repeat, self).__init__(consumes=None, size=None)
         self.begin = begin
         self.end = end
+        self.lazy = lazy
 
     def __str__(self):
         text = '{' + str(self.begin)

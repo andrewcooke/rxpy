@@ -63,6 +63,22 @@ class ContainerTest(GraphTest):
 }""")
         
     def test_alternatives(self):
+        self.assert_graphs(build(Alternatives()),
+"""strict digraph {
+ 0 [label="NoMatch"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        self.assert_graphs(build(Alternatives(Sequence(n(1), n(2), n(3)))),
+"""strict digraph {
+ 0 [label="1"]
+ 1 [label="2"]
+ 2 [label="3"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+}""")
         self.assert_graphs(build(Alternatives(Sequence(n(1), n(2), n(3)),
                                               Sequence(n(4), n(5)),
                                               Sequence())),

@@ -53,9 +53,9 @@ class RxpyException(Exception):
     '''
     
     
-(I, M, S, U, X, A, _L, _S, _E, _U) = map(lambda x: 2**x, range(10))
-(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _STRINGS, _UNSAFE, _EMPTY) = (I, M, S, U, X, A, _L, _S, _E, _U)
-_FLAGS = (I, M, S, U, X, A, _L, _S, _E, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _STRINGS, _EMPTY, _UNSAFE)
+(I, M, S, U, X, A, _L, _C, _E, _U) = map(lambda x: 2**x, range(10))
+(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _UNSAFE, _EMPTY) = (I, M, S, U, X, A, _L, _C, _E, _U)
+_FLAGS = (I, M, S, U, X, A, _L, _C, _E, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE)
 
 FLAG_NAMES = {I: 'I/IGNORECASE',
               M: 'M/MULTILINE',
@@ -64,7 +64,7 @@ FLAG_NAMES = {I: 'I/IGNORECASE',
               X: 'X/VERBOSE',
               A: 'A/ASCII',
               _L: '_L/_LOOP_UNROLL',
-              _S: '_S/_STRINGS',
+              _C: '_C/_CHARS',
               _E: '_E/_EMPTY',
               _U: '_U/_UNSAFE'}
 

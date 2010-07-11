@@ -32,7 +32,38 @@ from rxpy.lib import RxpyException, unimplemented
 from rxpy.graph.support import GraphException, edge_iterator
 
 
-class BaseNode(object):
+class AutoClone(object):
+    
+    def __init__(self, fixed=None):
+        if fixed is None:
+            fixed = []
+        self.fixed = set(fixed) 
+
+    def clone(self):
+        '''
+        Duplicate this node (necessary when replacing a numbered repeat with
+        explicit, repeated, instances, for example).
+        
+        This copies all "public" attributes as constructor kargs.
+        '''
+        try:
+            return self.__class__(**self._kargs())
+        except TypeError as e:
+            raise RxpyException('Error cloning {0}: {1}'.format(
+                                        self.__class__.__name__, e))
+        
+    def _kargs(self):
+        '''
+        Generate a list of arguments used for cloning.  Subclasses can 
+        over-ride this if necessary, but probably shouldn't (instead, they
+        should have attributes that correspond to kargs).
+        '''
+        return dict((name, getattr(self, name))
+                     for name in self.__dict__ 
+                     if not name.startswith('_') and name not in self.fixed)
+        
+
+class BaseNode(AutoClone):
     '''
     Subclasses describe ordered actions (typically, matches) to be made.
     
@@ -54,13 +85,14 @@ class BaseNode(object):
         
         `size` - the amount of input consumed (None means unknown).
         '''
+        # cloning comes before assemble; other values are fixed by
+        # constructors or derived from other input
+        super(BaseNode, self).__init__(fixed=['next', 'consumes', 'size', 'fixed'])
         if consumes is None or size is None:
             assert consumes is size, 'Inconsistent uncertainty'
         self.next = []
         self.consumes = consumes
         self.size = size
-        # these fields are not passed to constructors on cloning
-        self._fixed = set(['next', 'consumes', 'size'])
         
     def consumer(self, lenient):
         '''
@@ -118,7 +150,7 @@ class BaseNode(object):
         edges = [' ' + start + ' -> ' + end for (start, end) in edge_indices]
         nodes = [' ' + str(index) + ' [label="{0!s}"]'.format(escape(reverse[index]))
                  for index in sorted(reverse)]
-        return 'strict digraph {{\n{0!s}\n{1!s}\n}}'.format(
+        return 'digraph {{\n{0!s}\n{1!s}\n}}'.format(
                         '\n'.join(nodes), '\n'.join(edges))
         
     @unimplemented
@@ -128,31 +160,7 @@ class BaseNode(object):
         displayed in the graphviz node (see repr).
         '''
         
-    def clone(self):
-        '''
-        Duplicate this node (necessary when replacing a numbered repeat with
-        explicit, repeated, instances, for example).
-        
-        This copies all "public" attributes as constructor kargs.  The 
-        `next` attribute is not cloned because cloning occurs before assembly.
-        '''
-        try:
-            return self.__class__(**self._kargs())
-        except TypeError as e:
-            raise RxpyException('Error cloning {0}: {1}'.format(
-                                        self.__class__.__name__, e))
-        
-    def _kargs(self):
-        '''
-        Generate a list of arguments used for cloning.  Subclasses can 
-        over-ride this if necessary, but probably shouldn't (instead, they
-        should have attributes that correspond to kargs).
-        '''
-        return dict((name, getattr(self, name))
-                     for name in self.__dict__ 
-                     if not name.startswith('_') and name not in self._fixed)
-        
-    def join(self, final):
+    def join(self, final, state):
         self.next.insert(0, final)
         return self
  

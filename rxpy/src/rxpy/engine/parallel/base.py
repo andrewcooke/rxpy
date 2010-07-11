@@ -29,7 +29,7 @@
 
 from rxpy.engine.base import BaseEngine
 from rxpy.graph.visitor import BaseVisitor
-from rxpy.lib import _STRINGS
+from rxpy.lib import _CHARS
 from rxpy.engine.parallel.support import State, States
 from rxpy.engine.support import Groups, lookahead_logic
 from rxpy.graph.temp import Sequence
@@ -44,7 +44,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     
     # single characters only to avoid incrementing any one thread out of
     # step with the others
-    REFUSE = _STRINGS
+    REQUIRE = _CHARS
     
     def __init__(self, parser_state, graph, hash_state=False):
         super(ParallelEngine, self).__init__(parser_state, graph)

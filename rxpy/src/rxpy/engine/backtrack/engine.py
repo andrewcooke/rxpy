@@ -40,7 +40,6 @@ for example).
 from rxpy.engine.base import BaseEngine
 from rxpy.engine.support import Groups, lookahead_logic, Loops
 from rxpy.graph.visitor import BaseVisitor
-from rxpy.lib import _STRINGS
 
 
 class Fail(Exception):
@@ -279,8 +278,6 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
     '''
     The interpreter.
     '''
-    
-    REQUIRE = _STRINGS
     
     def __init__(self, parser_state, graph):
         super(BacktrackingEngine, self).__init__(parser_state, graph)
