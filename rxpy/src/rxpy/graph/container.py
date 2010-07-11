@@ -27,11 +27,9 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-from operator import or_
-
-from rxpy.graph.base import BaseNode, AutoClone
-from rxpy.graph.opcode import Split, CheckPoint, NoMatch, Repeat
-from rxpy.lib import unimplemented
+from rxpy.graph.base import AutoClone
+from rxpy.graph.opcode import Split, CheckPoint, NoMatch, Repeat, String
+from rxpy.lib import unimplemented, _CHARS
 from rxpy.parser.support import ParserState
 
 
@@ -41,18 +39,11 @@ class BaseCollection(AutoClone):
         super(BaseCollection, self).__init__(fixed=['contents', 'fixed'])
         if contents is None:
             contents = []
-        for content in contents:
-            self._check(content)
         self.contents = list(contents)
         
     def append(self, content):
-        self._check(content)
         self.contents.append(content)
 
-    @unimplemented
-    def _check(self, content):
-        pass
-    
     @unimplemented
     def consumer(self, lenient):
         pass
@@ -67,16 +58,13 @@ class BaseCollection(AutoClone):
         return clone
     
     def __bool__(self):
-        return reduce(or_, map(bool, self.contents), False)
+        return bool(self.contents)
     
     def __nonzero__(self):
         return self.__bool__()
         
 
 class Sequence(BaseCollection):
-    
-    def _check(self, content):
-        assert isinstance(content, BaseNode) or isinstance(content, BaseCollection)
     
     def consumer(self, lenient):
         for node in self.contents:
@@ -85,15 +73,49 @@ class Sequence(BaseCollection):
         return False
     
     def join(self, final, state):
+        self.contents = list(self._unpack_nested_sequences(self.contents))
+        if not (state.flags & _CHARS):
+            self.contents = list(self._merge_strings(self.contents))
         for content in reversed(self.contents):
             final = content.join(final, state)
         return final
+    
+    def _unpack_nested_sequences(self, contents):
+        for content in contents:
+            if type(content) is Sequence:
+                for inner in self._unpack_nested_sequences(content.contents):
+                    yield inner
+            else:
+                yield content
+    
+    def _merge_strings(self, contents):
+        current = None
+        for content in contents:
+            if isinstance(content, String):
+                if current:
+                    current.text += content.text
+                else:
+                    current = content
+            else:
+                if current:
+                    yield current
+                    current = None
+                yield content
+        if current:
+            yield current
     
     def pop(self):
         content = self.contents.pop()
         if not isinstance(content, Sequence):
             content = Sequence([content])
         return content
+    
+    def clone(self):
+        clone = super(Sequence, self).clone()
+        if len(clone.contents) == 1:
+            return clone.contents[0]
+        else:
+            return clone
     
     
 class LabelMixin(object):
@@ -153,9 +175,6 @@ class Alternatives(LabelMixin, BaseCollection):
     def __init__(self, contents=None, label='...|...', split=Split):
         super(Alternatives, self).__init__(contents=contents, label=label)
         self.split = split
-    
-    def _check(self, content):
-        assert isinstance(content, Sequence)
     
     def consumer(self, lenient):
         for sequence in self.contents:

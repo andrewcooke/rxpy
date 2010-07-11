@@ -46,7 +46,7 @@ def parse(pattern, engine=BaseEngine, flags=0):
 class ParserTest(GraphTest):
     
     def test_sequence(self):
-        self.assert_graphs(parse('abc'), 
+        self.assert_graphs(parse('abc', engine=DummyEngine), 
 """digraph {
  0 [label="a"]
  1 [label="b"]
@@ -56,24 +56,28 @@ class ParserTest(GraphTest):
  1 -> 2
  2 -> 3
 }""")
-        self.assert_graphs(parse('(?_s)abc'), 
+        self.assert_graphs(parse('(?_c)abc'), 
+"""digraph {
+ 0 [label="a"]
+ 1 [label="b"]
+ 2 [label="c"]
+ 3 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+}""")
+        self.assert_graphs(parse('abc'), 
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
  0 -> 1
 }""")
-#        self.assert_graphs(parse('abc', engine=DummyEngine), 
-#"""digraph {
-# 0 [label="abc"]
-# 1 [label="Match"]
-# 0 -> 1
-#}""")
     
     def test_matching_group(self):
         self.assert_graphs(parse('a(b)c'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="b"]
  3 [label=")"]
  4 [label="c"]
@@ -89,9 +93,9 @@ class ParserTest(GraphTest):
         self.assert_graphs(parse('a(b(c)d)e'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="b"]
- 3 [label="("]
+ 3 [label="(?P<2>"]
  4 [label="c"]
  5 [label=")"]
  6 [label="d"]
@@ -113,8 +117,8 @@ class ParserTest(GraphTest):
         self.assert_graphs(parse('a((b))c'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
- 2 [label="("]
+ 1 [label="(?P<1>"]
+ 2 [label="(?P<2>"]
  3 [label="b"]
  4 [label=")"]
  5 [label=")"]
@@ -133,7 +137,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(parse('a(b)'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="b"]
  3 [label=")"]
  4 [label="Match"]
@@ -146,7 +150,7 @@ class ParserTest(GraphTest):
     def test_matching_group_early_open(self):
         self.assert_graphs(parse('(a)b'), 
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="b"]
@@ -161,7 +165,7 @@ class ParserTest(GraphTest):
         self.assert_graphs(parse('a()b'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label=")"]
  3 [label="b"]
  4 [label="Match"]
@@ -172,7 +176,7 @@ class ParserTest(GraphTest):
 }""")
         self.assert_graphs(parse('()a'), 
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label=")"]
  2 [label="a"]
  3 [label="Match"]
@@ -182,7 +186,7 @@ class ParserTest(GraphTest):
 }""")
         
     def test_non_matching_group(self):
-        self.assert_graphs(parse('a(?:b)c', engine=DummyEngine), 
+        self.assert_graphs(parse('a(?:b)c'),
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -297,10 +301,10 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_plus(self):
-        self.assert_graphs(parse('a(bc)+d', engine=DummyEngine), 
+        self.assert_graphs(parse('a(bc)+d'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="bc"]
  3 [label=")"]
  4 [label="...+"]
@@ -316,11 +320,11 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_star(self):
-        self.assert_graphs(parse('a(bc)*d', engine=DummyEngine), 
+        self.assert_graphs(parse('a(bc)*d'), 
 """digraph {
  0 [label="a"]
  1 [label="...*"]
- 2 [label="("]
+ 2 [label="(?P<1>"]
  3 [label="d"]
  4 [label="Match"]
  5 [label="bc"]
@@ -335,11 +339,11 @@ class ParserTest(GraphTest):
 }""")
         
     def test_group_question(self):
-        self.assert_graphs(parse('a(bc)?d', engine=DummyEngine), 
+        self.assert_graphs(parse('a(bc)?d'), 
 """digraph {
  0 [label="a"]
  1 [label="...?"]
- 2 [label="("]
+ 2 [label="(?P<1>"]
  3 [label="d"]
  4 [label="Match"]
  5 [label="bc"]
@@ -404,7 +408,7 @@ r"""digraph {
 }""")
 
     def test_x_escape(self):
-        self.assert_graphs(parse('a\\x62c', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\x62c'), 
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -412,7 +416,7 @@ r"""digraph {
 }""")
 
     def test_u_escape(self):
-        self.assert_graphs(parse('a\\u0062c', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\u0062c'), 
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -420,7 +424,7 @@ r"""digraph {
 }""")
         
     def test_U_escape(self):
-        self.assert_graphs(parse('a\\U00000062c', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\U00000062c'), 
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
@@ -491,10 +495,10 @@ r"""digraph {
 }""")
         
     def test_lazy_group_plus(self):
-        self.assert_graphs(parse('a(bc)+?d', engine=DummyEngine), 
+        self.assert_graphs(parse('a(bc)+?d'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="bc"]
  3 [label=")"]
  4 [label="...+?"]
@@ -510,12 +514,12 @@ r"""digraph {
 }""")
         
     def test_lazy_group_star(self):
-        self.assert_graphs(parse('a(bc)*?d', engine=DummyEngine), 
+        self.assert_graphs(parse('a(bc)*?d'), 
 """digraph {
  0 [label="a"]
  1 [label="...*?"]
  2 [label="d"]
- 3 [label="("]
+ 3 [label="(?P<1>"]
  4 [label="bc"]
  5 [label=")"]
  6 [label="Match"]
@@ -538,7 +542,7 @@ r"""digraph {
  0 -> 2
  1 -> 2
 }""")
-        self.assert_graphs(parse('a|b|cd', engine=DummyEngine), 
+        self.assert_graphs(parse('a|b|cd'), 
 """digraph {
  0 [label="...|..."]
  1 [label="a"]
@@ -554,9 +558,9 @@ r"""digraph {
 }""")
 
     def test_group_alternatives(self):
-        self.assert_graphs(parse('(a|b|cd)', engine=DummyEngine),
+        self.assert_graphs(parse('(a|b|cd)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="...|..."]
  2 [label="a"]
  3 [label="b"]
@@ -574,7 +578,7 @@ r"""digraph {
 }""")
         self.assert_graphs(parse('(a|)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="...|..."]
  2 [label="a"]
  3 [label=")"]
@@ -587,11 +591,11 @@ r"""digraph {
 }""")
         
     def test_nested_groups(self):
-        self.assert_graphs(parse('a|(b|cd)', engine=DummyEngine),
+        self.assert_graphs(parse('a|(b|cd)'),
 """digraph {
  0 [label="...|..."]
  1 [label="a"]
- 2 [label="("]
+ 2 [label="(?P<1>"]
  3 [label="...|..."]
  4 [label="b"]
  5 [label="cd"]
@@ -612,7 +616,7 @@ r"""digraph {
         self.assert_graphs(parse('a(?P<foo>b)c(?P=foo)d'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="b"]
  3 [label=")"]
  4 [label="c"]
@@ -629,7 +633,7 @@ r"""digraph {
 }""")
         
 #    def test_comment(self):
-#        self.assert_graphs(parse('a(?#hello world)b', engine=DummyEngine), 
+#        self.assert_graphs(parse('a(?#hello world)b'), 
 #"""digraph {
 # 0 [label="ab"]
 # 1 [label="Match"]
@@ -737,8 +741,7 @@ r"""digraph {
 }""")
 
     def test_stateful_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}d', 
-                                 engine=DummyEngine), 
+        self.assert_graphs(parse('a(?:bc){1,2}d'), 
 """digraph {
  0 [label="a"]
  1 [label="{1,2}"]
@@ -753,7 +756,7 @@ r"""digraph {
 }""")
         
     def test_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}c', engine=DummyEngine,
+        self.assert_graphs(parse('ab{1,2}c',
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="ab"]
@@ -767,7 +770,7 @@ r"""digraph {
  3 -> 4
  2 -> 3
 }""")
-        self.assert_graphs(parse('ab{1,2}c(?_l)', engine=DummyEngine), 
+        self.assert_graphs(parse('ab{1,2}c(?_l)'), 
 """digraph {
  0 [label="ab"]
  1 [label="...?"]
@@ -782,7 +785,7 @@ r"""digraph {
 }""")
         
     def test_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}c', engine=DummyEngine,
+        self.assert_graphs(parse('ab{3,}c',
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abbb"]
@@ -798,7 +801,7 @@ r"""digraph {
 }""")
         
     def test_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}c', engine=DummyEngine,
+        self.assert_graphs(parse('ab{2}c',
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abbc"]
@@ -807,7 +810,7 @@ r"""digraph {
 }""")
         
     def test_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}d', engine=DummyEngine,
+        self.assert_graphs(parse('a(?:bc){1,2}d',
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abc"]
@@ -823,7 +826,7 @@ r"""digraph {
 }""")
         
     def test_lazy_stateless_count(self):
-        self.assert_graphs(parse('ab{1,2}?c', engine=DummyEngine, 
+        self.assert_graphs(parse('ab{1,2}?c', 
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="ab"]
@@ -839,7 +842,7 @@ r"""digraph {
 }""")
         
     def test_lazy_stateless_open_count(self):
-        self.assert_graphs(parse('ab{3,}?c', engine=DummyEngine, 
+        self.assert_graphs(parse('ab{3,}?c', 
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abbb"]
@@ -855,7 +858,7 @@ r"""digraph {
 }""")
         
     def test_lazy_stateless_fixed_count(self):
-        self.assert_graphs(parse('ab{2}?c', engine=DummyEngine, 
+        self.assert_graphs(parse('ab{2}?c', 
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abbc"]
@@ -864,7 +867,7 @@ r"""digraph {
 }""")
         
     def test_lazy_stateless_group_count(self):
-        self.assert_graphs(parse('a(?:bc){1,2}?d', engine=DummyEngine,
+        self.assert_graphs(parse('a(?:bc){1,2}?d',
                                  flags=ParserState._LOOP_UNROLL), 
 """digraph {
  0 [label="abc"]
@@ -878,21 +881,21 @@ r"""digraph {
  3 -> 2
  2 -> 4
 }""")
-
+        
     def test_octal_escape(self):
-        self.assert_graphs(parse('a\\075c', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\075c'), 
 """digraph {
  0 [label="a=c"]
  1 [label="Match"]
  0 -> 1
 }""")
-        self.assert_graphs(parse('a\\142c', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\142c'), 
 """digraph {
  0 [label="abc"]
  1 [label="Match"]
  0 -> 1
 }""")
-        self.assert_graphs(parse('a\\142c'), 
+        self.assert_graphs(parse('a\\142c', engine=DummyEngine), 
 """digraph {
  0 [label="a"]
  1 [label="b"]
@@ -907,7 +910,7 @@ r"""digraph {
         self.assert_graphs(parse('a(b)c\\1d'), 
 """digraph {
  0 [label="a"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="b"]
  3 [label=")"]
  4 [label="c"]
@@ -924,7 +927,7 @@ r"""digraph {
 }""")
         
     def test_simple_escape(self):
-        self.assert_graphs(parse('a\\nc', engine=DummyEngine), 
+        self.assert_graphs(parse('a\\nc'), 
 """digraph {
  0 [label="a\\\\nc"]
  1 [label="Match"]
@@ -935,7 +938,7 @@ r"""digraph {
         # in all cases, "no" is the first alternative
         self.assert_graphs(parse('(a)(?(1)b)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="(?(1)...)"]
@@ -948,9 +951,9 @@ r"""digraph {
  3 -> 5
  5 -> 4
 }""")
-        self.assert_graphs(parse('(a)(?(1)b|cd)', engine=DummyEngine),
+        self.assert_graphs(parse('(a)(?(1)b|cd)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="(?(1)...|...)"]
@@ -969,7 +972,7 @@ r"""digraph {
         # (3->4 before 3->5)
         self.assert_graphs(parse('(a)(?(1)|b)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="(?(1)|...)"]
@@ -984,7 +987,7 @@ r"""digraph {
 }""")
         self.assert_graphs(parse('(a)(?(1)|)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="(?(1)|)"]
@@ -997,7 +1000,7 @@ r"""digraph {
 }""")
         self.assert_graphs(parse('(a)(?(1))'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="a"]
  2 [label=")"]
  3 [label="(?(1)|)"]
@@ -1038,11 +1041,14 @@ r"""digraph {
     def test_named_group_bug(self):
         self.assert_graphs(parse('(?P<quote>)(?(quote))'), 
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label=")"]
- 2 [label="Match"]
+ 2 [label="(?(quote)|)"]
+ 3 [label="Match"]
  0 -> 1
  1 -> 2
+ 2 -> 3
+ 2 -> 3
 }""")
         
     def test_pickle_bug(self):
@@ -1066,10 +1072,10 @@ r"""digraph {
  0 [label="a"]
  1 [label="...|..."]
  2 [label="b"]
- 3 [label="("]
+ 3 [label="(?P<1>"]
  4 [label="d"]
  5 [label="...+?"]
- 6 [label="("]
+ 6 [label="(?P<2>"]
  7 [label="."]
  8 [label=")"]
  9 [label="Match"]
@@ -1078,7 +1084,7 @@ r"""digraph {
  12 [label="e"]
  13 [label=")"]
  14 [label="...??"]
- 15 [label="("]
+ 15 [label="(?P<1>"]
  16 [label="...|..."]
  17 [label="c"]
  18 [label="e"]
@@ -1114,7 +1120,7 @@ r"""digraph {
         self.assert_graphs(parse('(a|b)*'), 
 """digraph {
  0 [label="...*"]
- 1 [label="("]
+ 1 [label="(?P<1>"]
  2 [label="Match"]
  3 [label="...|..."]
  4 [label="a"]
@@ -1135,7 +1141,7 @@ r"""digraph {
  1 [label="(?(1)...)"]
  2 [label="Match"]
  3 [label="!"]
- 4 [label="("]
+ 4 [label="(?P<1>"]
  5 [label="a"]
  6 [label=")"]
  0 -> 1
@@ -1152,7 +1158,7 @@ r"""digraph {
  0 [label="...*"]
  1 [label="(?(1)...)"]
  2 [label="Match"]
- 3 [label="("]
+ 3 [label="(?P<1>"]
  4 [label="a"]
  5 [label=")"]
  0 -> 1

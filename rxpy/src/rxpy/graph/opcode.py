@@ -77,7 +77,7 @@ class StartGroup(BaseGroupReference):
         super(StartGroup, self).__init__(number, consumes=False, size=0)
         
     def __str__(self):
-        return "("
+        return "(?P<%s>" % self.number
         
     def visit(self, visitor, state=None):
         return visitor.start_group(self.next, self.number, state)
