@@ -28,8 +28,6 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.alphabet.unicode import Unicode
-from rxpy.graph.opcode import String
 from rxpy.parser._test.lib import GraphTest
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
@@ -41,15 +39,6 @@ def parse(pattern, flags=0):
 
 class ReprTest(GraphTest):
     
-    def test_sequence(self):
-        unicode = Unicode()
-        self.assert_graphs((None, String('a').concatenate(String('b'))),
-"""digraph {
- 0 [label="a"]
- 1 [label="b"]
- 0 -> 1
-}""")
-
     def test_already_connected_bug(self):
         parse('a')
         parse('b')
@@ -82,7 +71,7 @@ class ReprTest(GraphTest):
 }""")
         self.assert_graphs(parse('(\w)$'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="\\\\w"]
  2 [label=")"]
  3 [label="$"]
@@ -94,13 +83,13 @@ class ReprTest(GraphTest):
 }""")
         self.assert_graphs(parse('(\w){3}$(?_l)'),
 """digraph {
- 0 [label="("]
+ 0 [label="(?P<1>"]
  1 [label="\\\\w"]
  2 [label=")"]
- 3 [label="("]
+ 3 [label="(?P<1>"]
  4 [label="\\\\w"]
  5 [label=")"]
- 6 [label="("]
+ 6 [label="(?P<1>"]
  7 [label="\\\\w"]
  8 [label=")"]
  9 [label="$"]

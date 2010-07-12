@@ -93,6 +93,7 @@ class Sequence(BaseCollection):
         for content in contents:
             if isinstance(content, String):
                 if current:
+                    # TODO - via alphabet!
                     current.text += content.text
                 else:
                     current = content
@@ -134,13 +135,13 @@ class LazyMixin(object):
     
 class Loop(LazyMixin, LabelMixin, Sequence):
     
-    def __init__(self, contents, state=None, lazy=False, once=False, label=None):
+    def __init__(self, contents=None, state=None, lazy=False, once=False, label=None):
         super(Loop, self).__init__(contents=contents, lazy=lazy, label=label)
         self.once = once
-        if not self.consumer(False) and not (state.flags & ParserState._UNSAFE):
-            self.append(CheckPoint())
 
     def join(self, final, state):
+        if not self.consumer(False) and not (state.flags & ParserState._UNSAFE):
+            self.append(CheckPoint())
         split = Split(self.label, consumes=True)
         inner = super(Loop, self).join(split, state)
         next = [final, inner]

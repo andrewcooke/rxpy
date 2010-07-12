@@ -36,7 +36,7 @@ from string import digits, ascii_letters
 
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
-#from rxpy.graph.post import resolve_group_names, post_process
+from rxpy.graph.post import resolve_group_names, post_process
 from rxpy.lib import _FLAGS, RxpyException, refuse_flags
 
 
@@ -280,7 +280,7 @@ def parse(text, state, class_, mutable_flags=True):
     if mutable_flags and state.has_new_flags:
         state = state.clone_with_new_flags()
         graph = class_(state).parse(text)
-#    graph = post_process(graph, resolve_group_names(state))
+    graph = post_process(graph, resolve_group_names(state))
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
     return (state, graph)

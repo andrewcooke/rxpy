@@ -43,9 +43,9 @@ from string import digits, ascii_letters
 
 from rxpy.graph.container import Sequence, Alternatives, Loop, Optional,\
     CountedLoop
-from rxpy.graph.opcode import Match, Character, String, Split, StartOfLine,\
+from rxpy.graph.opcode import Match, Character, String, StartOfLine,\
     EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, \
-    Digit, Word, Space, Lookahead, GroupReference, Repeat, CheckPoint
+    Digit, Word, Space, Lookahead, GroupReference
 from rxpy.lib import RxpyException
 from rxpy.parser.support import Builder, ParserState, OCTAL, parse
 
@@ -922,5 +922,5 @@ def parse_groups(texts, engine, flags=0, alphabet=None):
         sequence.parse_group(text)
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
-    return (state, sequence.build_complete())
+    return (state, sequence.to_sequence().join(Match(), state))
         

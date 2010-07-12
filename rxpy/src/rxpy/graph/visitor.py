@@ -28,92 +28,62 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.alphabet.unicode import Unicode
-from rxpy.graph.opcode import String
-from rxpy.parser._test.lib import GraphTest
-from rxpy.parser.pattern import parse_pattern
-from rxpy.parser.support import ParserState
-from rxpy.engine.base import BaseEngine
+from rxpy.lib import UnsupportedOperation
 
 
-def parse(pattern, flags=0):
-    return parse_pattern(pattern, BaseEngine, flags=flags)
-
-class ReprTest(GraphTest):
+class BaseVisitor(object):
     
-    def test_sequence(self):
-        unicode = Unicode()
-        self.assert_graphs((None, String('a').concatenate(String('b'))),
-"""digraph {
- 0 [label="a"]
- 1 [label="b"]
- 0 -> 1
-}""")
+    def string(self, next, text, state=None):
+        raise UnsupportedOperation('string')
+    
+    def character(self, next, charset, state=None):
+        raise UnsupportedOperation('character')
+    
+    def start_group(self, next, number, state=None):
+        raise UnsupportedOperation('start_group')
+    
+    def end_group(self, next, number, state=None):
+        raise UnsupportedOperation('end_group')
 
-    def test_already_connected_bug(self):
-        parse('a')
-        parse('b')
-        parse('(c|e)')
-        parse('d')
-        parse('(c|e)')
-        parse('c{1,2}', )
-        parse('c{1,2}')
-        parse('(c|e){1,2}', flags=ParserState._LOOP_UNROLL)
-        parse('(c|e){1,2}')
-        parse('(c|e){1,2}?')
-        parse('(b|(c|e){1,2}?|d)')
-        parse('(?:b|(c|e){1,2}?|d)')
-        parse('(?:b|(c|e){1,2}?|d)+?')
-        parse('(.)')
-        parse('a(?:b|(c|e){1,2}?|d)+?(.)')
+    def group_reference(self, next, number, state=None):
+        raise UnsupportedOperation('group_reference')
 
-    def test_w3_bug(self):
-        self.assert_graphs(parse('\w{3}(?_l)$'),
-"""digraph {
- 0 [label="\\\\w"]
- 1 [label="\\\\w"]
- 2 [label="\\\\w"]
- 3 [label="$"]
- 4 [label="Match"]
- 0 -> 1
- 1 -> 2
- 2 -> 3
- 3 -> 4
-}""")
-        self.assert_graphs(parse('(\w)$'),
-"""digraph {
- 0 [label="("]
- 1 [label="\\\\w"]
- 2 [label=")"]
- 3 [label="$"]
- 4 [label="Match"]
- 0 -> 1
- 1 -> 2
- 2 -> 3
- 3 -> 4
-}""")
-        self.assert_graphs(parse('(\w){3}$(?_l)'),
-"""digraph {
- 0 [label="("]
- 1 [label="\\\\w"]
- 2 [label=")"]
- 3 [label="("]
- 4 [label="\\\\w"]
- 5 [label=")"]
- 6 [label="("]
- 7 [label="\\\\w"]
- 8 [label=")"]
- 9 [label="$"]
- 10 [label="Match"]
- 0 -> 1
- 1 -> 2
- 2 -> 3
- 3 -> 4
- 4 -> 5
- 5 -> 6
- 6 -> 7
- 7 -> 8
- 8 -> 9
- 9 -> 10
-}""")
-        
+    def conditional(self, next, number, state=None):
+        raise UnsupportedOperation('conditional')
+
+    def split(self, next, state=None):
+        raise UnsupportedOperation('split')
+
+    def match(self, state=None):
+        raise UnsupportedOperation('match')
+
+    def dot(self, next, multiline, state=None):
+        raise UnsupportedOperation('dot')
+    
+    def start_of_line(self, next, multiline, state=None):
+        raise UnsupportedOperation('start_of_line')
+    
+    def end_of_line(self, next, multiline, state=None):
+        raise UnsupportedOperation('end_of_line')
+    
+    def lookahead(self, next, node, equal, forwards, state=None):
+        raise UnsupportedOperation('lookahead')
+
+    def repeat(self, next, node, begin, end, lazy, state=None):
+        raise UnsupportedOperation('repeat')
+    
+    def word_boundary(self, next, inverted, state=None):
+        raise UnsupportedOperation('word_boundary')
+
+    def digit(self, next, inverted, state=None):
+        raise UnsupportedOperation('digit')
+    
+    def space(self, next, inverted, state=None):
+        raise UnsupportedOperation('space')
+    
+    def word(self, next, inverted, state=None):
+        raise UnsupportedOperation('word')
+    
+    def check_point(self, next, id, state=None):
+        raise UnsupportedOperation('check_point')
+
