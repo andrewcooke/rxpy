@@ -252,7 +252,6 @@ class Builder(object):
     '''
     
     def __init__(self, state):
-        super(Builder, self).__init__()
         self._state = state
     
     def append_character(self, character, escaped=False):

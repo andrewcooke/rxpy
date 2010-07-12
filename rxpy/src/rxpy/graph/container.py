@@ -75,7 +75,7 @@ class Sequence(BaseCollection):
     def join(self, final, state):
         self.contents = list(self._unpack_nested_sequences(self.contents))
         if not (state.flags & _CHARS):
-            self.contents = list(self._merge_strings(self.contents))
+            self.contents = list(self._merge_strings(state, self.contents))
         for content in reversed(self.contents):
             final = content.join(final, state)
         return final
@@ -88,13 +88,12 @@ class Sequence(BaseCollection):
             else:
                 yield content
     
-    def _merge_strings(self, contents):
+    def _merge_strings(self, state, contents):
         current = None
         for content in contents:
             if isinstance(content, String):
                 if current:
-                    # TODO - via alphabet!
-                    current.text += content.text
+                    current.extend(content.text, state)
                 else:
                     current = content
             else:

@@ -58,6 +58,11 @@ class String(BaseNode):
     def __str__(self):
         return self.text
     
+    def extend(self, text, state):
+        # TODO - use alphabet!
+        self.text += text
+        self.size = len(self.text)
+    
     def visit(self, visitor, state=None):
         return visitor.string(self.next, self.text, state)
 

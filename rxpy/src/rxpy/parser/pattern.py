@@ -210,7 +210,7 @@ class RepeatBuilder(Builder):
         
     @staticmethod
     def assert_consumer(latest, state):
-        if not latest.consumer(True) and not state.flags & ParserState._EMPTY:
+        if not latest.consumer(True) and not (state.flags & ParserState._EMPTY):
             raise EmptyException
         
     @staticmethod

@@ -422,14 +422,19 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
             if forwards:
                 clone = State(state.text, state.groups.clone())
             else:
-                if size is None: 
+                if size is not None and size > state.offset and equal:
+                    raise Fail
+                elif size is None or size > state.offset:
                     subtext = self.__text[0:state.offset]
                     previous = None
                     search = True
                 else:
                     offset = state.offset - size
                     subtext = self.__text[offset:state.offset]
-                    previous = self.__text[offset-1]
+                    if offset:
+                        previous = self.__text[offset-1]
+                    else:
+                        previous = None
                 clone = State(subtext, state.groups.clone(), previous=previous)
             (match, clone) = self.__run(next[1], clone, search=search)
             success = match == equal
