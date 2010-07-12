@@ -32,6 +32,7 @@ from rxpy.graph._test.lib import GraphTest
 from rxpy.graph.base import BaseLabelledNode
 from rxpy.graph.container import Sequence, Alternatives, Loop
 from rxpy.graph.opcode import Match
+from rxpy.parser.support import ParserState
 
 
 def n(label):
@@ -39,7 +40,7 @@ def n(label):
 
 
 def build(sequence):
-    return (None, sequence.join(Match()))
+    return (None, sequence.join(Match(), ParserState()))
 
 
 class DummyState(object):
@@ -51,8 +52,8 @@ class DummyState(object):
 class ContainerTest(GraphTest):
     
     def test_sequence(self):
-        self.assert_graphs(build(Sequence(n(1), n(2), n(3))),
-"""strict digraph {
+        self.assert_graphs(build(Sequence([n(1), n(2), n(3)])),
+"""digraph {
  0 [label="1"]
  1 [label="2"]
  2 [label="3"]
@@ -64,13 +65,13 @@ class ContainerTest(GraphTest):
         
     def test_alternatives(self):
         self.assert_graphs(build(Alternatives()),
-"""strict digraph {
+"""digraph {
  0 [label="NoMatch"]
  1 [label="Match"]
  0 -> 1
 }""")
-        self.assert_graphs(build(Alternatives(Sequence(n(1), n(2), n(3)))),
-"""strict digraph {
+        self.assert_graphs(build(Alternatives([Sequence([n(1), n(2), n(3)])])),
+"""digraph {
  0 [label="1"]
  1 [label="2"]
  2 [label="3"]
@@ -79,10 +80,10 @@ class ContainerTest(GraphTest):
  1 -> 2
  2 -> 3
 }""")
-        self.assert_graphs(build(Alternatives(Sequence(n(1), n(2), n(3)),
-                                              Sequence(n(4), n(5)),
-                                              Sequence())),
-"""strict digraph {
+        self.assert_graphs(build(Alternatives([Sequence([n(1), n(2), n(3)]),
+                                               Sequence([n(4), n(5)]),
+                                               Sequence()])),
+"""digraph {
  0 [label="...|..."]
  1 [label="1"]
  2 [label="4"]
@@ -101,10 +102,10 @@ class ContainerTest(GraphTest):
 }""")
         
     def test_loop(self):
-        self.assert_graphs(build(Loop(Sequence(n(1), n(2)),
+        self.assert_graphs(build(Loop([Sequence([n(1), n(2)])],
                                       state=DummyState(), lazy=True, 
                                       label='x')),
-"""strict digraph {
+"""digraph {
  0 [label="x"]
  1 [label="Match"]
  2 [label="1"]
@@ -116,10 +117,10 @@ class ContainerTest(GraphTest):
  3 -> 4
  4 -> 0
 }""")
-        self.assert_graphs(build(Loop(Sequence(n(1), n(2)),
+        self.assert_graphs(build(Loop([Sequence([n(1), n(2)])],
                                       state=DummyState(), lazy=False, 
                                       label='x')),
-"""strict digraph {
+"""digraph {
  0 [label="x"]
  1 [label="1"]
  2 [label="Match"]

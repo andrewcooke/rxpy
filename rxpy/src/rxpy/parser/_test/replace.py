@@ -28,62 +28,38 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.lib import UnsupportedOperation
+from rxpy.lib import _CHARS
+from rxpy.graph._test.lib import GraphTest
+from rxpy.engine.base import BaseEngine
+from rxpy.parser.replace import parse_replace
+from rxpy.parser.pattern import parse_pattern
 
 
-class BaseVisitor(object):
+class DummyEngine(BaseEngine):
+    REQUIRE = _CHARS
     
-    def string(self, next, text, state=None):
-        raise UnsupportedOperation('string')
-    
-    def character(self, next, charset, state=None):
-        raise UnsupportedOperation('character')
-    
-    def start_group(self, next, number, state=None):
-        raise UnsupportedOperation('start_group')
-    
-    def end_group(self, next, number, state=None):
-        raise UnsupportedOperation('end_group')
 
-    def group_reference(self, next, number, state=None):
-        raise UnsupportedOperation('group_reference')
+def parse(pattern, replacement):
+    (state, _graph) = parse_pattern(pattern, BaseEngine)
+    return parse_replace(replacement, state)
 
-    def conditional(self, next, number, state=None):
-        raise UnsupportedOperation('conditional')
 
-    def split(self, next, state=None):
-        raise UnsupportedOperation('split')
+class ParserTest(GraphTest):
+    
+    def test_string(self):
+        self.assert_graphs(parse('', 'abc'), 
+"""digraph {
+ 0 [label="abc"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
+        
+    def test_single_group(self):
+        self.assert_graphs(parse('(.)', '\\1'), 
+"""digraph {
+ 0 [label="\\\\1"]
+ 1 [label="Match"]
+ 0 -> 1
+}""")
 
-    def match(self, state=None):
-        raise UnsupportedOperation('match')
-
-    def dot(self, next, multiline, state=None):
-        raise UnsupportedOperation('dot')
-    
-    def start_of_line(self, next, multiline, state=None):
-        raise UnsupportedOperation('start_of_line')
-    
-    def end_of_line(self, next, multiline, state=None):
-        raise UnsupportedOperation('end_of_line')
-    
-    def lookahead(self, next, node, equal, forwards, state=None):
-        raise UnsupportedOperation('lookahead')
-
-    def repeat(self, next, node, begin, end, lazy, state=None):
-        raise UnsupportedOperation('repeat')
-    
-    def word_boundary(self, next, inverted, state=None):
-        raise UnsupportedOperation('word_boundary')
-
-    def digit(self, next, inverted, state=None):
-        raise UnsupportedOperation('digit')
-    
-    def space(self, next, inverted, state=None):
-        raise UnsupportedOperation('space')
-    
-    def word(self, next, inverted, state=None):
-        raise UnsupportedOperation('word')
-    
-    def check_point(self, next, id, state=None):
-        raise UnsupportedOperation('check_point')
-
+        

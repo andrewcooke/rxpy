@@ -1202,7 +1202,95 @@ r"""digraph {
  5 -> 4
  1 -> 2
 }""")
-
+        
+    def test_ascii_escapes_bug(self):
+        self.assert_graphs(parse(r'(\s*(\b\w+\b)\s*){3}',
+                                 flags=ParserState._LOOP_UNROLL|ParserState.ASCII), 
+"""digraph {
+ 0 [label="(?P<1>"]
+ 1 [label="...*"]
+ 2 [label="\\\\s"]
+ 3 [label="(?P<2>"]
+ 4 [label="\\\\b"]
+ 5 [label="\\\\w"]
+ 6 [label="...+"]
+ 7 [label="\\\\b"]
+ 8 [label=")"]
+ 9 [label="...*"]
+ 10 [label="\\\\s"]
+ 11 [label=")"]
+ 12 [label="(?P<1>"]
+ 13 [label="...*"]
+ 14 [label="\\\\s"]
+ 15 [label="(?P<2>"]
+ 16 [label="\\\\b"]
+ 17 [label="\\\\w"]
+ 18 [label="...+"]
+ 19 [label="\\\\b"]
+ 20 [label=")"]
+ 21 [label="...*"]
+ 22 [label="\\\\s"]
+ 23 [label=")"]
+ 24 [label="(?P<1>"]
+ 25 [label="...*"]
+ 26 [label="\\\\s"]
+ 27 [label="(?P<2>"]
+ 28 [label="\\\\b"]
+ 29 [label="\\\\w"]
+ 30 [label="...+"]
+ 31 [label="\\\\b"]
+ 32 [label=")"]
+ 33 [label="...*"]
+ 34 [label="\\\\s"]
+ 35 [label=")"]
+ 36 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+ 6 -> 5
+ 6 -> 7
+ 7 -> 8
+ 8 -> 9
+ 9 -> 10
+ 9 -> 11
+ 11 -> 12
+ 12 -> 13
+ 13 -> 14
+ 13 -> 15
+ 15 -> 16
+ 16 -> 17
+ 17 -> 18
+ 18 -> 17
+ 18 -> 19
+ 19 -> 20
+ 20 -> 21
+ 21 -> 22
+ 21 -> 23
+ 23 -> 24
+ 24 -> 25
+ 25 -> 26
+ 25 -> 27
+ 27 -> 28
+ 28 -> 29
+ 29 -> 30
+ 30 -> 29
+ 30 -> 31
+ 31 -> 32
+ 32 -> 33
+ 33 -> 34
+ 33 -> 35
+ 35 -> 36
+ 34 -> 33
+ 26 -> 25
+ 22 -> 21
+ 14 -> 13
+ 10 -> 9
+ 2 -> 1
+}""")
+        
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)
         assert state.flags == flags, state.flags 

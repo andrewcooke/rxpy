@@ -112,7 +112,8 @@ class Sequence(BaseCollection):
     
     def clone(self):
         clone = super(Sequence, self).clone()
-        if len(clone.contents) == 1:
+        # restrict to this class; subclasses are not unpackable
+        if type(clone) is Sequence and len(clone.contents) == 1:
             return clone.contents[0]
         else:
             return clone

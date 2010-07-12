@@ -32,8 +32,8 @@ from rxpy.graph.visitor import BaseVisitor
 from rxpy.lib import _CHARS
 from rxpy.engine.parallel.support import State, States
 from rxpy.engine.support import Groups, lookahead_logic
-from rxpy.graph.temp import Sequence
 from rxpy.graph.opcode import String
+from rxpy.graph.container import Sequence
 
 
 class ParallelEngine(BaseEngine, BaseVisitor):

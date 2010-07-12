@@ -47,6 +47,7 @@ class GraphTest(TestCase):
                 graph = readstring(graph)
                 layout(graph, 'neato')
                 render(graph, 'gtk')
+                #render(graph, 'png', 'graph.png')
             except Exception, e:
                 print(e)
             assert False
