@@ -1171,17 +1171,19 @@ r"""digraph {
 }""")
         
     def test_empty_bug(self):
-        self.assert_graphs(parse('(?_l)a{0,1}*'), 
+        self.assert_graphs(parse('(?_l_e)a{0,1}*'), 
 """digraph {
  0 [label="...*"]
  1 [label="...?"]
  2 [label="Match"]
  3 [label="a"]
+ 4 [label="!"]
  0 -> 1
  0 -> 2
  1 -> 3
- 1 -> 0
- 3 -> 0
+ 1 -> 4
+ 4 -> 0
+ 3 -> 4
 }""")
 
     def test_merge_clone_bug(self):
