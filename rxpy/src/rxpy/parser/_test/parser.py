@@ -1292,6 +1292,24 @@ r"""digraph {
  10 -> 9
  2 -> 1
 }""")
+     
+    def test_duplicate_group(self):
+        self.assert_graphs(parse(r'(?P<a>.)(?P<a>.)'), 
+"""digraph {
+ 0 [label="(?P<1>"]
+ 1 [label="."]
+ 2 [label=")"]
+ 3 [label="(?P<1>"]
+ 4 [label="."]
+ 5 [label=")"]
+ 6 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 2 -> 3
+ 3 -> 4
+ 4 -> 5
+ 5 -> 6
+}""")
         
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)

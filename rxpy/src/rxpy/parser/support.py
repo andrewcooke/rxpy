@@ -51,7 +51,7 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _L, _C, _E, _U, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE) = _FLAGS
+    (I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _UNIQUE_GROUPS) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
                  require=0, refuse=0):
@@ -93,12 +93,9 @@ class ParserState(object):
             raise RxpyException('Cannot specify Unicode and ASCII together')
         refuse_flags(flags & refuse)
         
-        
         self.__alphabet = alphabet
         self.__flags = flags
-        self.__group_count = 0
-        self.__name_to_index = {}
-        self.__index_to_name = {}
+        self.__group_state = GroupState()
         self.__comment = False  # used to track comments with extended syntax
         
     def deep_eq(self, other):
@@ -114,8 +111,7 @@ class ParserState(object):
             self.__refuse == other.__refuse and \
             eq(self.__alphabet, other.__alphabet) and \
             self.__flags == other.__flags and \
-            self.__group_count == other.__group_count and \
-            self.__name_to_index == other.__name_to_index and \
+            self.__group_state == other.__group_state and \
             self.__comment == other.__comment
         
     @property
@@ -141,34 +137,14 @@ class ParserState(object):
         Get the index number for the next group, possibly associating it with
         a name.
         '''
-        self.__group_count += 1
-        if name:
-            self.__name_to_index[name] = self.__group_count
-            self.__index_to_name[self.__group_count] = name
-        return self.__group_count
+        return self.__group_state.new_index(name, not self.flags & self._UNIQUE_GROUPS)
     
-    def index_for_name(self, name):
-        '''
-        Given a group name, return the group index.
-        '''
-        if name in self.__name_to_index:
-            return self.__name_to_index[name]
-        else:
-            raise RxpyException('Unknown name: ' + name)
-        
     def index_for_name_or_count(self, name):
         '''
         Given a group name or index (as text), return the group index (as int).
-        First, we parser as an integer, then we try as a name.
+        First, we parse as an integer, then we try as a name.
         '''
-        try:
-            index = int(name)
-            if index > self.__group_count:
-                raise RxpyException('Unknown index: ' + name)
-            else:
-                return index
-        except:
-            return self.index_for_name(name)
+        return self.__group_state.index_for_name_or_count(name)
         
     def new_flag(self, flag):
         '''
@@ -209,26 +185,76 @@ class ParserState(object):
         '''
         return self.__flags
     
+    
+class GroupState(object):
+    
+    def __init__(self):
+        self.__name_to_index = {}
+        self.__index_to_name = {}
+        
+    def index_for_name_or_count(self, name):
+        '''
+        Given a group name or index (as text), return the group index (as int).
+        First, we parse as an integer, then we try as a name.
+        '''
+        try:
+            index = int(name)
+            if index not in self.__index_to_name:
+                raise RxpyException('Unknown index ' + str(name))
+            else:
+                return index
+        except ValueError:
+            if name not in self.__name_to_index:
+                raise RxpyException('Unknown name ' + str(name))
+            else:
+                return self.__name_to_index[name]
+            
+    def new_index(self, name=None, allow_alias=False):
+        def next_index():
+            index = 1
+            while index in self.__index_to_name:
+                index += 1
+            return index
+        if not name:
+            name = str(next_index())
+        index = None
+        try:
+            index = self.index_for_name_or_count(name)
+        except RxpyException:
+            try:
+                index = int(name)
+            except ValueError:
+                index = next_index()
+        else:
+            if not allow_alias:
+                raise RxpyException('Group ' + str(name) + ' already exists')
+            else:
+                return index
+        self.__index_to_name[index] = name
+        self.__name_to_index[name] = index
+        return index
+    
+    def __eq__(self, other):
+        return isinstance(other, GroupState) and \
+            self.__index_to_name == other.__index_to_name
+        
     @property
-    def group_names(self):
+    def count(self):
+        return len(self.__index_to_name)
+    
+    @property
+    def names(self):
         '''
         Map from group names to index.
         '''
         return dict(self.__name_to_index)
     
     @property
-    def group_indices(self):
+    def indices(self):
         '''
         Map from group index to name.
         '''
         return dict(self.__index_to_name)
-    
-    @property
-    def group_count(self):
-        '''
-        Total number of groups.
-        '''
-        return self.__group_count
         
         
 class Builder(object):

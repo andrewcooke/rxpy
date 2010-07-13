@@ -297,13 +297,14 @@ class ParserStateBuilder(Builder):
                         '_l': ParserState._L,
                         '_c': ParserState._C,
                         '_e': ParserState._E,
-                        '_u': ParserState._U}
+                        '_u': ParserState._U,
+                        '_g': ParserState._G}
         
     def append_character(self, character):
         if not self.__escape and character == '_':
             self.__escape = True
             return self
-        elif self.__escape and character in 'lceu':
+        elif self.__escape and character in 'lceug':
             self._state.new_flag(self.__table['_' + character])
             self.__escape = False
             return self
@@ -504,7 +505,7 @@ class NamedGroupBuilder(Builder):
                 return GroupBuilder(self._state, self._parent, True, self._name)
             elif not self._create and not escaped and character == ')':
                 self._parent._sequence.append(
-                    GroupReference(self._state.index_for_name(self._name)))
+                    GroupReference(self._state.index_for_name_or_count(self._name)))
                 return self._parent
             elif not escaped and character == '\\':
                 # this is just for the name
