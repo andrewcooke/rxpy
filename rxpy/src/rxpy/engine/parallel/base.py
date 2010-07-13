@@ -69,13 +69,13 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         '''
         Execute a search.
         '''
-        new_state = lambda: self._new_state(text=text)
-        state = new_state()
-        state.start_group(0, pos)
+        new_state = lambda offset: self._new_state(text=text).start_group(0, offset)
+        state = new_state(pos)
         
         state = self.run_state(state, text, pos, search, new_state)
         
         if state:
+            state.end_group(0, state.match_offset)
             return state.groups
         else:
             return Groups()
@@ -109,8 +109,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             # equals here allows final test at end of text
             if not states.final_state and self.__offset <= len(self.__text):
                 if search:
-                    state = new_state()
-                    states.add_next(state.start_group(0, self.__offset))
+                    states.add_next(new_state(self.__offset))
                     continue
                 elif states.more:
                     continue
@@ -121,7 +120,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         self.maxwidth = max(self.maxwidth, len(states))
         while states:
             state = states.pop()
-            if not state.match:
+            if state.match_offset is None:
                 # extra nodes are in reverse priority - most important at end
                 (state, extra) = state.graph.visit(self, state)
                 self.ticks += 1
@@ -159,10 +158,9 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 return (None, [])
             elif text:
                 if text not in self.__groups:
-                    self.__groups[text] = \
-                        Sequence([String(c) for c in text], self._parser_state)
+                    self.__groups[text] = Sequence([String(c) for c in text])
                 graph = self.__groups[text].clone()
-                graph = graph.concatenate(next[0])
+                graph = graph.join(next[0], self._parser_state)
                 return (None, [state.clone(graph=graph)])
             else:
                 return (None, [state.advance()])
@@ -183,7 +181,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, states)
     
     def match(self, state):
-        return (state.end_group(0, self.__offset), [])
+        state.match_offset = self.__offset
+        return (state, [])
 
     def dot(self, next, multiline, state):
         if self.__current and \
@@ -224,10 +223,10 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                     offset = self.__offset - size
             if reads or mutates:
                 groups = state.groups
-                new_state = lambda: engine._new_state(groups=groups)
+                new_state = lambda _offset: engine._new_state(groups=groups)
             else:
                 groups = None
-                new_state = lambda: engine._new_state(text=subtext)
+                new_state = lambda _offset: engine._new_state(text=subtext)
             engine = self._new_engine(next[1])
             match = engine.run_state(state.clone(graph=next[1], groups=groups), 
                                      subtext, pos=offset, search=search,
@@ -242,7 +241,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         # if lookahead succeeded, continue
         if success:
             if mutates:
-                return (None, [state.clone(groups=match.groups).advance()])
+                groups = None if match is None else match.groups
+                return (None, [state.clone(groups=groups).advance()])
             else:
                 return (None, [state.advance()])
         else:

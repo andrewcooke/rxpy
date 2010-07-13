@@ -40,7 +40,7 @@ class State(object):
         self.__graph = graph
         self.__groups = groups if groups is not None else [None, None, groups_kargs]
         self.__loops = loops
-        self.match = False
+        self.match_offset = None
         
     def clone(self, graph=None, groups=None):
         if groups is None:
@@ -57,9 +57,9 @@ class State(object):
         
     def __eq__(self, other):
         '''
-        Equality to avoid state duplication (only; minimal logic)
+        Equality to avoid state duplication (only; minimal logic, use with care)
         '''
-        if self.match and other.match:
+        if self.match_offset is not None and other.match_offset == self.match_offset:
             return True 
         return self.__graph is other.__graph and \
             (list == type(self.__groups) == type(other.__groups) or \
@@ -70,7 +70,7 @@ class State(object):
         '''
         Hash to avoid state duplication (only; minimal logic)
         '''
-        if self.match:
+        if self.match_offset is not None:
             return 0
         h = hash(self.__graph) ^ hash(self.__loops)
         if list != type(self.__groups):
@@ -90,7 +90,6 @@ class State(object):
         
     def end_group(self, number, offset):
         if number == 0:
-            self.match = True
             try:
                 self.__groups[1] = offset
                 return self
@@ -165,7 +164,7 @@ class States(object):
         if next and not self.__matched and \
                 (not self.__hash_state or next not in self.__known):
             self.__next_nodes.append(next)
-            self.__matched = next.match
+            self.__matched = next.match_offset is not None
             if self.__hash_state:
                 self.__known.add(next)
         
@@ -200,9 +199,9 @@ class States(object):
     def final_state(self):
         '''
         Return final state, if a match, or None. Called when __bool__ is False, 
-        before flip..
+        before flip.
         ''' 
-        if self.__next_nodes and self.__next_nodes[0].match:
+        if self.__next_nodes and self.__next_nodes[0].match_offset is not None:
             return self.__next_nodes[0]
         else:
-            return False
+            return None
