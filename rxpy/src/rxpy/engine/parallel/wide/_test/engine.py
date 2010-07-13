@@ -31,8 +31,9 @@
 from unittest import TestCase
 
 from rxpy.engine.parallel.wide.engine import WideEngine
-from rxpy.parser.pattern import parse_pattern
+from rxpy.parser.pattern import parse_pattern, EmptyException
 from rxpy.parser.support import ParserState
+from rxpy.lib import RxpyException
 
 
 def engine(parse, text, search=False, ticks=None, hash_state=False):
@@ -329,31 +330,41 @@ class EngineTest(TestCase):
         try:
             parse('a**')
             assert False, 'expected error'
-        except:
+        except RxpyException:
             pass
         try:
             parse('(?_e)a**')
             assert False, 'expected error'
-        except:
+        except RxpyException:
             pass
         
         try:
             parse('a{0,1}*')
             assert False, 'expected error'
-        except:
+        except EmptyException:
             pass
-        parse('*?_e)a{0,1}*')
+        parse('(?_e)a{0,1}*')
         
         try:
             parse('(?_l)a{0,1}*')
             assert False, 'expected error'
-        except:
+        except EmptyException:
             pass
         parse('(?_l_e)a{0,1}*')
             
         try:
             parse('(a|)*')
             assert False, 'expected error'
-        except:
+        except EmptyException:
             pass
         parse('(?_e)(a|)*')
+
+        parse('a{1,1}*')
+        parse('(?_l)a{1,1}*')
+
+        try:
+            parse('(a|)*')
+            assert False, 'expected error'
+        except EmptyException:
+            pass
+        parse('a(?:b|(c|e){1,2}?|d)+?')

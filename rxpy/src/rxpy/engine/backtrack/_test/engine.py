@@ -31,7 +31,7 @@
 from unittest import TestCase
 
 from rxpy.engine.backtrack.engine import BacktrackingEngine
-from rxpy.parser.pattern import parse_pattern
+from rxpy.parser.pattern import parse_pattern, EmptyException
 from rxpy.parser.support import ParserState
 from rxpy.lib import RxpyException
 
@@ -235,24 +235,24 @@ class EngineTest(TestCase):
         assert not engine(parse('a{0,1}?b'), 'aab')
 
     def test_ascii_escapes(self):
-#        groups = engine(parse('\\d*', flags=ParserState.ASCII), '12x')
-#        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-#        groups = engine(parse('\\D*', flags=ParserState.ASCII), 'x12')
-#        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-#        groups = engine(parse('\\w*', flags=ParserState.ASCII), '12x a')
-#        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-#        groups = engine(parse('\\W*', flags=ParserState.ASCII), ' a')
-#        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-#        groups = engine(parse('\\s*', flags=ParserState.ASCII), '  a')
-#        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-#        groups = engine(parse('\\S*', flags=ParserState.ASCII), 'aa ')
-#        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-#        assert engine(parse(r'a\b ', flags=ParserState.ASCII), 'a ')
-#        assert not engine(parse(r'a\bb', flags=ParserState.ASCII), 'ab')
-#        assert not engine(parse(r'a\B ', flags=ParserState.ASCII), 'a ')
-#        assert engine(parse(r'a\Bb', flags=ParserState.ASCII), 'ab')
-#        groups = engine(parse(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
-#        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
+        groups = engine(parse('\\d*', flags=ParserState.ASCII), '12x')
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
+        groups = engine(parse('\\D*', flags=ParserState.ASCII), 'x12')
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
+        groups = engine(parse('\\w*', flags=ParserState.ASCII), '12x a')
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
+        groups = engine(parse('\\W*', flags=ParserState.ASCII), ' a')
+        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
+        groups = engine(parse('\\s*', flags=ParserState.ASCII), '  a')
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
+        groups = engine(parse('\\S*', flags=ParserState.ASCII), 'aa ')
+        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
+        assert engine(parse(r'a\b ', flags=ParserState.ASCII), 'a ')
+        assert not engine(parse(r'a\bb', flags=ParserState.ASCII), 'ab')
+        assert not engine(parse(r'a\B ', flags=ParserState.ASCII), 'a ')
+        assert engine(parse(r'a\Bb', flags=ParserState.ASCII), 'ab')
+        groups = engine(parse(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
+        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
         groups = engine(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOP_UNROLL|ParserState.ASCII), ' a ab abc ')
         assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
         
@@ -337,27 +337,45 @@ class EngineTest(TestCase):
         assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
         
     def test_empty_loops(self):
-#        try:
-#            parse('a**')
-#            assert False, 'expected error'
-#        except RxpyException:
-#            pass
-#        parse('a{1,1}*')
-#        try:
-#            parse('a{0,1}*')
-#            assert False, 'expected error'
-#        except RxpyException:
-#            pass
-#        parse('(?_l)a{1,1}*')
-#        try:
-#            parse('(?_l)a{0,1}*')
-#            assert False, 'expected error'
-#        except RxpyException:
-#            pass
-#        try:
-#            parse('(a|)*')
-#            assert False, 'expected error'
-#        except RxpyException:
-#            pass
+        try:
+            parse('a**')
+            assert False, 'expected error'
+        except RxpyException:
+            pass
+        try:
+            parse('(?_e)a**')
+            assert False, 'expected error'
+        except RxpyException:
+            pass
+        
+        try:
+            parse('a{0,1}*')
+            assert False, 'expected error'
+        except EmptyException:
+            pass
+        parse('(?_e)a{0,1}*')
+        
+        try:
+            parse('(?_l)a{0,1}*')
+            assert False, 'expected error'
+        except EmptyException:
+            pass
+        parse('(?_l_e)a{0,1}*')
+            
+        try:
+            parse('(a|)*')
+            assert False, 'expected error'
+        except EmptyException:
+            pass
+        parse('(?_e)(a|)*')
+
+        parse('a{1,1}*')
+        parse('(?_l)a{1,1}*')
+
+        try:
+            parse('(a|)*')
+            assert False, 'expected error'
+        except EmptyException:
+            pass
         parse('a(?:b|(c|e){1,2}?|d)+?')
     

@@ -169,6 +169,12 @@ class CountedLoop(LazyMixin, Sequence):
         inner = super(CountedLoop, self).join(count, state)
         count.next = [final, inner]
         return count
+    
+    def consumer(self, lenient):
+        if not self.begin:
+            return False
+        else:
+            return super(CountedLoop, self).consumer(lenient)
 
 
 class Alternatives(LabelMixin, BaseCollection):
@@ -205,4 +211,5 @@ class Optional(LazyMixin, Alternatives):
             self.contents.reverse()
         return super(Optional, self).join(final, state)
 
-
+    def consumer(self, lenient):
+        return False

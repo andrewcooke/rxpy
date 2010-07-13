@@ -145,12 +145,6 @@ class Split(BaseLabelledNode):
         else:
             return None
         
-    def consumer(self, lenient):
-        for next in self.next:
-            if next.consumer(lenient):
-                return True
-        return lenient
-
 
 class Match(BaseNode):
     '''
@@ -359,13 +353,6 @@ class Repeat(BaseNode):
         if self.end == self.begin and self not in known:
             known.add(self)
             return self.begin * self.next[1].length(groups, known)
-    
-    def consumer(self, lenient):
-        if not self.begin:
-            return False
-        else:
-            # this gets the loop part, whether or not connected
-            return self.next[-1].consumer(lenient)
     
     def visit(self, visitor, state=None):
         return visitor.repeat(self.next, self, self.begin, self.end, self.lazy, 
