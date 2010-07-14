@@ -1,5 +1,3 @@
-from rxpy.graph.support import contains_instance, ReadsGroup
-from rxpy.graph.opcode import StartGroup
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -35,6 +33,10 @@ Support classes shared by various engines.
 '''                 
 
 from operator import xor                   
+
+from rxpy.graph.support import contains_instance, ReadsGroup
+from rxpy.graph.opcode import StartGroup
+from rxpy.parser.support import GroupState
 
 
 class Fail(Exception):
@@ -91,26 +93,23 @@ class Loops(object):
 
 class Groups(object):
     
-    def __init__(self, text=None, groups=None, offsets=None, count=0, 
-                 names=None, indices=None, lastindex=None):
+    def __init__(self, state=None, text=None, groups=None, offsets=None, 
+                 lastindex=None):
+        # initial definitions
+        self.__state = state if state else GroupState()
         # text being matched
         self.__text = text
         # map from index to (text, start, end)
         self.__groups = groups if groups else {}
         # map from index to start for pending groups
         self.__offsets = offsets if offsets else {}
-        # total number of groups declared in expression
-        self.__count = count
-        # map from group names to indices
-        self.__names = names if names else {}
-        # map from group indices to names
-        self.__indices = indices if indices else {}
         # last index matched
         self.__lastindex = lastindex
         # cache for str
         self.__str = None
         
     def start_group(self, number, offset):
+        assert isinstance(number, int)
         self.__str = None
         self.__offsets[number] = offset
         
@@ -125,7 +124,7 @@ class Groups(object):
             self.__lastindex = number
     
     def __len__(self):
-        return self.__count
+        return self.__state.count
     
     def __bool__(self):
         return bool(self.__groups)
@@ -163,20 +162,19 @@ class Groups(object):
         return self.__str
     
     def clone(self):
-        return Groups(text=self.__text, groups=dict(self.__groups), 
-                      offsets=dict(self.__offsets), count=self.__count, 
-                      names=dict(self.__names), indices=dict(self.__indices),
+        return Groups(state=self.__state, text=self.__text, 
+                      groups=dict(self.__groups),  offsets=dict(self.__offsets), 
                       lastindex=self.__lastindex)
     
     def data(self, number):
-        if number in self.__names:
-            index = self.__names[number]
+        if number in self.__state.names:
+            index = self.__state.names[number]
         else:
             index = number
         try:
             return self.__groups[index]
         except KeyError:
-            if isinstance(index, int) and index <= self.__count:
+            if isinstance(index, int) and index <= self.__state.count:
                 return [None, -1, -1]
             else:
                 raise IndexError(number)
@@ -197,7 +195,11 @@ class Groups(object):
     
     @property
     def lastgroup(self):
-        return self.__indices.get(self.lastindex, None)
+        return self.__state.indices.get(self.__lastindex, None)
+    
+    @property
+    def indices(self):
+        return self.__state.indices.keys()
 
 
 def lookahead_logic(branch, forwards, groups):

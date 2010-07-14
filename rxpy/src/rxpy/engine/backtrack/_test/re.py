@@ -58,7 +58,9 @@ class GroupsTest(TestCase):
         self.assert_groups('.(.).(.?)', 'abc', [2], '')
         self.assert_groups('.(.).(.)?', 'abc', [2], None)
         self.assert_groups('.(.).(.?)', 'abc', [3], IndexError)
-
+        self.assert_groups('(?_g)(?P<4>.)(?P<4>.)', 'ab', [4], 'b')
+        results = compile('(?_g)(?P<4>.)(?P<4>.)').match('ab')
+        assert results.groups() == ('b',), results.groups()
 
 class RegexObjectTest(TestCase):
     

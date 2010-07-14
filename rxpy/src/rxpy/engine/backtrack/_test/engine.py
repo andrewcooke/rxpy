@@ -378,4 +378,17 @@ class EngineTest(TestCase):
         except EmptyException:
             pass
         parse('a(?:b|(c|e){1,2}?|d)+?')
+        
+    def test_extended_groups(self):
+        try:
+            parse('(?P<4>.)(?P<4>).')
+            assert False, 'expected error'
+        except RxpyException:
+            pass
+        result = engine(parse('(?_g)(?P<4>.)(?P<4>.)'), 'ab')
+        assert result
+        assert result.group(4) == 'b'
+        assert len(result) == 1
+        
+        
     

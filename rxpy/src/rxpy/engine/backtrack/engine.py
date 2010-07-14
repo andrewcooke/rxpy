@@ -290,9 +290,7 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
         self.__pos = pos
         
         state = State(text[pos:],
-                      Groups(text=text, count=self._parser_state.group_count, 
-                             names=self._parser_state.group_names, 
-                             indices=self._parser_state.group_indices),
+                      Groups(state=self._parser_state.groups, text=text),
                       offset=pos, previous=text[pos-1] if pos else None)
 
         # for testing optimizations

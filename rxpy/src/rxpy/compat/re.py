@@ -93,11 +93,11 @@ class RegexObject(object):
     
     @property
     def groups(self):
-        return self.__parser_state.group_count
+        return self.__parser_state.groups.count
     
     @property
     def groupindex(self):
-        return self.__parser_state.group_names
+        return dict(self.__parser_state.groups.names)
     
     def scanner(self, text, pos=0, endpos=None):
         return MatchIterator(self, self.__parsed, text, pos=pos, endpos=endpos,
@@ -278,8 +278,8 @@ class MatchObject(object):
             return tuple(map(lambda n: self.__groups.group(n), indices))
         
     def groups(self, default=None):
-        return tuple(self.__groups.group(index+1, default=default) 
-                     for index in range(self.re.groups))
+        return tuple(self.__groups.group(index, default=default) 
+                     for index in self.__groups.indices)
         
     def start(self, group=0):
         return self.__groups.start(group)

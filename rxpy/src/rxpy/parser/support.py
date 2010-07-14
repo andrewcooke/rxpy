@@ -51,7 +51,7 @@ class ParserState(object):
     alphabets) and groups.
     '''
     
-    (I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _UNIQUE_GROUPS) = _FLAGS
+    (I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS) = _FLAGS
     
     def __init__(self, flags=0, alphabet=None, hint_alphabet=None,
                  require=0, refuse=0):
@@ -95,7 +95,7 @@ class ParserState(object):
         
         self.__alphabet = alphabet
         self.__flags = flags
-        self.__group_state = GroupState()
+        self.groups = GroupState()
         self.__comment = False  # used to track comments with extended syntax
         
     def deep_eq(self, other):
@@ -111,7 +111,7 @@ class ParserState(object):
             self.__refuse == other.__refuse and \
             eq(self.__alphabet, other.__alphabet) and \
             self.__flags == other.__flags and \
-            self.__group_state == other.__group_state and \
+            self.groups == other.groups and \
             self.__comment == other.__comment
         
     @property
@@ -137,14 +137,14 @@ class ParserState(object):
         Get the index number for the next group, possibly associating it with
         a name.
         '''
-        return self.__group_state.new_index(name, not self.flags & self._UNIQUE_GROUPS)
+        return self.groups.new_index(name, self.flags & self._GROUPS)
     
     def index_for_name_or_count(self, name):
         '''
         Given a group name or index (as text), return the group index (as int).
         First, we parse as an integer, then we try as a name.
         '''
-        return self.__group_state.index_for_name_or_count(name)
+        return self.groups.index_for_name_or_count(name)
         
     def new_flag(self, flag):
         '''
@@ -209,27 +209,44 @@ class GroupState(object):
             else:
                 return self.__name_to_index[name]
             
-    def new_index(self, name=None, allow_alias=False):
+    def new_index(self, name=None, extended=False):
+        
         def next_index():
             index = 1
             while index in self.__index_to_name:
                 index += 1
             return index
-        if not name:
-            name = str(next_index())
-        index = None
-        try:
-            index = self.index_for_name_or_count(name)
-        except RxpyException:
+        
+        if extended:
+            # allow aliasing and numbers as names
+            if not name:
+                name = str(next_index())
+            index = None
             try:
-                index = int(name)
-            except ValueError:
-                index = next_index()
-        else:
-            if not allow_alias:
-                raise RxpyException('Group ' + str(name) + ' already exists')
+                index = self.index_for_name_or_count(name)
+            except RxpyException:
+                try:
+                    index = int(name)
+                except ValueError:
+                    index = next_index()
             else:
-                return index
+                if not extended:
+                    raise RxpyException('Group ' + name + ' already exists')
+                else:
+                    return index
+        else:
+            # names are not numbers and cannot repeat
+            index = next_index()
+            if name:
+                try:
+                    int(name)
+                    raise RxpyException('Invalid group name ' + name)
+                except ValueError:
+                    if name in self.__name_to_index:
+                        raise RxpyException('Repeated group name ' + name)
+            else:
+                name = str(index)
+                
         self.__index_to_name[index] = name
         self.__name_to_index[name] = index
         return index
@@ -237,7 +254,7 @@ class GroupState(object):
     def __eq__(self, other):
         return isinstance(other, GroupState) and \
             self.__index_to_name == other.__index_to_name
-        
+            
     @property
     def count(self):
         return len(self.__index_to_name)
@@ -245,16 +262,16 @@ class GroupState(object):
     @property
     def names(self):
         '''
-        Map from group names to index.
+        Map from group names to index.  Warning - for efficiency, exposed raw.
         '''
-        return dict(self.__name_to_index)
+        return self.__name_to_index
     
     @property
     def indices(self):
         '''
-        Map from group index to name.
+        Map from group index to name.  Warning - for efficiency, exposed raw.
         '''
-        return dict(self.__index_to_name)
+        return self.__index_to_name
         
         
 class Builder(object):

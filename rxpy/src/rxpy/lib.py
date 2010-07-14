@@ -54,8 +54,8 @@ class RxpyException(Exception):
     
     
 (I, M, S, U, X, A, _L, _C, _E, _U, _G) = map(lambda x: 2**x, range(11))
-(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _UNIQUE_GROUPS) = (I, M, S, U, X, A, _L, _C, _E, _U, _G)
-_FLAGS = (I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _UNIQUE_GROUPS)
+(IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS) = (I, M, S, U, X, A, _L, _C, _E, _U, _G)
+_FLAGS = (I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS)
 
 FLAG_NAMES = {I: 'I/IGNORECASE',
               M: 'M/MULTILINE',
@@ -67,7 +67,7 @@ FLAG_NAMES = {I: 'I/IGNORECASE',
               _C: '_C/_CHARS',
               _E: '_E/_EMPTY',
               _U: '_U/_UNSAFE',
-              _G: '_G/_UNIQUE_GROUPS'}
+              _G: '_G/_GROUPS'}
 
 def refuse_flags(flags):
     names = [FLAG_NAMES[key] for key in FLAG_NAMES if key & flags]
