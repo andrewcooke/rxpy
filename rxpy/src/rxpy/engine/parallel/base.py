@@ -54,10 +54,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         if groups:
             return State(self._graph, loops=loops, groups=groups)
         else:
-            return State(self._graph, loops=loops, text=text,
-                         count=self._parser_state.group_count, 
-                         names=self._parser_state.group_names, 
-                         indices=self._parser_state.group_indices)
+            return State(self._graph, loops=loops, 
+                         text=text, group_state=self._parser_state.groups)
         
     def _new_states(self, initial):
         return States(initial, self.__hash_state)

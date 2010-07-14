@@ -93,11 +93,16 @@ class Loops(object):
 
 class Groups(object):
     
-    def __init__(self, state=None, text=None, groups=None, offsets=None, 
-                 lastindex=None):
-        # initial definitions
-        self.__state = state if state else GroupState()
-        # text being matched
+    def __init__(self, group_state=None, text=None, 
+                 groups=None, offsets=None, lastindex=None):
+        '''
+        `group_state` - The group definitions (GroupState)
+        
+        `text` - The text being matched
+        
+        Other arguments are internal for cloning.
+        '''
+        self.__state = group_state if group_state else GroupState()
         self.__text = text
         # map from index to (text, start, end)
         self.__groups = groups if groups else {}
@@ -162,7 +167,7 @@ class Groups(object):
         return self.__str
     
     def clone(self):
-        return Groups(state=self.__state, text=self.__text, 
+        return Groups(group_state=self.__state, text=self.__text, 
                       groups=dict(self.__groups),  offsets=dict(self.__offsets), 
                       lastindex=self.__lastindex)
     

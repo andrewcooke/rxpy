@@ -1294,7 +1294,7 @@ r"""digraph {
 }""")
      
     def test_duplicate_group(self):
-        self.assert_graphs(parse(r'(?P<a>.)(?P<a>.)'), 
+        self.assert_graphs(parse(r'(?_g)(?P<a>.)(?P<a>.)'), 
 """digraph {
  0 [label="(?P<1>"]
  1 [label="."]
@@ -1310,6 +1310,11 @@ r"""digraph {
  4 -> 5
  5 -> 6
 }""")
+        try:
+            parse(r'(?P<a>.)(?P<a>.)')
+            assert False, 'expected error'
+        except RxpyException:
+            pass
         
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)
