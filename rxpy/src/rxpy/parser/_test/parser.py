@@ -33,6 +33,7 @@ from rxpy.graph._test.lib import GraphTest
 from rxpy.parser.pattern import parse_pattern
 from rxpy.parser.support import ParserState
 from rxpy.engine.base import BaseEngine
+from rxpy.parser.error import SimpleGroupException
 
 
 class DummyEngine(BaseEngine):
@@ -1313,7 +1314,7 @@ r"""digraph {
         try:
             parse(r'(?P<a>.)(?P<a>.)')
             assert False, 'expected error'
-        except RxpyException:
+        except SimpleGroupException:
             pass
         
     def assert_flags(self, regexp, flags):

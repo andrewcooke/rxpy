@@ -36,10 +36,12 @@ class State(object):
     State for a particular thread (offset in the text is common to all threads).
     '''
     
-    def __init__(self, graph, groups=None, loops=None, **groups_kargs):
+    def __init__(self, graph, groups=None, loops=None, checks=None,
+                 **groups_kargs):
         self.__graph = graph
         self.__groups = groups if groups is not None else [None, None, groups_kargs]
         self.__loops = loops
+        self.__checks = checks
         self.match_offset = None
         
     def clone(self, graph=None, groups=None):
@@ -52,8 +54,9 @@ class State(object):
             loops = self.__loops.clone()
         except AttributeError:
             loops = self.__loops
+        checks = set(self.__checks) if self.__checks else None
         return State(self.__graph if graph is None else graph, 
-                     groups=groups, loops=loops)
+                     groups=groups, loops=loops, checks=checks)
         
     def __eq__(self, other):
         '''
@@ -125,6 +128,21 @@ class State(object):
         self.__graph = self.__graph.next[index]
         return self
     
+    def uncheck(self):
+        self.__checks = None
+        return self
+
+    def check(self, check_point):
+        if not self.__checks:
+            self.__checks = set([check_point])
+            return True
+        else:
+            if check_point in self.__checks:
+                return False
+            else:
+                self.__checks.add(check_point)
+                return True
+
     @property
     def graph(self):
         return self.__graph
@@ -163,7 +181,7 @@ class States(object):
     def add_next(self, next):
         if next and not self.__matched and \
                 (not self.__hash_state or next not in self.__known):
-            self.__next_nodes.append(next)
+            self.__next_nodes.append(next.uncheck())
             self.__matched = next.match_offset is not None
             if self.__hash_state:
                 self.__known.add(next)

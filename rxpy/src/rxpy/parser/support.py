@@ -1,3 +1,4 @@
+from rxpy.parser.error import SimpleGroupException
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -230,20 +231,17 @@ class GroupState(object):
                 except ValueError:
                     index = next_index()
             else:
-                if not extended:
-                    raise RxpyException('Group ' + name + ' already exists')
-                else:
-                    return index
+                return index
         else:
             # names are not numbers and cannot repeat
             index = next_index()
             if name:
                 try:
                     int(name)
-                    raise RxpyException('Invalid group name ' + name)
+                    raise SimpleGroupException('Invalid group name ' + name)
                 except ValueError:
                     if name in self.__name_to_index:
-                        raise RxpyException('Repeated group name ' + name)
+                        raise SimpleGroupException('Repeated group name ' + name)
             else:
                 name = str(index)
                 
@@ -326,3 +324,5 @@ def parse(text, state, class_, mutable_flags=True):
     if state.has_new_flags:
         raise RxpyException('Inconsistent flags')
     return (state, graph)
+
+

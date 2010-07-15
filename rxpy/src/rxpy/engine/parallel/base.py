@@ -52,9 +52,9 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         
     def _new_state(self, groups=None, loops=None, text=None):
         if groups:
-            return State(self._graph, loops=loops, groups=groups)
+            return State(self._graph, loops=loops, groups=groups, checks=None)
         else:
-            return State(self._graph, loops=loops, 
+            return State(self._graph, loops=loops, checks=None, 
                          text=text, group_state=self._parser_state.groups)
         
     def _new_states(self, initial):
@@ -300,3 +300,10 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 self._parser_state.alphabet.word(self.__current) != inverted:
             return (state.advance(), [])
         return (None, [])
+
+    def check_point(self, next, id, state):
+        if state.check(id):
+            return (None, [state.advance()])
+        else:
+            return (None, [])
+        

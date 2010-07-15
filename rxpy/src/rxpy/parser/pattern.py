@@ -47,46 +47,9 @@ from rxpy.graph.opcode import Match, Character, String, StartOfLine,\
     EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, \
     Digit, Word, Space, Lookahead, GroupReference
 from rxpy.lib import RxpyException
+from rxpy.parser.error import EmptyException, ParseException
 from rxpy.parser.support import Builder, ParserState, OCTAL, parse
 
-
-class EmptyException(RxpyException):
-    '''
-    Indicate that an empty expression is being repeated.  This is caught and
-    converted into an EmptyException.
-    '''
-    
-    def update(self, pattern, offset):
-        if offset > 30:
-            pattern = '...' + pattern[offset-33:]
-            spaces = 30
-        else:
-            spaces = offset
-        padding = spaces * ' '
-        self.pattern = pattern
-        self.offset = offset
-        self.args = (
-'''Repeated empty match.
-
-  %s
-  %s^
-
-A sub-pattern that may match the empty string is being repeated.  This usually
-indicates an error since an empty match can repeat indefinitely.
-
-If you are sure that the pattern is correct then compile using the _EMPTY
-flag to suppress this error; the engine will then match the empty string at
-most once.
-
-You can also suppress the "at most once" limitation with the _UNSAFE flag, but
-this may result in a match that does not terminate.''' % (pattern, padding),)
-        
-    def __str__(self):
-        try:
-            return self.args[0]
-        except IndexError:
-            return 'Repeated empty match.'
-    
 
 class SequenceBuilder(Builder):
     '''
@@ -108,7 +71,7 @@ class SequenceBuilder(Builder):
             for (character, index) in zip(text, count()):
                 builder = builder.append_character(character)
             builder = builder.append_character(None)
-        except EmptyException as e:
+        except ParseException as e:
             e.update(text, index)
             raise
         if self != builder:
