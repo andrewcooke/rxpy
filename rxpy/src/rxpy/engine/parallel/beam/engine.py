@@ -29,24 +29,31 @@
 
 
 from rxpy.engine.parallel.base import ParallelEngine
+from rxpy.engine.parallel.beam.support import States
 
 
-class SerialEngine(ParallelEngine):
-    '''
-    Modify the outer loops so that, at each initial offset, all states
-    are explored before progressing to the next search position.
-    '''
+class BeamEngine(ParallelEngine):
+    
+    def __init__(self, parser_state, graph, hash_state=False,
+                 beam_start=1, beam_scale=2):
+        super(BeamEngine, self).__init__(parser_state, graph, 
+                                         hash_state=hash_state)
+        self.__beam_start = beam_start
+        self.__beam_scale = beam_scale
 
+    def _new_states(self, initial):
+        return States(initial, self._hash_state, 
+                      beam_start=self.__beam_start, beam_scale=self.__beam_scale)
+    
     def _outer_loop(self, states, search, new_state):
-        search_offset = self._offset
-        first = True
-        while first or (search and not states.final_state and
-                            search_offset <= len(self._text)):
-            if search:
-                states.add_next(new_state(search_offset))
-                self._set_offset(search_offset)
-                search_offset += 1
-            first = False
-            while not states.final_state and states.more and \
-                    self._offset <= len(self._text):
-                self._inner_loop(states)
+        initial_offset = self._offset
+        growing = True
+        while not states.final_state and growing:
+            super(BeamEngine, self)._outer_loop(states, search, new_state)
+            if not states.final_state and states.overflowed:
+                growing = True
+                states.grow()
+                self._set_offset(initial_offset)
+            else:
+                growing = False
+

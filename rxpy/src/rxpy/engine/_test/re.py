@@ -107,6 +107,11 @@ class ReTest(BaseTest):
             "He was carefully disguised but captured quickly by police.")
         assert results == ['carefully', 'quickly'], results
         
+    def test_search(self):
+        results = self._re.search('a*b', 'aab')
+        assert results
+        assert results.group(0) == 'aab'
+        
     def test_findall_empty(self):
         results = self._re.findall('x+', 'abxd')
         assert results == ['x'], results

@@ -156,9 +156,9 @@ class State(object):
 class States(object):
     
     def __init__(self, initial, hash_state):
-        self.__current_nodes = []
-        self.__next_nodes = initial
-        self.__hash_state = hash_state
+        self._current_nodes = []
+        self._next_nodes = initial
+        self._hash_state = hash_state
         self.__matched = False
         self.__known = set() if hash_state else None
 
@@ -166,37 +166,37 @@ class States(object):
         '''
         Prepare for a new iteration.  Called before each iteration.
         '''
-        self.__current_nodes, self.__next_nodes = self.__next_nodes, []
-        self.__current_nodes.reverse()
+        self._current_nodes, self._next_nodes = self._next_nodes, []
+        self._current_nodes.reverse()
         self.__matched = False
         self.__known = set()
         
     def pop(self):
-        return self.__current_nodes.pop()
+        return self._current_nodes.pop()
         
     def add_extra(self, extra):
         if not self.__matched:
-            self.__current_nodes.extend(extra)
+            self._current_nodes.extend(extra)
         
     def add_next(self, next):
         if next and not self.__matched and \
-                (not self.__hash_state or next not in self.__known):
-            self.__next_nodes.append(next.uncheck())
+                (not self._hash_state or next not in self.__known):
+            self._next_nodes.append(next.uncheck())
             self.__matched = next.match_offset is not None
-            if self.__hash_state:
+            if self._hash_state:
                 self.__known.add(next)
-        
+    
     def __bool__(self):
         '''
         Are there more current nodes (without flipping)?
         '''
-        return bool(self.__current_nodes) and not self.__matched
+        return bool(self._current_nodes) and not self.__matched
     
     def __non_zero__(self):
         return self.__bool__()
     
     def __len__(self):
-        return len(self.__current_nodes)
+        return len(self._current_nodes)
 
     @property
     def matched(self):
@@ -211,7 +211,7 @@ class States(object):
         '''
         More states?  Called when __bool__ is False, before flip.
         '''
-        return bool(self.__next_nodes)
+        return bool(self._next_nodes)
     
     @property
     def final_state(self):
@@ -219,7 +219,7 @@ class States(object):
         Return final state, if a match, or None. Called when __bool__ is False, 
         before flip.
         ''' 
-        if self.__next_nodes and self.__next_nodes[0].match_offset is not None:
-            return self.__next_nodes[0]
+        if self._next_nodes and self._next_nodes[0].match_offset is not None:
+            return self._next_nodes[0]
         else:
             return None

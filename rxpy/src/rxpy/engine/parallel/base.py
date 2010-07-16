@@ -48,7 +48,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     
     def __init__(self, parser_state, graph, hash_state=False):
         super(ParallelEngine, self).__init__(parser_state, graph)
-        self.__hash_state = hash_state
+        self._hash_state = hash_state
         
     def _new_state(self, groups=None, loops=None, text=None):
         if groups:
@@ -58,10 +58,10 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                          text=text, group_state=self._parser_state.groups)
         
     def _new_states(self, initial):
-        return States(initial, self.__hash_state)
+        return States(initial, self._hash_state)
     
     def _new_engine(self, graph):
-        return type(self)(self._parser_state, graph, self.__hash_state)
+        return type(self)(self._parser_state, graph, self._hash_state)
         
     def run(self, text, pos=0, search=False):
         '''

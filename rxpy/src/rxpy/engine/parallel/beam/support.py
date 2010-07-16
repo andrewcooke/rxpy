@@ -28,25 +28,32 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.engine.parallel.base import ParallelEngine
+from rxpy.engine.parallel.support import States as BaseStates
 
+class States(BaseStates):
+    
+    def __init__(self, initial, hash_state, beam_start=1, beam_scale=2):
+        super(States, self).__init__(initial, hash_state)
+        self.__initial = list(map(lambda x: x.clone(), initial))
+        self.__beam_width = beam_start
+        self.__beam_scale = beam_scale
+        self.__overflowed = False
+        
+    def grow(self):
+        self.__overflowed = False
+        self.__beam_width *= self.__beam_scale
+        self._next_nodes = list(map(lambda x: x.clone(), self.__initial))
+        
+    @property
+    def overflowed(self):
+        return self.__overflowed
 
-class SerialEngine(ParallelEngine):
-    '''
-    Modify the outer loops so that, at each initial offset, all states
-    are explored before progressing to the next search position.
-    '''
-
-    def _outer_loop(self, states, search, new_state):
-        search_offset = self._offset
-        first = True
-        while first or (search and not states.final_state and
-                            search_offset <= len(self._text)):
-            if search:
-                states.add_next(new_state(search_offset))
-                self._set_offset(search_offset)
-                search_offset += 1
-            first = False
-            while not states.final_state and states.more and \
-                    self._offset <= len(self._text):
-                self._inner_loop(states)
+    def add_next(self, next):
+        if len(self._next_nodes) == self.__beam_width:
+            self.__overflowed = True
+            # since we are rejecting a success, we must discard all 
+            # alternatives "below" that.  we can then continue to accept
+            # future alternatives next iteration.
+            self._current_nodes = []
+        else:
+            super(States, self).add_next(next)
