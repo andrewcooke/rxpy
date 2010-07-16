@@ -28,14 +28,39 @@
 # MPL or the LGPL License.                                              
 
 
-from unittest import TestCase
+from rxpy.compat.module import Re
+from rxpy.alphabet.unicode import Unicode
+from rxpy.parser.pattern import parse_pattern
+from rxpy.lib import unimplemented
 
-from rxpy.engine.backtrack.engine import BacktrackingEngine
-from rxpy.engine._test.engine import EngineTest
 
+class BaseTest(object):
 
-class BacktrackingEngineTest(EngineTest, TestCase):
-    
+    @unimplemented
     def default_engine(self):
-        return BacktrackingEngine
+        '''
+        Should return an engine class
+        '''
+        
+    def default_alphabet(self):
+        return None
     
+    def setUp(self):
+        self._alphabet = self.default_alphabet()
+        self._re = Re(self.default_engine())
+        
+    def parse(self, regexp, flags=0, alphabet=None):
+        return parse_pattern(regexp, self.default_engine(),
+                             alphabet=alphabet if alphabet else self._alphabet, 
+                             flags=flags)
+    
+    def engine(self, parse, text, search=False, 
+               ticks=None, maxdepth=None):
+        engine = self.default_engine()(*parse)
+        result = engine.run(text, search=search)
+        if ticks is not None:
+            assert engine.ticks == ticks, engine.ticks
+        if maxdepth is not None:
+            assert engine.maxdepth == maxdepth, engine.maxdepth
+        return result
+

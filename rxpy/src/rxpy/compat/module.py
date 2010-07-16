@@ -42,7 +42,13 @@ class Re(object):
         self.error = error_
         self.escape = escape_
         self.FLAGS = _FLAGS
-        
+        (self.I, self.M, self.S, self.U, self.X, self.A, 
+         self._L, self._C, self._E, self._U, self._G, 
+         self.IGNORECASE, self.MULTILINE, self.DOTALL, self.UNICODE, 
+         self.VERBOSE, self.ASCII, 
+         self._LOOP_UNROLL, self._CHARS, self._EMPTY, self._UNSAFE, 
+         self._GROUPS) = _FLAGS
+
     def _engine(self, engine):
         if engine:
             return engine
