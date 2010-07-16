@@ -33,15 +33,15 @@ from rxpy.engine.parallel.base import ParallelEngine
 class SerialEngine(ParallelEngine):
 
     def _outer_loop(self, states, search, new_state):
-        while True:
-            self._inner_loop(states)
-            # equals here allows final test at end of text
-            if not states.final_state and self.__offset <= len(self.__text):
-                if search:
-                    state = new_state()
-                    states.add_next(state.start_group(0, self.__offset))
-                    continue
-                elif states.more:
-                    continue
-            break
-        
+        search_offset = self._offset
+        first = True
+        while first or (search and not states.final_state and
+                            search_offset <= len(self._text)):
+            if search:
+                states.add_next(new_state(search_offset))
+                self._set_offset(search_offset)
+                search_offset += 1
+            first = False
+            while not states.final_state and states.more and \
+                    self._offset <= len(self._text):
+                self._inner_loop(states)

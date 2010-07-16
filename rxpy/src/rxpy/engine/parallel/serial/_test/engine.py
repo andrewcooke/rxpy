@@ -30,296 +30,117 @@
 
 from unittest import TestCase
 
+from rxpy.engine._test.engine import EngineTest
 from rxpy.engine.parallel.serial.engine import SerialEngine
-from rxpy.parser.pattern import parse_pattern
-from rxpy.parser.support import ParserState
 
 
-def engine(parse, text, search=False, ticks=None):
-    engine = SerialEngine(*parse)
-    results = engine.run(text, search=search)
-    if ticks:
-        assert engine.ticks == ticks, engine.ticks
-    return results
-
-def parse(pattern, flags=0):
-    return parse_pattern(pattern, SerialEngine, flags=flags)
-
-
-class EngineTest(TestCase):
+class SerialEngineTest(EngineTest, TestCase):
     
-    def test_string(self):
-        assert engine(parse('abc'), 'abc')
-        assert engine(parse('abc'), 'abcd')
-        assert not engine(parse('abc'), 'ab')
-        
-    def test_dot(self):
-        assert engine(parse('a.c'), 'abc')
-        assert engine(parse('...'), 'abcd')
-        assert not engine(parse('...'), 'ab')
-        assert not engine(parse('a.b'), 'a\nb')
-        assert engine(parse('a.b', flags=ParserState.DOTALL), 'a\nb')
-       
-    def test_char(self):
-        assert engine(parse('[ab]'), 'a')
-        assert engine(parse('[ab]'), 'b')
-        assert not engine(parse('[ab]'), 'c')
+    def default_engine(self):
+        return SerialEngine
 
-    def test_group(self):
-        groups = engine(parse('(.).'), 'ab')
-        assert len(groups) == 1, len(groups)
-        groups = engine(parse('((.).)'), 'ab')
-        assert len(groups) == 2, len(groups)
-        
-    def test_group_reference(self):
-        assert engine(parse('(.)\\1'), 'aa')
-        assert not engine(parse('(.)\\1'), 'ab')
- 
-    def test_split(self):
-        assert engine(parse('a*b'), 'b')
-        assert engine(parse('a*b'), 'ab')
-        assert engine(parse('a*b'), 'aab')
-        assert not engine(parse('a*b'), 'aa')
-        groups = engine(parse('a*'), 'aaa')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('a*'), 'aab')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        assert engine(parse('a*'), 'a')
-        assert engine(parse('a*'), 'aa')
-        assert engine(parse('a*'), '')
-        assert engine(parse('a+'), 'a')
-        assert engine(parse('a+'), 'aa')
-        assert not engine(parse('a+'), '')
-        
-    def test_nested_group(self):
-        groups = engine(parse('(.)*'), 'ab')
-        assert len(groups) == 1
-
-    def test_lookahead(self):
-        assert engine(parse('a(?=b)'), 'ab')
-        assert not engine(parse('a(?=b)'), 'ac')
-        assert not engine(parse('a(?!b)'), 'ab')
-        assert engine(parse('a(?!b)'), 'ac')
-    
-    def test_lookback(self):
-        assert engine(parse('.(?<=a)'), 'a')
-        assert not engine(parse('.(?<=a)'), 'b')
-        assert not engine(parse('.(?<!a)'), 'a')
-        assert engine(parse('.(?<!a)'), 'b')
-    
     def test_lookback_with_offset(self):
-        assert engine(parse('..(?<=a)'), 'xa', ticks=7)
-        assert not engine(parse('..(?<=a)'), 'ax')
+        assert self.engine(self.parse('..(?<=a)'), 'xa', ticks=7)
+        assert not self.engine(self.parse('..(?<=a)'), 'ax')
         
     def test_lookback_optimisations(self):
-        assert engine(parse('(.).(?<=a)'), 'xa', ticks=9)
+        assert self.engine(self.parse('(.).(?<=a)'), 'xa', ticks=9)
         # only one more tick with an extra character because we avoid starting
         # from the start in this case
-        assert engine(parse('.(.).(?<=a)'), 'xxa', ticks=10)
+        assert self.engine(self.parse('.(.).(?<=a)'), 'xxa', ticks=10)
         
-        assert engine(parse('(.).(?<=\\1)'), 'aa', ticks=10)
+        assert self.engine(self.parse('(.).(?<=\\1)'), 'aa', ticks=10)
         # again, just one tick more
-        assert engine(parse('.(.).(?<=\\1)'), 'xaa', ticks=11)
-        assert not engine(parse('.(.).(?<=\\1)'), 'xxa')
+        assert self.engine(self.parse('.(.).(?<=\\1)'), 'xaa', ticks=11)
+        assert not self.engine(self.parse('.(.).(?<=\\1)'), 'xxa')
         
-        assert engine(parse('(.).(?<=(\\1))'), 'aa', ticks=18)
+        assert self.engine(self.parse('(.).(?<=(\\1))'), 'aa')
+        assert self.engine(self.parse('(.).(?<=(\\1))'), 'aa', ticks=17)
         # but here, three ticks more because we have a group reference with
         # changing groups, so can't reliably calculate lookback distance
-        assert engine(parse('.(.).(?<=(\\1))'), 'xaa', ticks=22)
-        assert not engine(parse('.(.).(?<=(\\1))'), 'xxa')
+        assert self.engine(self.parse('.(.).(?<=(\\1))'), 'xaa', ticks=21)
+        assert not self.engine(self.parse('.(.).(?<=(\\1))'), 'xxa')
         
-    def test_lookback_bug_1(self):
-        result = engine(parse('.*(?<!abc)(d.f)'), 'abcdefdof')
-        assert result.group(1) == 'dof', result.group(1)
-        result = engine(parse('(?<!abc)(d.f)'), 'abcdefdof', search=True)
-        assert result.group(1) == 'dof', result.group(1)
+        assert self.engine(self.parse('(.).(?<=a)'), 'xa', ticks=9)
+
+        assert self.engine(self.parse('(.).(?<=(?:a|z))'), 'xa', ticks=11)
+        assert self.engine(self.parse('(.).(?<=(a|z))'), 'xa', ticks=13)
+        # only one more tick with an extra character because we avoid starting
+        # from the start in this case
+        assert self.engine(self.parse('.(.).(?<=(?:a|z))'), 'xxa', ticks=12)
+        assert self.engine(self.parse('.(.).(?<=(a|z))'), 'xxa', ticks=14)
         
-    def test_lookback_bug_2(self):
-        assert not engine(parse(r'.*(?<=\bx)a'), 'xxa')
-        assert engine(parse(r'.*(?<!\bx)a'), 'xxa')
-        assert not engine(parse(r'.*(?<!\Bx)a'), 'xxa')
-        assert engine(parse(r'.*(?<=\Bx)a'), 'xxa')
+        
+    def test_width_basics(self):
+        # width of 2 as carrying fallback match
+        assert self.engine(self.parse('b*'), 1000 * 'b', ticks=3003, maxwidth=2)
+        assert self.engine(self.parse('b*'), 1000 * 'b' + 'c', ticks=3003, maxwidth=2)
+        # width of 1 when no match until end
+        assert self.engine(self.parse('b*c'), 1000 * 'b' + 'c', ticks=3004, maxwidth=1)
+        assert self.engine(self.parse('b*?c'), 1000 * 'b' + 'c', ticks=3004, maxwidth=1)
+        assert self.engine(self.parse('ab*c'), 'a' + 1000 * 'b' + 'c', ticks=3005, maxwidth=1)
+        assert self.engine(self.parse('ab*?c'), 'a' + 1000 * 'b' + 'c', ticks=3005, maxwidth=1)
+
+    def test_width_hash_state(self):
+        # equivalently, we can use hashing (which shortcuts on match)
+        assert self.engine(self.parse('b*'), 1000 * 'b', ticks=3003, maxwidth=2, hash_state=True)
     
-    def test_conditional(self):
-        assert engine(parse('(.)?b(?(1)\\1)'), 'aba')
-        assert not engine(parse('(.)?b(?(1)\\1)'), 'abc')
-        assert engine(parse('(.)?b(?(1)\\1|c)'), 'bc')
-        assert not engine(parse('(.)?b(?(1)\\1|c)'), 'bd')
-        
-    def test_star_etc(self):
-        assert engine(parse('a*b'), 'b')
-        assert engine(parse('a*b'), 'ab')
-        assert engine(parse('a*b'), 'aab')
-        assert not engine(parse('a+b'), 'b')
-        assert engine(parse('a+b'), 'ab')
-        assert engine(parse('a+b'), 'aab')
-        assert engine(parse('a?b'), 'b')
-        assert engine(parse('a?b'), 'ab')
-        assert not engine(parse('a?b'), 'aab')
-        
-        assert engine(parse('a*b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a*b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert engine(parse('a*b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert not engine(parse('a+b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a+b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert engine(parse('a+b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert engine(parse('a?b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a?b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert not engine(parse('a?b', flags=ParserState._LOOP_UNROLL), 'aab')
+    def test_width_groups(self):
+        assert self.engine(self.parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=2)
+        assert self.engine(self.parse('(b)*'), 1000 * 'b' + 'c', ticks=5004, maxwidth=2)
+        assert self.engine(self.parse('(b)*c'), 1000 * 'b' + 'c', ticks=5005, maxwidth=1)
+        assert self.engine(self.parse('(b)*?c'), 1000 * 'b' + 'c', ticks=5005, maxwidth=1)
+        assert self.engine(self.parse('a(b)*c'), 'a' + 1000 * 'b' + 'c', ticks=5006, maxwidth=1)
+        assert self.engine(self.parse('a(b)*?c'), 'a' + 1000 * 'b' + 'c', ticks=5006, maxwidth=1)
+        assert self.engine(self.parse('(b)*'), 1000 * 'b', ticks=5004, maxwidth=2, hash_state=True)
 
-    def test_counted(self):
-        groups = engine(parse('a{2}', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,2}', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,}', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('a{2}?', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,2}?', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('a{1,}?', flags=ParserState._LOOP_UNROLL), 'aaa')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('a{1,2}?b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('a{1,}?b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        
-        assert engine(parse('a{0,}?b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a{0,}?b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert engine(parse('a{0,}?b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert not engine(parse('a{1,}?b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a{1,}?b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert engine(parse('a{1,}?b', flags=ParserState._LOOP_UNROLL), 'aab')
-        assert engine(parse('a{0,1}?b', flags=ParserState._LOOP_UNROLL), 'b')
-        assert engine(parse('a{0,1}?b', flags=ParserState._LOOP_UNROLL), 'ab')
-        assert not engine(parse('a{0,1}?b', flags=ParserState._LOOP_UNROLL), 'aab')
+    def test_width_re_test(self):
+        assert self.engine(self.parse('.*?cd'), 1000*'abc'+'de', ticks=10005, maxwidth=2)
+        # this could be optimised as a character
+        assert self.engine(self.parse('(a|b)*?c'), 1000*'ab'+'cd', ticks=14007, maxwidth=1)
 
-        groups = engine(parse('a{2}'), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,2}'), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,}'), 'aaa')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('a{2}?'), 'aaa')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('a{1,2}?'), 'aaa')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('a{1,}?'), 'aaa')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('a{1,2}?b'), 'aab')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('a{1,}?b'), 'aab')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        
-        assert engine(parse('a{0,}?b'), 'b')
-        assert engine(parse('a{0,}?b'), 'ab')
-        assert engine(parse('a{0,}?b'), 'aab')
-        assert not engine(parse('a{1,}?b'), 'b')
-        assert engine(parse('a{1,}?b'), 'ab')
-        assert engine(parse('a{1,}?b'), 'aab')
-        assert engine(parse('a{0,1}?b'), 'b')
-        assert engine(parse('a{0,1}?b'), 'ab')
-        assert not engine(parse('a{0,1}?b'), 'aab')
-
-    def test_ascii_escapes(self):
-        groups = engine(parse('\\d*', flags=ParserState.ASCII), '12x')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('\\D*', flags=ParserState.ASCII), 'x12')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('\\w*', flags=ParserState.ASCII), '12x a')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('\\W*', flags=ParserState.ASCII), ' a')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('\\s*', flags=ParserState.ASCII), '  a')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('\\S*', flags=ParserState.ASCII), 'aa ')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        assert engine(parse(r'a\b ', flags=ParserState.ASCII), 'a ')
-        assert not engine(parse(r'a\bb', flags=ParserState.ASCII), 'ab')
-        assert not engine(parse(r'a\B ', flags=ParserState.ASCII), 'a ')
-        assert engine(parse(r'a\Bb', flags=ParserState.ASCII), 'ab')
-        groups = engine(parse(r'\s*\b\w+\b\s*', flags=ParserState.ASCII), ' a ')
-        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
-        groups = engine(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOP_UNROLL|ParserState.ASCII), ' a ab abc ')
-        assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
-        
-    def test_unicode_escapes(self):
-        groups = engine(parse('\\d*'), '12x')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('\\D*'), 'x12')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('\\w*'), '12x a')
-        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
-        groups = engine(parse('\\W*'), ' a')
-        assert len(groups.data(0)[0]) == 1, groups.data(0)[0]
-        groups = engine(parse('\\s*'), '  a')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        groups = engine(parse('\\S*'), 'aa ')
-        assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
-        assert engine(parse(r'a\b '), 'a ')
-        assert not engine(parse(r'a\bb'), 'ab')
-        assert not engine(parse(r'a\B '), 'a ')
-        assert engine(parse(r'a\Bb'), 'ab')
-        groups = engine(parse(r'\s*\b\w+\b\s*'), ' a ')
-        assert groups.data(0)[0] == ' a ', groups.data(0)[0]
-        groups = engine(parse(r'(\s*(\b\w+\b)\s*){3}', flags=ParserState._LOOP_UNROLL), ' a ab abc ')
-        assert groups.data(0)[0] == ' a ab abc ', groups.data(0)[0]
-    
-    def test_or(self):
-        assert engine(parse('a|b'), 'a')
-        assert engine(parse('a|b'), 'b')
-        assert not engine(parse('a|b'), 'c')
-        assert engine(parse('(a|ac)'), 'ac')
-        assert engine(parse('(a|ac)$'), 'ac')
-
-    def test_search(self):
-        assert engine(parse('a'), 'ab', search=True)
-        assert engine(parse('$'), '', search=True)
-        assert engine(parse('$'), 'a', search=True)
-        
-    def test_end_of_line(self):
-        assert engine(parse('ab$'), 'ab')
-        assert engine(parse('ab$'), 'ab\n')
-        assert not engine(parse('ab$'), 'abc')
-        assert not engine(parse('ab$'), 'ab\nc')
-        assert engine(parse('(?m)ab$'), 'ab\nc')
-        
-    def test_groups_in_lookback(self):
-        result = engine(parse('(.).(?<=a(.))'), 'ab')
+    def test_width_search(self):
+        bk = 1000 * 'b'
+        result = self.engine(self.parse('b*'), bk, search=True)
         assert result
-        assert result.group(1) == 'a'
-        assert result.group(2) == 'b'
+        assert result.group(0) == bk, result.group(0)
+        
+        assert self.engine(self.parse('b*'), bk, ticks=3003, maxwidth=2, search=True)
+        assert self.engine(self.parse('b*'), bk, ticks=3003, maxwidth=2, hash_state=True, search=True)
+        assert self.engine(self.parse('.*?b*'), bk, ticks=3005, maxwidth=2)
 
-        assert engine(parse('(.).(?<=(?(1)))'), 'ab')
-        try:
-            assert not engine(parse('(.).(?<=(?(2)))'), 'ab')
-            assert False, 'expected error'
-        except:
-            pass
+        assert self.engine(self.parse('b*'), bk + 'c', ticks=3003, maxwidth=2, search=True)
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+        assert self.engine(self.parse('b*?c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+        assert self.engine(self.parse('ab*c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, search=True)
+        assert self.engine(self.parse('ab*?c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, search=True)
+
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+
+        # values correct but takes too long
+#        assert self.engine(self.parse('.*?b*c'), bk + 'c', ticks=1507507, maxwidth=1002)
         
-        assert engine(parse('(a)b(?<=b)(c)'), 'abc')
-        assert not engine(parse('(a)b(?<=c)(c)'), 'abc')
-        assert engine(parse('(a)b(?=c)(c)'), 'abc')
-        assert not engine(parse('(a)b(?=b)(c)'), 'abc')
+    def test_width_search_compared_with_wide(self):
+#        bk = 1000 * 'b'
+        bk = 100 * 'b'
+        result = self.engine(self.parse('b*'), bk, search=True)
+        assert result
+        assert result.group(0) == bk, result.group(0)
         
-        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)x|c))c'), 'abc')
-        assert not engine(parse('(?:(a)|(x))b(?<=(?(2)b|x))c'), 'abc')
-        assert engine(parse('(?:(a)|(x))b(?<=(?(2)x|b))c'), 'abc')
-        assert not engine(parse('(?:(a)|(x))b(?<=(?(1)c|x))c'), 'abc')
-        assert engine(parse('(?:(a)|(x))b(?<=(?(1)b|x))c'), 'abc')
-        
-        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
-        assert not engine(parse('(?:(a)|(x))b(?=(?(2)c|x))c'), 'abc')
-        assert engine(parse('(?:(a)|(x))b(?=(?(2)x|c))c'), 'abc')
-        assert not engine(parse('(?:(a)|(x))b(?=(?(1)b|x))c'), 'abc')
-        assert engine(parse('(?:(a)|(x))b(?=(?(1)c|x))c'), 'abc')
-      
-        assert not engine(parse('(a)b(?<=(?(2)x|c))(c)'), 'abc')
-        assert not engine(parse('(a)b(?<=(?(2)b|x))(c)'), 'abc')
-        assert not engine(parse('(a)b(?<=(?(1)c|x))(c)'), 'abc')
-        assert engine(parse('(a)b(?<=(?(1)b|x))(c)'), 'abc')
-        
-        assert engine(parse('(a)b(?=(?(2)x|c))(c)'), 'abc')
-        assert not engine(parse('(a)b(?=(?(2)b|x))(c)'), 'abc')
-        assert engine(parse('(a)b(?=(?(1)c|x))(c)'), 'abc')
+        assert self.engine(self.parse('b*'), bk, ticks=303, maxwidth=2, search=True)
+        assert self.engine(self.parse('b*'), bk, ticks=303, maxwidth=2, hash_state=True, search=True)
+        assert self.engine(self.parse('.*?b*'), bk, ticks=305, maxwidth=2)
+
+        assert self.engine(self.parse('b*'), bk + 'c', ticks=303, maxwidth=2, search=True)
+        # reduction from ticks=15555, maxwidth=102
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=304, maxwidth=1, search=True)
+        # reduction from ticks=15555, maxwidth=102
+        assert self.engine(self.parse('b*?c'), bk + 'c', ticks=304, maxwidth=1, search=True)
+        # reduction from ticks=407, maxwidth=2
+        assert self.engine(self.parse('ab*c'), 'a' + bk + 'c', ticks=305, maxwidth=1, search=True)
+        # reduction from ticks=407, maxwidth=2
+        assert self.engine(self.parse('ab*?c'), 'a' + bk + 'c', ticks=305, maxwidth=1, search=True)
+
+        # reduction from ticks=15555, maxwidth=102
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=304, maxwidth=1, search=True)
+        assert self.engine(self.parse('.*?b*c'), bk + 'c', ticks=15757, maxwidth=102)

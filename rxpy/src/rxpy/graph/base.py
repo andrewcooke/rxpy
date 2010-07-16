@@ -29,7 +29,7 @@
 
 
 from rxpy.lib import RxpyException, unimplemented
-from rxpy.graph.support import GraphException, edge_iterator
+from rxpy.graph.support import edge_iterator
 
 
 class AutoClone(object):

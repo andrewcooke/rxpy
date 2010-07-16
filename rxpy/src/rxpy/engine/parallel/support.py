@@ -160,7 +160,7 @@ class States(object):
         self.__next_nodes = initial
         self.__hash_state = hash_state
         self.__matched = False
-        self.__known = None
+        self.__known = set() if hash_state else None
 
     def flip(self):
         '''

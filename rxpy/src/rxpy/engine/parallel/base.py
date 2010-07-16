@@ -78,40 +78,38 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         else:
             return Groups()
         
+    def _set_offset(self, offset):
+        self._offset = offset
+        if 0 <= self._offset < len(self._text):
+            self._current = self._text[self._offset]
+        else:
+            self._current = None
+        if 0 <= self._offset-1 < len(self._text):
+            self._previous = self._text[self._offset-1]
+        else:
+            self._previous = None
+        
     def run_state(self, state, text, pos, search, new_state):
         
-        self.__text = text
-        self.__offset = pos
+        self._text = text
+        self._offset = pos
         self.__lookaheads = {} # can we delete some of this as we progress?
         self.__groups = SafeCache()
-        
-        if 0 <= pos < len(text):
-            self.__current = text[pos]
-        else:
-            self.__current = None
-        if 0 <= pos-1 < len(text):
-            self.__previous = text[pos-1]
-        else:
-            self.__previous = None
-            
+        self._set_offset(pos)
         self.ticks = 0
         self.maxwidth = 0
         
-        states = self._new_states([state])
+        states = self._new_states([] if search else [state])
         self._outer_loop(states, search, new_state)
         return states.final_state
     
     def _outer_loop(self, states, search, new_state):
-        while True:
-            self._inner_loop(states)
-            # equals here allows final test at end of text
-            if not states.final_state and self.__offset <= len(self.__text):
-                if search:
-                    states.add_next(new_state(self.__offset))
-                    continue
-                elif states.more:
-                    continue
-            break
+        while not states.final_state and \
+                (states.more or 
+                    (search and self._offset <= len(self._text))):
+            if search:
+                states.add_next(new_state(self._offset))
+            self._inner_loop(states)    
         
     def _inner_loop(self, states):
         states.flip()
@@ -124,30 +122,30 @@ class ParallelEngine(BaseEngine, BaseVisitor):
                 self.ticks += 1
             states.add_next(state)
             states.add_extra(extra)
-        self.__offset += 1
-        self.__previous = self.__current
+        self._offset += 1
+        self._previous = self._current
         try:
-            self.__current = self.__text[self.__offset]
+            self._current = self._text[self._offset]
         except IndexError:
-            self.__current = None
+            self._current = None
         
     # below are the visitor methods - these implement the different opcodes
         
     def string(self, next, text, state):
-        if self.__current == text[0]:
+        if self._current == text[0]:
             return (state.advance(), [])
         return (None, [])
     
     def character(self, next, charset, state):
-        if self.__current and self.__current in charset:
+        if self._current and self._current in charset:
             return (state.advance(), [])
         return (None, [])
     
     def start_group(self, next, number, state):
-        return (None, [state.start_group(number, self.__offset).advance()])
+        return (None, [state.start_group(number, self._offset).advance()])
     
     def end_group(self, next, number, state):
-        return (None, [state.end_group(number, self.__offset).advance()])
+        return (None, [state.end_group(number, self._offset).advance()])
 
     def group_reference(self, next, number, state):
         try:
@@ -178,46 +176,46 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return (None, states)
     
     def match(self, state):
-        state.match_offset = self.__offset
+        state.match_offset = self._offset
         return (state, [])
 
     def dot(self, next, multiline, state):
-        if self.__current and \
-                (multiline or self.__current != '\n'):
+        if self._current and \
+                (multiline or self._current != '\n'):
             return (state.advance(), [])
         return (None, [])
         
     def start_of_line(self, next, multiline, state):
-        if self.__offset == 0 or (multiline and self.__previous == '\n'):
+        if self._offset == 0 or (multiline and self._previous == '\n'):
             return (None, [state.advance()])
         else:
             return (None, [])
             
     def end_of_line(self, next, multiline, state):
-        if ((len(self.__text) == self.__offset or 
-                    (multiline and self.__current == '\n'))
-                or (self.__current == '\n' and
-                        not self.__text[self.__offset+1:])):
+        if ((len(self._text) == self._offset or 
+                    (multiline and self._current == '\n'))
+                or (self._current == '\n' and
+                        not self._text[self._offset+1:])):
             return (None, [state.advance()])
         return (None, [])
         
     def lookahead(self, next, node, equal, forwards, state):
         if node not in self.__lookaheads:
             self.__lookaheads[node] = {}
-        if self.__offset not in self.__lookaheads[node]:
+        if self._offset not in self.__lookaheads[node]:
             # we need to match the lookahead
             search = False
             (reads, mutates, size) = lookahead_logic(next[1], forwards, state.groups)
             if forwards:
-                subtext = self.__text
-                offset = self.__offset
+                subtext = self._text
+                offset = self._offset
             else:
-                subtext = self.__text[0:self.__offset]
+                subtext = self._text[0:self._offset]
                 if size is None:
                     offset = 0
                     search = True
                 else:
-                    offset = self.__offset - size
+                    offset = self._offset - size
             if reads or mutates:
                 groups = state.groups
                 new_state = lambda _offset: engine._new_state(groups=groups)
@@ -231,10 +229,10 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             self.ticks += engine.ticks
             success = bool(match) == equal
             if not (mutates or reads):
-                self.__lookaheads[node][self.__offset] = success
+                self.__lookaheads[node][self._offset] = success
         else:
             mutates = False
-            success = self.__lookaheads[node][self.__offset]
+            success = self.__lookaheads[node][self._offset]
         # if lookahead succeeded, continue
         if success:
             if mutates:
@@ -256,7 +254,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             # continuation is highest priority, but if that fails we restart 
             # with another loop, unless we've exceeded the count or there's
             # no text left
-            if (end is None and self.__current) \
+            if (end is None and self._current) \
                     or (end is not None and count < end):
                 states.append(state.clone().advance(1))
             if end is None or count <= end:
@@ -275,7 +273,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     
     def word_boundary(self, next, inverted, state):
         word = self._parser_state.alphabet.word
-        boundary = word(self.__current) != word(self.__previous)
+        boundary = word(self._current) != word(self._previous)
         if boundary != inverted:
             return (None, [state.advance()])
         else:
@@ -283,20 +281,20 @@ class ParallelEngine(BaseEngine, BaseVisitor):
 
     def digit(self, next, inverted, state):
         # current here tests whether we have finished
-        if self.__current and \
-                self._parser_state.alphabet.digit(self.__current) != inverted:
+        if self._current and \
+                self._parser_state.alphabet.digit(self._current) != inverted:
             return (state.advance(), [])
         return (None, [])
     
     def space(self, next, inverted, state):
-        if self.__current and \
-                self._parser_state.alphabet.space(self.__current) != inverted:
+        if self._current and \
+                self._parser_state.alphabet.space(self._current) != inverted:
             return (state.advance(), [])
         return (None, [])
     
     def word(self, next, inverted, state):
-        if self.__current and \
-                self._parser_state.alphabet.word(self.__current) != inverted:
+        if self._current and \
+                self._parser_state.alphabet.word(self._current) != inverted:
             return (state.advance(), [])
         return (None, [])
 
