@@ -29,7 +29,7 @@
 
 from rxpy.engine.base import BaseEngine
 from rxpy.graph.visitor import BaseVisitor
-from rxpy.lib import _CHARS
+from rxpy.lib import _CHARS, SafeCache
 from rxpy.engine.parallel.support import State, States
 from rxpy.engine.support import Groups, lookahead_logic
 from rxpy.graph.opcode import String
@@ -83,7 +83,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         self.__text = text
         self.__offset = pos
         self.__lookaheads = {} # can we delete some of this as we progress?
-        self.__groups = {}
+        self.__groups = SafeCache()
         
         if 0 <= pos < len(text):
             self.__current = text[pos]
@@ -134,7 +134,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     # below are the visitor methods - these implement the different opcodes
         
     def string(self, next, text, state):
-        if self.__current == text:
+        if self.__current == text[0]:
             return (state.advance(), [])
         return (None, [])
     
@@ -155,9 +155,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             if text is None:
                 return (None, [])
             elif text:
-                if text not in self.__groups:
-                    self.__groups[text] = Sequence([String(c) for c in text])
-                graph = self.__groups[text].clone()
+                alphabet = self._parser_state.alphabet
+                graph = Sequence([String(alphabet.join(c)) for c in text])
                 graph = graph.join(next[0], self._parser_state)
                 return (None, [state.clone(graph=graph)])
             else:

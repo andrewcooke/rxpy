@@ -74,3 +74,26 @@ def refuse_flags(flags):
     if names:
         raise RxpyException('Bad flag' + ('s' if len(names) > 1 else '') 
                             + ': ' + '; '.join(names))
+
+
+class SafeCache(object):
+    '''
+    A replacement for the idiom:
+    
+      if key not in cache:
+          cache[key] = expensive_operation()
+      cached_value = cache[key]
+      
+    That fails gracefully when the cached value cannot be hashed.
+    '''
+    
+    def __init__(self):
+        self.__cache = {}
+        
+    def store_and_read(self, key, operation):
+        try:
+            if key not in self.__cache:
+                self.__cache[key] = operation()
+            return self.__cache[key]
+        except TypeError:
+            return operation()
