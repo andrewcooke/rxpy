@@ -78,6 +78,12 @@ class EngineTest(BaseTest):
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = self.engine(self.parse('a*'), 'aab')
         assert len(groups.data(0)[0]) == 2, groups.data(0)[0]
+        assert self.engine(self.parse('a*'), 'a')
+        assert self.engine(self.parse('a*'), 'aa')
+        assert self.engine(self.parse('a*'), '')
+        assert self.engine(self.parse('a+'), 'a')
+        assert self.engine(self.parse('a+'), 'aa')
+        assert not self.engine(self.parse('a+'), '')
         
     def test_nested_group(self):
         groups = self.engine(self.parse('(.)*'), 'ab')
@@ -95,39 +101,9 @@ class EngineTest(BaseTest):
         assert not self.engine(self.parse('.(?<!a)'), 'a')
         assert self.engine(self.parse('.(?<!a)'), 'b')
     
-    def test_lookback_with_offset(self):
-        assert self.engine(self.parse('..(?<=a)'), 'xa', ticks=7)
-        assert not self.engine(self.parse('..(?<=a)'), 'ax')
-        
-    def test_lookback_optimisations(self):
-        assert self.engine(self.parse('(.).(?<=a)'), 'xa', ticks=9)
-        # only one more tick with an extra character because we avoid starting
-        # from the start in this case
-        assert self.engine(self.parse('.(.).(?<=a)'), 'xxa', ticks=10)
-        
-        assert self.engine(self.parse('(.).(?<=\\1)'), 'aa', ticks=9)
-        # again, just one tick more
-        assert self.engine(self.parse('.(.).(?<=\\1)'), 'xaa', ticks=10)
-        assert not self.engine(self.parse('.(.).(?<=\\1)'), 'xxa')
-        
-        assert self.engine(self.parse('(.).(?<=(\\1))'), 'aa', ticks=15)
-        # but here, three ticks more because we have a group reference with
-        # changing groups, so can't reliably calculate lookback distance
-        assert self.engine(self.parse('.(.).(?<=(\\1))'), 'xaa', ticks=18)
-        assert not self.engine(self.parse('.(.).(?<=(\\1))'), 'xxa')
-        
-        assert self.engine(self.parse('(.).(?<=a)'), 'xa', ticks=9)
-
-        assert self.engine(self.parse('(.).(?<=(?:a|z))'), 'xa', ticks=10)
-        assert self.engine(self.parse('(.).(?<=(a|z))'), 'xa', ticks=12)
-        # only one more tick with an extra character because we avoid starting
-        # from the start in this case
-        assert self.engine(self.parse('.(.).(?<=(?:a|z))'), 'xxa', ticks=11)
-        assert self.engine(self.parse('.(.).(?<=(a|z))'), 'xxa', ticks=13)
-        
     def test_lookback_bug_1(self):
-#        result = self.engine(self.parse('.*(?<!abc)(d.f)'), 'abcdefdof')
-#        assert result.group(1) == 'dof', result.group(1)
+        result = self.engine(self.parse('.*(?<!abc)(d.f)'), 'abcdefdof')
+        assert result.group(1) == 'dof', result.group(1)
         result = self.engine(self.parse('(?<!abc)(d.f)'), 'abcdefdof', search=True)
         assert result.group(1) == 'dof', result.group(1)
         
@@ -271,14 +247,15 @@ class EngineTest(BaseTest):
 
     def test_search(self):
         assert self.engine(self.parse('a'), 'ab', search=True)
+        assert self.engine(self.parse('$'), '', search=True)
+        assert self.engine(self.parse('$'), 'a', search=True)
         
-    def test_stack(self):
-        # optimized
-        assert self.engine(self.parse('(?:abc)*x'), ('abc' * 50000) + 'x',  maxdepth=1)
-        # this defines a group, so requires state on stack
-        assert self.engine(self.parse('(abc)*x'), ('abc' * 5) + 'x',  maxdepth=6)
-        # this is lazy, so doesn't
-        assert self.engine(self.parse('(abc)*?x'), ('abc' * 5) + 'x',  maxdepth=1)
+    def test_end_of_line(self):
+        assert self.engine(self.parse('ab$'), 'ab')
+        assert self.engine(self.parse('ab$'), 'ab\n')
+        assert not self.engine(self.parse('ab$'), 'abc')
+        assert not self.engine(self.parse('ab$'), 'ab\nc')
+        assert self.engine(self.parse('(?m)ab$'), 'ab\nc')
         
     def test_groups_in_lookback(self):
         result = self.engine(self.parse('(.).(?<=a(.))'), 'ab')
@@ -288,9 +265,7 @@ class EngineTest(BaseTest):
 
         assert self.engine(self.parse('(.).(?<=(?(1)))'), 'ab')
         try:
-            # without 'x' this doesn't fail because the entire reference is
-            # dropped - probably a bug?  
-            self.parse('(.).(?<=(?(2)x))')
+            self.parse('(.).(?<=(?(2)))')
             assert False, 'expected error'
         except RxpyException:
             pass

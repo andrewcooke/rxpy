@@ -28,40 +28,14 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.compat.module import Re
-from rxpy.parser.pattern import parse_pattern
-from rxpy.lib import unimplemented
+from unittest import TestCase
+
+from rxpy.engine._test.re import ReTest
+from rxpy.engine.parallel.wide.engine import WideEngine
 
 
-class BaseTest(object):
-
-    @unimplemented
+class WideReTest(ReTest, TestCase):
+    
     def default_engine(self):
-        '''
-        Should return an engine class
-        '''
-        
-    def default_alphabet(self):
-        return None
-    
-    def setUp(self):
-        self._alphabet = self.default_alphabet()
-        self._re = Re(self.default_engine())
-        
-    def parse(self, regexp, flags=0, alphabet=None):
-        return parse_pattern(regexp, self.default_engine(),
-                             alphabet=alphabet if alphabet else self._alphabet, 
-                             flags=flags)
-    
-    def engine(self, parse, text, search=False, 
-               ticks=None, maxdepth=None, maxwidth=None, **kargs):
-        engine = self.default_engine()(*parse, **kargs)
-        result = engine.run(text, search=search)
-        if ticks is not None:
-            assert engine.ticks == ticks, engine.ticks
-        if maxdepth is not None:
-            assert engine.maxdepth == maxdepth, engine.maxdepth
-        if maxwidth is not None:
-            assert engine.maxwidth == maxwidth, engine.maxwidth
-        return result
+        return WideEngine
 
