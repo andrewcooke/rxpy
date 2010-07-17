@@ -61,3 +61,11 @@ class BeamEngine(ParallelEngine):
             else:
                 growing = False
 
+
+class HashingBeamEngine(BeamEngine):
+    
+    def __init__(self, parser_state, graph, hash_state=True,
+                 beam_start=1, beam_scale=2):
+        super(HashingBeamEngine, self).__init__(parser_state, graph, 
+                hash_state=hash_state, 
+                beam_start=beam_start, beam_scale=beam_scale)

@@ -31,23 +31,28 @@
 from os.path import join
 from time import time
 
-from rxpy.engine.backtrack.re import _re as R_BACKTRACK
+from rxpy.engine.backtrack.re_b import _re as R_B
+from rxpy.engine.parallel.beam.re_pb import _re as R_PB
+from rxpy.engine.parallel.beam.re_pbh import _re as R_PBH
 
 
 def execute(engines, benchmarks):
     for benchmark in benchmarks:
+        print benchmark
         def results():
             for engine in engines:
-                (secs, ticks, width) = benchmark(engine)
-                yield (engine, secs, ticks, width)
+                print '.',
+                secs = benchmark(engine)
+                yield (engine, secs)
+            print
         yield (benchmark, results())
     
         
 def write(engines, benchmarks, directory='./'):
     for (engine, data) in execute(engines, benchmarks):
         with file(join(directory, str(engine) + '.dat'), 'w') as out:
-            for (engine, secs, ticks, width) in data:
-                print >> out, secs, ticks, width, str(engine)
+            for (engine, secs) in data:
+                print >> out, secs, ';', str(engine)
             
 
 class BaseBenchmark(object):
@@ -72,7 +77,7 @@ class CompileBenchmark(BaseBenchmark):
         super(CompileBenchmark, self).__init__(name, count)
         self._pattern = pattern
         
-    def call(self, engine):
+    def __call__(self, engine):
         self.start()
         for _i in range(self._count):
             engine.compile(self._pattern)
@@ -86,7 +91,7 @@ class MatchBenchmark(CompileBenchmark):
         self._text = text
         self._search = search
         
-    def call(self, engine):
+    def __call__(self, engine):
         regexp = engine.compile(self._pattern)
         self.start()
         for _i in range(self._count):
@@ -102,5 +107,5 @@ M_ABC = MatchBenchmark('Match a(.)c', 'a(.)c', 1000, 'abc')
 
 
 if __name__ == '__main__':
-    write([R_BACKTRACK], [C_ABC, M_ABC])
+    write([R_B, R_PB, R_PBH], [C_ABC, M_ABC])
 

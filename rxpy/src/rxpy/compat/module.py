@@ -28,17 +28,19 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.compat.re import compile as compile_, RegexObject as RegexObject_, \
-    MatchIterator as MatchIterator_, match as match_, search as search_, \
-    findall as findall_, finditer as finditer_, sub as sub_, subn as subn_, \
+from rxpy.compat.support import compile as compile_, \
+    RegexObject as RegexObject_, MatchIterator as MatchIterator_, \
+    match as match_, search as search_, findall as findall_, \
+    finditer as finditer_, sub as sub_, subn as subn_, \
     split as split_, error as error_, escape as escape_, Scanner as Scanner_
 from rxpy.lib import _FLAGS
     
 
 class Re(object):
     
-    def __init__(self, engine):
+    def __init__(self, engine, name):
         self.__engine = engine
+        self.__name = name
         self.error = error_
         self.escape = escape_
         self.FLAGS = _FLAGS
@@ -48,6 +50,9 @@ class Re(object):
          self.VERBOSE, self.ASCII, 
          self._LOOP_UNROLL, self._CHARS, self._EMPTY, self._UNSAFE, 
          self._GROUPS) = _FLAGS
+
+    def __str__(self):
+        return self.__name
 
     def _engine(self, engine):
         if engine:

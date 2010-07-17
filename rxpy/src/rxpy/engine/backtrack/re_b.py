@@ -34,7 +34,7 @@ A replacement for Python's `re` package that uses the simple engine.
 from rxpy.compat.module import Re
 from rxpy.engine.backtrack.engine import BacktrackingEngine
 
-_re = Re(BacktrackingEngine)
+_re = Re(BacktrackingEngine, 'Backtracking')
 
 compile = _re.compile
 RegexObject = _re.RegexObject
