@@ -108,16 +108,24 @@ class BeamEngineTest(EngineTest, TestCase):
         assert self.engine(self.parse('b*'), bk, ticks=3003, maxwidth=1, search=True)
         assert self.engine(self.parse('b*'), bk, ticks=3003, maxwidth=1, hash_state=True, search=True)
         assert self.engine(self.parse('.*?b*'), bk, ticks=3004, maxwidth=1)
+        assert self.engine(self.parse('.*?b*'), bk, ticks=3004, maxwidth=1, hash_state=True)
 
         assert self.engine(self.parse('b*'), bk + 'c', ticks=3003, maxwidth=1, search=True)
+        assert self.engine(self.parse('b*'), bk + 'c', ticks=3003, maxwidth=1, hash_state=True, search=True)
         assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, hash_state=True, search=True)
         assert self.engine(self.parse('b*?c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+        assert self.engine(self.parse('b*?c'), bk + 'c', ticks=3004, maxwidth=1, hash_state=True, search=True)
         assert self.engine(self.parse('ab*c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, search=True)
+        assert self.engine(self.parse('ab*c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, hash_state=True, search=True)
         assert self.engine(self.parse('ab*?c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, search=True)
+        assert self.engine(self.parse('ab*?c'), 'a' + bk + 'c', ticks=3005, maxwidth=1, hash_state=True, search=True)
 
         assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, search=True)
+        assert self.engine(self.parse('b*c'), bk + 'c', ticks=3004, maxwidth=1, hash_state=True, search=True)
 
         assert self.engine(self.parse('.*?b*c'), bk + 'c', ticks=3005, maxwidth=1)
+        assert self.engine(self.parse('.*?b*c'), bk + 'c', ticks=3005, maxwidth=1, hash_state=True)
         
     def test_width_search_compared_with_wide(self):
 #        bk = 1000 * 'b'

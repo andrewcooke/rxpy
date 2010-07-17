@@ -32,7 +32,7 @@ from rxpy.compat.re import compile as compile_, RegexObject as RegexObject_, \
     MatchIterator as MatchIterator_, match as match_, search as search_, \
     findall as findall_, finditer as finditer_, sub as sub_, subn as subn_, \
     split as split_, error as error_, escape as escape_, Scanner as Scanner_
-from rxpy.lib import _FLAGS, RxpyException
+from rxpy.lib import _FLAGS
     
 
 class Re(object):

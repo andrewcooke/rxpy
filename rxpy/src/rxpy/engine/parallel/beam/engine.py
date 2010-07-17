@@ -33,6 +33,10 @@ from rxpy.engine.parallel.beam.support import States
 
 
 class BeamEngine(ParallelEngine):
+    '''
+    Restrict the total number of states under consideration, doubling on
+    failure until we either match, or fail with no discards.
+    '''
     
     def __init__(self, parser_state, graph, hash_state=False,
                  beam_start=1, beam_scale=2):

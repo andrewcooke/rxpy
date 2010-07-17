@@ -61,7 +61,8 @@ class ParallelEngine(BaseEngine, BaseVisitor):
         return States(initial, self._hash_state)
     
     def _new_engine(self, graph):
-        return type(self)(self._parser_state, graph, self._hash_state)
+        return type(self)(self._parser_state, graph, 
+                          hash_state=self._hash_state)
         
     def run(self, text, pos=0, search=False):
         '''

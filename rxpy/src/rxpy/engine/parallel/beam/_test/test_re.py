@@ -38,3 +38,16 @@ class BeamTest(ReTests, TestCase):
     
     def default_engine(self):
         return BeamEngine
+
+
+class BeamHashEngine(BeamEngine):
+    
+    def __init__(self, parser_state, graph, hash_state=True):
+        super(BeamHashEngine, self).__init__(parser_state, graph, 
+                                             hash_state=hash_state)
+
+
+class BeamHashTest(ReTests, TestCase):
+    
+    def default_engine(self):
+        return BeamHashEngine
