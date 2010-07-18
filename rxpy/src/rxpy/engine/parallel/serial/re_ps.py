@@ -27,27 +27,27 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+A replacement for Python's `re` package that uses the simple engine.
+'''
 
-from unittest import TestCase
+from rxpy.compat.module import Re
+from rxpy.engine.parallel.serial.engine import SerialEngine
 
-from rxpy.engine._test.api import ReTest
-from rxpy.engine.parallel.beam.engine import BeamEngine
+_re = Re(SerialEngine, 'Parallel seq')
 
+compile = _re.compile
+RegexObject = _re.RegexObject
+MatchIterator = _re.MatchIterator
+match = _re.match    
+search = _re.search
+findall = _re.findall
+finditer = _re.finditer    
+sub = _re.sub    
+subn = _re.subn    
+split = _re.split    
+error = _re.error
+escape = _re.escape    
+Scanner = _re.Scanner    
 
-class BeamReTest(ReTest, TestCase):
-    
-    def default_engine(self):
-        return BeamEngine
-    
-    
-class BeamHashEngine(BeamEngine):
-    
-    def __init__(self, parser_state, graph):
-        super(BeamHashEngine, self).__init__(parser_state, graph, hash_state=True)
-
-
-class BeamHashReTest(ReTest, TestCase):
-    
-    def default_engine(self):
-        return BeamHashEngine
-
+(I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS) = _re.FLAGS

@@ -41,3 +41,8 @@ class WideEngine(ParallelEngine):
     (effectively constructing a DFA "on the fly").
     '''
     
+class HashingWideEngine(WideEngine):
+    
+    def __init__(self, parser_state, graph, hash_state=True):
+        super(HashingWideEngine, self).__init__(parser_state, graph, 
+                                                hash_state=hash_state)

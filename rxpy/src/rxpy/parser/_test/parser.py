@@ -1317,6 +1317,58 @@ r"""digraph {
         except SimpleGroupException:
             pass
         
+    def test_star_star_bug(self):
+        self.assert_graphs(parse(r'(?_e)a(.*)*c'), 
+"""digraph {
+ 0 [label="a"]
+ 1 [label="...*"]
+ 2 [label="(?P<1>"]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 5 [label="...*"]
+ 6 [label="."]
+ 7 [label=")"]
+ 8 [label="!"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 5
+ 5 -> 6
+ 5 -> 7
+ 7 -> 8
+ 8 -> 1
+ 6 -> 5
+}""")
+        
+    def test_b_dot_bug(self):
+        self.assert_graphs(parse(r'(?_c)a.*c'), 
+"""digraph {
+ 0 [label="a"]
+ 1 [label="...*"]
+ 2 [label="."]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 1
+}""")
+        self.assert_graphs(parse(r'(?_c)ab*c'), 
+"""digraph {
+ 0 [label="a"]
+ 1 [label="...*"]
+ 2 [label="b"]
+ 3 [label="c"]
+ 4 [label="Match"]
+ 0 -> 1
+ 1 -> 2
+ 1 -> 3
+ 3 -> 4
+ 2 -> 1
+}""")
+
     def assert_flags(self, regexp, flags):
         (state, _graph) = parse(regexp)
         assert state.flags == flags, state.flags 

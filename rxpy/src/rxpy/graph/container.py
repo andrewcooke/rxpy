@@ -140,7 +140,8 @@ class Loop(LazyMixin, LabelMixin, Sequence):
         self.once = once
 
     def join(self, final, state):
-        if not self.consumer(False) and not (state.flags & ParserState._UNSAFE):
+        if not super(Loop, self).consumer(False) \
+                and not (state.flags & ParserState._UNSAFE):
             self.append(CheckPoint())
         split = Split(self.label, consumes=True)
         inner = super(Loop, self).join(split, state)
@@ -152,6 +153,9 @@ class Loop(LazyMixin, LabelMixin, Sequence):
             return inner
         else:
             return split
+
+    def consumer(self, lenient):
+        return self.once
 
 
 class CountedLoop(LazyMixin, Sequence):

@@ -30,7 +30,7 @@
 
 from unittest import TestCase
 
-from rxpy.engine._test.re import ReTest
+from rxpy.engine._test.api import ReTest
 from rxpy.engine.parallel.serial.engine import SerialEngine
 
 

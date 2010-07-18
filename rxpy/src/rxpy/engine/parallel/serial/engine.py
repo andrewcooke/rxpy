@@ -50,3 +50,10 @@ class SerialEngine(ParallelEngine):
             while not states.final_state and states.more and \
                     self._offset <= len(self._text):
                 self._inner_loop(states)
+
+
+class HashingSerialEngine(SerialEngine):
+    
+    def __init__(self, parser_state, graph, hash_state=True):
+        super(HashingSerialEngine, self).__init__(parser_state, graph, 
+                                                  hash_state=hash_state)

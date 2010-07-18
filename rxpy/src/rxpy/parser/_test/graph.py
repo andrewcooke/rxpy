@@ -105,4 +105,3 @@ class ReprTest(GraphTest):
  8 -> 9
  9 -> 10
 }""")
-        

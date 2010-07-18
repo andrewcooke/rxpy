@@ -38,7 +38,7 @@ For documentation, see the official Python re module documentation.
 from rxpy.compat.module import Re
 from rxpy.engine.backtrack.engine import BacktrackingEngine
 
-_re = Re(BacktrackingEngine)
+_re = Re(BacktrackingEngine, 'Default RXPY matcher')
 
 compile = _re.compile
 RegexObject = _re.RegexObject

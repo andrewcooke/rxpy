@@ -31,7 +31,7 @@
 from unittest import TestCase
 
 from rxpy.engine.backtrack.engine import BacktrackingEngine
-from rxpy.engine._test.re import ReTest
+from rxpy.engine._test.api import ReTest
 
 
 class BacktrackingReTest(ReTest, TestCase):

@@ -146,3 +146,9 @@ class BeamEngineTest(EngineTest, TestCase):
 
         assert self.engine(self.parse('b*c'), bk + 'c', ticks=304, maxwidth=1, search=True)
         assert self.engine(self.parse('.*?b*c'), bk + 'c', ticks=305, maxwidth=1)
+        
+    def test_b_dot_bug(self):
+        target = 'a' + 100 * 'b' + 'c'
+        assert self.engine(self.parse('a.*c'), target, ticks=615, maxwidth=2)
+        assert self.engine(self.parse('ab*c'), target, ticks=305, maxwidth=1)
+        

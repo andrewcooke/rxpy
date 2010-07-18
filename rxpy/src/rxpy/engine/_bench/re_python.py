@@ -27,27 +27,29 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-'''
-A replacement for Python's `re` package that uses the parallel engine.
-'''
+import re
 
-from rxpy.compat.module import Re
-from rxpy.engine.parallel.wide.engine import WideEngine
+class Re(object):
 
-_re = Re(WideEngine)
+    (I, M, S, U, X,
+     IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE) = \
+        (re.I, re.M, re.S, re.U, re.X, 
+         re.IGNORECASE, re.MULTILINE, re.DOTALL, re.UNICODE, re.VERBOSE)
+    
+    def __init__(self):
+        self.compile = re.compile
+#        self.RegexObject = re.RegexObject
+#        self.MatchIterator = re.MatchIterator
+        self.match = re.match    
+        self.search = re.search
+        self.findall = re.findall
+        self.finditer = re.finditer    
+        self.sub = re.sub    
+        self.subn = re.subn    
+        self.split = re.split    
+        self.error = re.error
+        self.escape = re.escape    
+        self.Scanner = re.Scanner    
 
-compile = _re.compile
-RegexObject = _re.RegexObject
-MatchIterator = _re.MatchIterator
-match = _re.match    
-search = _re.search
-findall = _re.findall
-finditer = _re.finditer    
-sub = _re.sub    
-subn = _re.subn    
-split = _re.split    
-error = _re.error
-escape = _re.escape    
-Scanner = _re.Scanner    
 
-(I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS) = _re.FLAGS
+_re = Re()

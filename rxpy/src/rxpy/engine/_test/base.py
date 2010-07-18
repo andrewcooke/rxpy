@@ -46,7 +46,7 @@ class BaseTest(object):
     
     def setUp(self):
         self._alphabet = self.default_alphabet()
-        self._re = Re(self.default_engine())
+        self._re = Re(self.default_engine(), 'Test engine')
         
     def parse(self, regexp, flags=0, alphabet=None):
         return parse_pattern(regexp, self.default_engine(),
@@ -55,6 +55,7 @@ class BaseTest(object):
     
     def engine(self, parse, text, search=False, 
                ticks=None, maxdepth=None, maxwidth=None, **kargs):
+        print repr(parse[1])
         engine = self.default_engine()(*parse, **kargs)
         result = engine.run(text, search=search)
         if ticks is not None:
