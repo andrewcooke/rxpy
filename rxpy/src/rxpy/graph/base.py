@@ -62,6 +62,62 @@ class AutoClone(object):
                      for name in self.__dict__ 
                      if not name.startswith('_') and name not in self.fixed)
         
+        
+class BaseCompiled(object):
+    
+    def __init__(self, *args, **kargs):
+        super(BaseCompiled, self).__init__(*args, **kargs)
+    
+    def _compile_name(self):
+        def with_dashes(name):
+            first = True
+            for letter in name:
+                if letter.isupper() and not first:
+                    yield '_'
+                first = False
+                yield letter.lower()
+        return ''.join(with_dashes(self.__class__.__name__))
+
+    @unimplemented
+    def compile(self, compiled):
+        pass
+    
+    def _compile_args(self):
+        kargs = self._kargs()
+        return [kargs[name] for name in sorted(kargs)]
+        
+
+class DirectCompiled(BaseCompiled):
+    
+    def compile(self, target):
+        method = getattr(target, self._compile_name())
+        args = self._compile_args()
+        def compiler(node_to_index, table):
+            try:
+                next = node_to_index[self.next[0]]
+            except IndexError:
+                next = None
+            def compiled():
+                if method(*args):
+                    return next
+                else:
+                    return table[next]()
+            return compiled
+        return compiler
+    
+
+class BranchCompiled(BaseCompiled):
+    
+    def compile(self, target):
+        method = target.getAttr(self._compile_name())
+        args = [list(self.next)] + self._compile_args()
+        def compiler(node_to_index, table):
+            next = list(map(lambda node: node_to_index[node], self.next))
+            def compiled():
+                return table[next[method(*args)]]()
+            return compiled
+        return compiler
+    
 
 class BaseNode(AutoClone):
     '''
@@ -183,7 +239,7 @@ class BaseNode(AutoClone):
         for example.  Calls back to the visitor via the interface described
         in `rxpy.parser.visitor.Visitor`.
         '''
-        
+    
 
 class BaseGroupReference(BaseNode):
     

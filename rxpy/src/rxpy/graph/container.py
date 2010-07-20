@@ -28,7 +28,7 @@
 # MPL or the LGPL License.                                              
 
 from rxpy.graph.base import AutoClone
-from rxpy.graph.opcode import Split, CheckPoint, NoMatch, Repeat, String
+from rxpy.graph.opcode import Split, Checkpoint, NoMatch, Repeat, String
 from rxpy.lib import unimplemented, _CHARS
 from rxpy.parser.support import ParserState
 
@@ -142,7 +142,7 @@ class Loop(LazyMixin, LabelMixin, Sequence):
     def join(self, final, state):
         if not super(Loop, self).consumer(False) \
                 and not (state.flags & ParserState._UNSAFE):
-            self.append(CheckPoint())
+            self.append(Checkpoint())
         split = Split(self.label, consumes=True)
         inner = super(Loop, self).join(split, state)
         next = [final, inner]
@@ -166,7 +166,7 @@ class CountedLoop(LazyMixin, Sequence):
         self.end = end
         if end is None and (
                 not (self.consumer(False) or (state.flags & ParserState._UNSAFE))):
-            self.append(CheckPoint())
+            self.append(Checkpoint())
 
     def join(self, final, state):
         count = Repeat(self.begin, self.end, self.lazy)

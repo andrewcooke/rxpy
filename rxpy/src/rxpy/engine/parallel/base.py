@@ -179,6 +179,9 @@ class ParallelEngine(BaseEngine, BaseVisitor):
     def match(self, state):
         state.match_offset = self._offset
         return (state, [])
+    
+    def no_match(self):
+        return (None, [])
 
     def dot(self, next, multiline, state):
         if self._current and \
@@ -299,7 +302,7 @@ class ParallelEngine(BaseEngine, BaseVisitor):
             return (state.advance(), [])
         return (None, [])
 
-    def check_point(self, next, id, state):
+    def checkpoint(self, next, id, state):
         if state.check(id):
             return (None, [state.advance()])
         else:

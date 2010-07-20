@@ -55,7 +55,6 @@ class BaseTest(object):
     
     def engine(self, parse, text, search=False, 
                ticks=None, maxdepth=None, maxwidth=None, **kargs):
-        print repr(parse[1])
         engine = self.default_engine()(*parse, **kargs)
         result = engine.run(text, search=search)
         if ticks is not None:

@@ -38,22 +38,8 @@ for example).
 '''                                    
 
 from rxpy.engine.base import BaseEngine
-from rxpy.engine.support import Groups, lookahead_logic, Loops
+from rxpy.engine.support import Groups, lookahead_logic, Loops, Fail, Match
 from rxpy.graph.visitor import BaseVisitor
-
-
-class Fail(Exception):
-    '''
-    Raised on failure.
-    '''
-    pass
-
-
-class Match(Exception):
-    '''
-    Raised on success
-    '''
-    pass
 
 
 class State(object):
@@ -62,13 +48,13 @@ class State(object):
     '''
     
     def __init__(self, text, groups, previous=None, offset=0, loops=None,
-                 check_points=None):
+                 checkpoints=None):
         self.__text = text
         self.__groups = groups
         self.__previous = previous
         self.__offset = offset
         self.__loops = loops if loops else Loops()
-        self.__check_points = check_points
+        self.__checkpoints = checkpoints
     
     def clone(self, offset=None, groups=None):
         '''
@@ -88,9 +74,9 @@ class State(object):
             if delta:
                 previous = self.__text[delta-1]
             text = self.__text[delta:]
-        check_points = set(self.__check_points) if self.__check_points else None
+        checkpoints = set(self.__checkpoints) if self.__checkpoints else None
         return State(text, groups, previous=previous, offset=offset, 
-                     loops=self.__loops.clone(), check_points=check_points)
+                     loops=self.__loops.clone(), checkpoints=checkpoints)
         
     def advance(self):
         '''
@@ -108,7 +94,7 @@ class State(object):
         Increment offset during match.
         '''
         if length:
-            self.__check_points = None
+            self.__checkpoints = None
             self.__previous = self.__text[length-1]
             self.__text = self.__text[length:]
             self.__offset += length
@@ -181,11 +167,11 @@ class State(object):
         '''
         return self.__groups == other.__groups and self.__loops == other.__loops
     
-    def check_point(self, token):
-        if self.__check_points is None:
-            self.__check_points = set([token])
+    def checkpoint(self, token):
+        if self.__checkpoints is None:
+            self.__checkpoints = set([token])
         else:
-            if token in self.__check_points:
+            if token in self.__checkpoints:
                 raise Fail
         return self
 
@@ -399,6 +385,9 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
     def match(self, state):
         raise Match
 
+    def no_match(self, state):
+        raise Fail
+
     def dot(self, next, multiline, state):
         return (next[0], state.dot(multiline))
     
@@ -512,5 +501,5 @@ class BacktrackingEngine(BaseEngine, BaseVisitor):
             pass
         raise Fail
 
-    def check_point(self, next, token, state):
-        return (next[0], state.check_point(token))
+    def checkpoint(self, next, token, state):
+        return (next[0], state.checkpoint(token))

@@ -29,64 +29,79 @@
 
 
 from rxpy.lib import UnsupportedOperation
+from rxpy.graph.support import node_iterator
 
 
-class BaseVisitor(object):
+class BaseCompiled(object):
     
-    def string(self, next, text, state=None):
+    # direct
+    
+    def string(self, text):
         raise UnsupportedOperation('string')
     
-    def character(self, next, charset, state=None):
+    def character(self, charset):
         raise UnsupportedOperation('character')
     
-    def start_group(self, next, number, state=None):
+    def start_group(self, number):
         raise UnsupportedOperation('start_group')
     
-    def end_group(self, next, number, state=None):
+    def end_group(self, number):
         raise UnsupportedOperation('end_group')
-
-    def group_reference(self, next, number, state=None):
-        raise UnsupportedOperation('group_reference')
-
-    def conditional(self, next, number, state=None):
-        raise UnsupportedOperation('conditional')
-
-    def split(self, next, state=None):
-        raise UnsupportedOperation('split')
-
-    def match(self, state=None):
+    
+    def match(self):
         raise UnsupportedOperation('match')
 
-    def no_match(self, state=None):
+    def no_match(self):
         raise UnsupportedOperation('no_match')
 
-    def dot(self, next, multiline, state=None):
+    def dot(self, multiline):
         raise UnsupportedOperation('dot')
     
-    def start_of_line(self, next, multiline, state=None):
+    def start_of_line(self, multiline):
         raise UnsupportedOperation('start_of_line')
     
-    def end_of_line(self, next, multiline, state=None):
+    def end_of_line(self, multiline):
         raise UnsupportedOperation('end_of_line')
     
-    def lookahead(self, next, node, equal, forwards, state=None):
-        raise UnsupportedOperation('lookahead')
-
-    def repeat(self, next, node, begin, end, lazy, state=None):
-        raise UnsupportedOperation('repeat')
-    
-    def word_boundary(self, next, inverted, state=None):
+    def word_boundary(self, inverted):
         raise UnsupportedOperation('word_boundary')
 
-    def digit(self, next, inverted, state=None):
+    def digit(self, inverted):
         raise UnsupportedOperation('digit')
     
-    def space(self, next, inverted, state=None):
+    def space(self, inverted):
         raise UnsupportedOperation('space')
     
-    def word(self, next, inverted, state=None):
+    def word(self, inverted):
         raise UnsupportedOperation('word')
     
-    def checkpoint(self, next, id, state=None):
+    def checkpoint(self):
         raise UnsupportedOperation('checkpoint')
+
+    # branch
+
+    def group_reference(self, next, number):
+        raise UnsupportedOperation('group_reference')
+
+    def conditional(self, next, number):
+        raise UnsupportedOperation('conditional')
+
+    def split(self, next):
+        raise UnsupportedOperation('split')
+
+    def lookahead(self, equal, forwards):
+        raise UnsupportedOperation('lookahead')
+
+    def repeat(self, begin, end, lazy):
+        raise UnsupportedOperation('repeat')
+    
+
+def compile(graph, compiled):
+    compilers = [(node, node.compile(compiled)) for node in node_iterator(graph)]
+    node_index = dict((node, index) 
+                      for (index, (node, _compiler)) in enumerate(compilers))
+    table = []
+    for (node, compiler) in compilers:
+        table.append(compiler(node_index, table))
+    return table
 

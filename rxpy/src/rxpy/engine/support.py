@@ -220,4 +220,4 @@ def lookahead_logic(branch, forwards, groups):
     else:
         size = branch.length(groups)
     return (reads, mutates, size)
-    
+

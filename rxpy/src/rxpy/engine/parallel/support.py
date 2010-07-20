@@ -132,15 +132,15 @@ class State(object):
         self.__checks = None
         return self
 
-    def check(self, check_point):
+    def check(self, checkpoint):
         if not self.__checks:
-            self.__checks = set([check_point])
+            self.__checks = set([checkpoint])
             return True
         else:
-            if check_point in self.__checks:
+            if checkpoint in self.__checks:
                 return False
             else:
-                self.__checks.add(check_point)
+                self.__checks.add(checkpoint)
                 return True
 
     @property

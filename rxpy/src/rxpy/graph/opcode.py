@@ -36,11 +36,11 @@ See `BaseNode` for a general description of nodes.
 '''
 
 from rxpy.graph.base import BaseNode, BaseLineNode, BaseEscapedNode, \
-    BaseGroupReference, BaseLabelledNode
+    BaseGroupReference, BaseLabelledNode, DirectCompiled, BranchCompiled
 from rxpy.graph.support import ReadsGroup, CharSet 
 
     
-class String(BaseNode):
+class String(BaseNode, DirectCompiled):
     '''
     Match a series of literal characters.
     
@@ -67,7 +67,7 @@ class String(BaseNode):
         return visitor.string(self.next, self.text, state)
 
 
-class StartGroup(BaseGroupReference):
+class StartGroup(BaseGroupReference, DirectCompiled):
     '''
     Mark the start of a group (to be saved).
     
@@ -87,7 +87,7 @@ class StartGroup(BaseGroupReference):
         return visitor.start_group(self.next, self.number, state)
 
 
-class EndGroup(BaseGroupReference):
+class EndGroup(BaseGroupReference, DirectCompiled):
     '''
     Mark the end of a group (to be saved).
     
@@ -107,7 +107,7 @@ class EndGroup(BaseGroupReference):
         return visitor.end_group(self.next, self.number, state)
 
 
-class Split(BaseLabelledNode):
+class Split(BaseLabelledNode, BranchCompiled):
     '''
     Branch the graph, providing alternative matches for the current context
     (eg via backtracking on failure).
@@ -146,7 +146,7 @@ class Split(BaseLabelledNode):
             return None
         
 
-class Match(BaseNode):
+class Match(BaseNode, DirectCompiled):
     '''
     The terminal node.  If the engine "reaches" here then the match was a
     success.
@@ -167,7 +167,7 @@ class Match(BaseNode):
         return 0
 
 
-class NoMatch(BaseNode):
+class NoMatch(BaseNode, DirectCompiled):
     '''
     The current match has failed.  Currently this is generated when an attempt
     is made to match the complement of `.` (since `.` matches everything, the
@@ -188,7 +188,7 @@ class NoMatch(BaseNode):
         return visitor.no_match(state)
 
 
-class Dot(BaseLineNode):
+class Dot(BaseLineNode, DirectCompiled):
     '''
     Match "any" single character.  The exact behaviour will depend on the
     alphabet and `multiline` (see the Python `re` documentation).
@@ -210,7 +210,7 @@ class Dot(BaseLineNode):
         return visitor.dot(self.next, self.multiline, state)
 
 
-class StartOfLine(BaseLineNode):
+class StartOfLine(BaseLineNode, DirectCompiled):
     '''
     Match the start of a line.  The exact behaviour will depend on the
     alphabet and `multiline` (see the Python `re` documentation).
@@ -232,7 +232,7 @@ class StartOfLine(BaseLineNode):
         return visitor.start_of_line(self.next, self.multiline, state)
 
     
-class EndOfLine(BaseLineNode):
+class EndOfLine(BaseLineNode, DirectCompiled):
     '''
     Match the end of a line.  The exact behaviour will depend on the
     alphabet and `multiline` (see the Python `re` documentation).
@@ -254,7 +254,7 @@ class EndOfLine(BaseLineNode):
         return visitor.end_of_line(self.next, self.multiline, state)
 
 
-class GroupReference(BaseGroupReference, ReadsGroup):
+class GroupReference(BaseGroupReference, ReadsGroup, BranchCompiled):
     '''
     Match the text previously matched by the given group.
     
@@ -282,7 +282,7 @@ class GroupReference(BaseGroupReference, ReadsGroup):
                 return len(groups.group(self.number))
 
 
-class Lookahead(BaseNode):
+class Lookahead(BaseNode, BranchCompiled):
     '''
     Lookahead match (one that does not consume any input).
     
@@ -315,7 +315,7 @@ class Lookahead(BaseNode):
         return visitor.lookahead(self.next, self, self.equal, self.forwards, state)
 
 
-class Repeat(BaseNode):
+class Repeat(BaseNode, BranchCompiled):
     '''
     A numerical repeat.
     
@@ -359,7 +359,8 @@ class Repeat(BaseNode):
                               state)
     
     
-class GroupConditional(BaseLabelledNode, BaseGroupReference, ReadsGroup):
+class Conditional(BaseLabelledNode, BaseGroupReference, ReadsGroup, 
+                  BranchCompiled):
     '''
     Branch the graph, depending on the existence of a group.
 
@@ -374,7 +375,7 @@ class GroupConditional(BaseLabelledNode, BaseGroupReference, ReadsGroup):
     def __init__(self, number, label):
         if str(number) not in label:
             label = '(?(' + str(number) + ')' + label + ')'
-        super(GroupConditional, self).__init__(label=label,
+        super(Conditional, self).__init__(label=label,
                                                number=number, consumes=None)
         
     def length(self, groups, known=None):
@@ -391,7 +392,7 @@ class GroupConditional(BaseLabelledNode, BaseGroupReference, ReadsGroup):
         return visitor.group_conditional(self.next, self.number, state)
 
 
-class WordBoundary(BaseEscapedNode):
+class WordBoundary(BaseEscapedNode, DirectCompiled):
     '''
     Match a word boundary.  See Python `re` documentation and `BaseAlphabet.word`.
     
@@ -407,7 +408,7 @@ class WordBoundary(BaseEscapedNode):
         return visitor.word_boundary(self.next, self.inverted, state)
 
 
-class Digit(BaseEscapedNode):
+class Digit(BaseEscapedNode, DirectCompiled):
     '''
     Match a digit.  See `BaseAlphabet.digit`.
     
@@ -423,7 +424,7 @@ class Digit(BaseEscapedNode):
         return visitor.digit(self.next, self.inverted, state)
 
 
-class Space(BaseEscapedNode):
+class Space(BaseEscapedNode, DirectCompiled):
     '''
     Match a space.  See `BaseAlphabet.space`.
     
@@ -439,7 +440,7 @@ class Space(BaseEscapedNode):
         return visitor.space(self.next, self.inverted, state)
 
 
-class Word(BaseEscapedNode):
+class Word(BaseEscapedNode, DirectCompiled):
     '''
     Match a word character.  See `BaseAlphabet.word`.
     
@@ -455,7 +456,7 @@ class Word(BaseEscapedNode):
         return visitor.word(self.next, self.inverted, state)
 
 
-class Character(BaseNode):
+class Character(BaseNode, DirectCompiled):
     '''
     Match a single character.  Currently the `__contains__` method should be
     used for testing; that will call the `BaseAlphabet` as required.
@@ -553,7 +554,7 @@ class Character(BaseNode):
                 return self.__simple.simplify(self.alphabet, self)
     
         
-class CheckPoint(BaseNode):
+class Checkpoint(BaseNode, DirectCompiled):
     '''
     Repetition of this point should include consumption of input.  This lets
     us detect and about infinite loops while using as little state and logic
@@ -562,10 +563,11 @@ class CheckPoint(BaseNode):
     
     def __init__(self):
         # guarantees consumption of region
-        super(CheckPoint, self).__init__(consumes=True, size=0)
+        super(Checkpoint, self).__init__(consumes=True, size=0)
         
     def visit(self, visitor, state=None):
-        return visitor.check_point(self.next, self, state)
+        return visitor.checkpoint(self.next, self, state)
 
     def __str__(self):
         return '!'
+

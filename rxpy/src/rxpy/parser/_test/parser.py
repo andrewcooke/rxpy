@@ -1117,7 +1117,7 @@ r"""digraph {
  2 -> 5
 }""")
         
-    def test_check_point(self):
+    def test_checkpoint(self):
         self.assert_graphs(parse('(a|b)*'), 
 """digraph {
  0 [label="...*"]

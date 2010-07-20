@@ -44,7 +44,7 @@ from string import digits, ascii_letters
 from rxpy.graph.container import Sequence, Alternatives, Loop, Optional,\
     CountedLoop
 from rxpy.graph.opcode import Match, Character, String, StartOfLine,\
-    EndOfLine, Dot, StartGroup, EndGroup, GroupConditional, WordBoundary, \
+    EndOfLine, Dot, StartGroup, EndGroup, Conditional, WordBoundary, \
     Digit, Word, Space, Lookahead, GroupReference
 from rxpy.lib import RxpyException
 from rxpy.parser.error import EmptyException, ParseException
@@ -234,7 +234,7 @@ class GroupEscapeBuilder(Builder):
             elif character == '<':
                 return LookbackBuilder(self._state, self._parent)
             elif character == '(':
-                return GroupConditionalBuilder(self._state, self._parent)
+                return ConditionalBuilder(self._state, self._parent)
             else:
                 raise RxpyException(
                     'Unexpected qualifier after (? - ' + character)
@@ -375,7 +375,7 @@ class LookaheadBuilder(BaseGroupBuilder):
         return self._parent
         
 
-class GroupConditionalBuilder(Builder):
+class ConditionalBuilder(Builder):
     '''
     Parse (?(id/name)yes-pattern|no-pattern) expressions.  Either 
     sub-expression is optional (this isn't documented, but is required by 
@@ -383,7 +383,7 @@ class GroupConditionalBuilder(Builder):
     '''
     
     def __init__(self, state, parent):
-        super(GroupConditionalBuilder, self).__init__(state)
+        super(ConditionalBuilder, self).__init__(state)
         self.__parent = parent
         self.__name = ''
         self.__yes = None
@@ -412,7 +412,7 @@ class GroupConditionalBuilder(Builder):
         label = ('...' if yes else '') + ('|...' if no else '')
         if not label:
             label = '|'
-        split = lambda label: GroupConditional(self.__name, label)
+        split = lambda label: Conditional(self.__name, label)
         alternatives = Alternatives([no, yes], label=label, split=split)
         self.__parent._sequence.append(alternatives)
         return self.__parent

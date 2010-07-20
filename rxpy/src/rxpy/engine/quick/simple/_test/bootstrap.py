@@ -27,26 +27,25 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-from rxpy.graph.support import node_iterator
-from rxpy.lib import RxpyException
-from rxpy.graph.opcode import GroupReference, Conditional
+
+from unittest import TestCase
+
+from rxpy.engine._test.base import BaseTest
+from rxpy.engine.quick.simple.engine import SimpleEngine
 
 
-def resolve_group_names(state):
-    '''
-    Returns a list of actions that can be passed to the post-processor.
-    '''
-    resolve = lambda node: node.resolve(state)
-    return [(GroupReference, resolve), (Conditional, resolve)]
+class BeamEngineTest(BaseTest, TestCase):
 
-
-def post_process(graph, actions):
-    map = {}
-    for (type_, function) in actions:
-        if type_ not in map:
-            map[type_] = function
-        else:
-            raise RxpyException('Conflicting actions for ' + str(type_))
-    for node in node_iterator(graph):
-        map.get(type(node), lambda x: None)(node)
-    return graph
+    def default_engine(self):
+        return SimpleEngine
+    
+    def test_string(self):
+        assert self.engine(self.parse('a'), 'a')
+        assert not self.engine(self.parse('a'), 'b')
+        assert self.engine(self.parse('a'), 'ba', search=True)
+        
+    def test_dot(self):
+        assert self.engine(self.parse('.'), 'a')
+        assert not self.engine(self.parse('..'), 'a')
+        assert not self.engine(self.parse('.a'), 'abb', search=True)
+        assert self.engine(self.parse('.a'), 'aba', search=True)
