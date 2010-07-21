@@ -30,13 +30,13 @@
 '''
 An engine with a simple compiled transition table that does not support 
 groups or stateful loops (so state is simply the current offset in the table
-plus the earliest start index).
+plus, for searches, the earliest start index).
 '''
 
 
 from rxpy.engine.base import BaseEngine
 from rxpy.lib import _CHARS, UnsupportedOperation
-from rxpy.engine.support import Match, Fail
+from rxpy.engine.support import Match, Fail, lookahead_logic
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
@@ -46,9 +46,27 @@ class SimpleEngine(BaseEngine, BaseCompiled):
     # step with the others
     REQUIRE = _CHARS
     
-    def __init__(self, parser_state, graph):
+    def __init__(self, parser_state, graph, program=None):
         super(SimpleEngine, self).__init__(parser_state, graph)
-        self._program = compile(graph, self)
+        if program is None:
+            program = compile(graph, self)
+        self._program = program
+        self.__stack = []
+        
+    def push(self):
+        self.__stack.append((self._offset, self._text, self._search,
+                             self._current, self._previous,
+                             self._states, self._extra, self._next,
+                             self._group_defined, self._checkpoints,
+                             self._known_states))
+        
+        
+    def pop(self):
+        (self._offset, self._text, self._search,
+         self._current, self._previous,
+         self._states, self._extra, self._next,
+         self._group_defined, self._checkpoints,
+         self._known_states) = self.__stack.pop()
         
     def _set_offset(self, offset):
         self._offset = offset
@@ -62,34 +80,53 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             self._previous = None
         
     def run(self, text, pos=0, search=False):
+        # this may want splitting into search and match methods for pypy
+        # as the type of state changes
+        
+        # TODO - add explicit search if expression starts with constant
         self._text = text
         self._set_offset(pos)
+        self._search = search
+        
+        # handle switch to complex engine here when unsupported op raised
+        return self._run_from(0)
+        
+    def _run_from(self, start):
         self._extra = []
         self._next = []
+        self._group_defined = False
+        self._checkpoints = {}
 
-        if search:
-            self._states = [(0, pos)]
+        if self._search:
+            self._states = [(start, self._offset)]
         else:
-            self._states = [0]
+            self._states = [start]
+        self._known_states = set([start])
+        known_next = set()
         
         try:
             while self._states:
-                known = set()
                 while self._states:
-                    if search:
-                        (self._state, group_start) = self._states.pop()
+                    
+                    # unpack state
+                    if self._search:
+                        (state, group_start) = self._states.pop()
                     else:
-                        self._state = self._states.pop()
+                        state = self._states.pop()
+                        
+                    # advance a character (compiled actions recall on stack
+                    # until a character is consumed)
                     try:
-                        next = self._program[self._state]()
-                        if next not in known:
-                            if search:
+                        next = self._program[state]()
+                        if next not in known_next:
+                            if self._search:
                                 self._next.append((next, group_start))
                             else:
                                 self._next.append(next)
-                            known.add(next)
+                            known_next.add(next)
                     except Fail:
                         pass
+                    
                 # move to next character
                 self._offset += 1
                 self._previous = self._current
@@ -98,11 +135,19 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                 except IndexError:
                     self._current = None
                 self._states, self._next = self._next, []
+                known_next, self._known_states = set(), known_next
+               
                 # add current position as search if necessary
-                if search and 0 not in known and self._offset <= len(self._text):
-                    self._states.append((0, self._offset))
+                if self._search and 0 not in self._known_states \
+                        and self._offset <= len(self._text):
+                    self._states.append((start, self._offset))
+                    self._known_states.add(start)
+                    
                 self._states.reverse()
+                
+            # exhausted states with no match
             return False
+        
         except Match:
             return True   
     
@@ -119,10 +164,11 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             raise Fail
     
     def start_group(self, number):
-        raise UnsupportedOperation('start_group')
+        return False
     
     def end_group(self, number):
-        raise UnsupportedOperation('end_group')
+        self._group_defined = True
+        return False
     
     def match(self):
         raise Match
@@ -131,33 +177,63 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         raise Fail
 
     def dot(self, multiline):
-        if self._current and \
-                (multiline or self._current != '\n'):
+        if self._current and (multiline or self._current != '\n'):
             return True
         else:
             raise Fail
     
     def start_of_line(self, multiline):
-        raise UnsupportedOperation('start_of_line')
+        if self._offset == 0 or (multiline and self._previous == '\n'):
+            return False
+        else:
+            raise Fail
     
     def end_of_line(self, multiline):
-        raise UnsupportedOperation('end_of_line')
+        if ((len(self._text) == self._offset or 
+                    (multiline and self._current == '\n'))
+                or (self._current == '\n' and
+                        not self._text[self._offset+1:])):
+            return False
+        else:
+            raise Fail
     
     def word_boundary(self, inverted):
-        raise UnsupportedOperation('word_boundary')
+        word = self._parser_state.alphabet.word
+        boundary = word(self._current) != word(self._previous)
+        if boundary != inverted:
+            return False
+        else:
+            raise Fail
 
     def digit(self, inverted):
-        raise UnsupportedOperation('digit')
+        # current here tests whether we have finished
+        if self._current and \
+                self._parser_state.alphabet.digit(self._current) != inverted:
+            return True
+        else:
+            raise Fail
     
     def space(self, inverted):
-        raise UnsupportedOperation('space')
-    
+        if self._current and \
+                self._parser_state.alphabet.space(self._current) != inverted:
+            return True
+        else:
+            raise Fail
+        
     def word(self, inverted):
-        raise UnsupportedOperation('word')
-    
-    def checkpoint(self):
-        raise UnsupportedOperation('checkpoint')
-
+        if self._current and \
+                self._parser_state.alphabet.word(self._current) != inverted:
+            return True
+        else:
+            raise Fail
+        
+    def checkpoint(self, id):
+        if id not in self._checkpoints or self._offset != self._checkpoints[id]:
+            self._checkpoints[id] = self._offset
+            return False
+        else:
+            raise Fail
+        
     # branch
 
     def group_reference(self, next, number):
@@ -167,10 +243,37 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         raise UnsupportedOperation('conditional')
 
     def split(self, next):
-        raise UnsupportedOperation('split')
+        for i in range(len(next)-1,-1,-1):
+            (index, _node) = next[i]
+            if id not in self._known_states:
+                if self._search:
+                    self._states.append((index, self._offset))
+                else:
+                    self._states.append(index)
+        # start from new states
+        raise Fail
 
-    def lookahead(self, equal, forwards):
-        raise UnsupportedOperation('lookahead')
+    def lookahead(self, next, equal, forwards):
+        (index, node) = next[1]
+        (reads, _mutates, size) = lookahead_logic(node, forwards, None)
+        if reads:
+            raise UnsupportedOperation('lookahead')
+        self.push()
+        try:
+            self._search = False
+            if not forwards:
+                self._text = self._text[0:self._offset]
+                if size is None:
+                    self._set_offset(0)
+                    self._search = True
+                else:
+                    self._set_offset(self._offset - size)
+            if bool(self._run_from(index)) == equal:
+                return 0
+            else:
+                raise Fail
+        finally:
+            self.pop()
 
     def repeat(self, begin, end, lazy):
         raise UnsupportedOperation('repeat')

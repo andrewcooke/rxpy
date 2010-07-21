@@ -28,7 +28,7 @@
 # MPL or the LGPL License.                                              
 
 
-from rxpy.lib import UnsupportedOperation
+from rxpy.lib import UnsupportedOperation, unimplemented
 from rxpy.graph.support import node_iterator
 
 
@@ -75,7 +75,7 @@ class BaseCompiled(object):
     def word(self, inverted):
         raise UnsupportedOperation('word')
     
-    def checkpoint(self):
+    def checkpoint(self, id):
         raise UnsupportedOperation('checkpoint')
 
     # branch
@@ -105,3 +105,77 @@ def compile(graph, compiled):
         table.append(compiler(node_index, table))
     return table
 
+
+class BaseCompiledNode(object):
+    
+    def __init__(self, *args, **kargs):
+        super(BaseCompiled, self).__init__(*args, **kargs)
+    
+    def _compile_name(self):
+        def with_dashes(name):
+            first = True
+            for letter in name:
+                if letter.isupper() and not first:
+                    yield '_'
+                first = False
+                yield letter.lower()
+        return ''.join(with_dashes(self.__class__.__name__))
+
+    @unimplemented
+    def compile(self, compiled):
+        pass
+    
+    def _compile_args(self):
+        kargs = self._kargs()
+        return [kargs[name] for name in sorted(kargs)]
+        
+
+class DirectCompiled(BaseCompiledNode):
+    '''
+    Returns next state after consuming input.  Assumes that method returns
+    True on consumption and False otherwise.  Uses the stack, but is restricted
+    to a finite depth by checkpointing.
+    '''
+    
+    def compile(self, target):
+        method = getattr(target, self._compile_name())
+        args = self._compile_args()
+        def compiler(node_to_index, table):
+            try:
+                next = node_to_index[self.next[0]]
+            except IndexError:
+                next = None
+            def compiled():
+                if method(*args):
+                    return next
+                else:
+                    return table[next]()
+            return compiled
+        return compiler
+    
+    
+class DirectIdCompiled(DirectCompiled):
+    '''
+    First arg is `self`.
+    '''
+    
+    def _compile_args(self):
+        return [self] + super(DirectIdCompiled, self)._compile_args()
+    
+
+class BranchCompiled(BaseCompiledNode):
+    '''
+    Expects `method` to return the required index, which is evaluated until
+    input is consumed.
+    '''
+    
+    def compile(self, target):
+        method = getattr(target, self._compile_name())
+        args = self._compile_args()
+        def compiler(node_to_index, table):
+            next = list(map(lambda node: (node_to_index[node], node), self.next))
+            nargs = [next] + args
+            def compiled():
+                return table[next[method(*nargs)][0]]()
+            return compiled
+        return compiler

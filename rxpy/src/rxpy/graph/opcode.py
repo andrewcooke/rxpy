@@ -36,8 +36,9 @@ See `BaseNode` for a general description of nodes.
 '''
 
 from rxpy.graph.base import BaseNode, BaseLineNode, BaseEscapedNode, \
-    BaseGroupReference, BaseLabelledNode, DirectCompiled, BranchCompiled
+    BaseGroupReference, BaseLabelledNode
 from rxpy.graph.support import ReadsGroup, CharSet 
+from rxpy.graph.compiled import DirectCompiled, BranchCompiled, DirectIdCompiled
 
     
 class String(BaseNode, DirectCompiled):
@@ -144,6 +145,9 @@ class Split(BaseLabelledNode, BranchCompiled):
             return size
         else:
             return None
+        
+    def _compile_args(self):
+        return []
         
 
 class Match(BaseNode, DirectCompiled):
@@ -554,7 +558,7 @@ class Character(BaseNode, DirectCompiled):
                 return self.__simple.simplify(self.alphabet, self)
     
         
-class Checkpoint(BaseNode, DirectCompiled):
+class Checkpoint(BaseNode, DirectIdCompiled):
     '''
     Repetition of this point should include consumption of input.  This lets
     us detect and about infinite loops while using as little state and logic
