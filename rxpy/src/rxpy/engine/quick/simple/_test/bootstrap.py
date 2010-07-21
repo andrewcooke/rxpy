@@ -74,3 +74,7 @@ class BeamEngineTest(BaseTest, TestCase):
         assert not self.engine(self.parse('b(?<!ab)'), 'ab', search=True)
         assert self.engine(self.parse('b(?<!cb)'), 'ab', search=True)
         
+    def test_checkpoint(self):
+        assert self.engine(self.parse('(?_e)(|a)*'), 'ab')
+        assert self.engine(self.parse('(?_e)(|a)*'), 'b')
+        

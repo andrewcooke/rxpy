@@ -98,6 +98,7 @@ class ParserState(object):
         self.__flags = flags
         self.groups = GroupState()
         self.__comment = False  # used to track comments with extended syntax
+        self.__unwind_credit = 10
         
     def deep_eq(self, other):
         '''
@@ -113,7 +114,8 @@ class ParserState(object):
             eq(self.__alphabet, other.__alphabet) and \
             self.__flags == other.__flags and \
             self.groups == other.groups and \
-            self.__comment == other.__comment
+            self.__comment == other.__comment and \
+            self.__unwind_credit == other.__unwind_credi
         
     @property
     def has_new_flags(self):
@@ -170,6 +172,20 @@ class ParserState(object):
                 return True
         else:
             return True
+        
+    def unwind(self, count):
+        '''
+        Allow limited unwinding of loops.  This is to limit unwinding in case
+        of nested repeats.  Unfortunately, because the parser is L to R, it 
+        will be applied to the outer loop (although this is not for direct 
+        speed as much as letting the simple engine work, so that may not be
+        a serious issue). 
+        '''
+        if count <= self.__unwind_credit:
+            self.__unwind_credit -= count
+            return True
+        else:
+            return False
         
     @property
     def alphabet(self):

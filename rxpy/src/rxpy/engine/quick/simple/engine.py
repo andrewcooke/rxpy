@@ -35,16 +35,14 @@ plus, for searches, the earliest start index).
 
 
 from rxpy.engine.base import BaseEngine
-from rxpy.lib import _CHARS, UnsupportedOperation
+from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
 from rxpy.engine.support import Match, Fail, lookahead_logic
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
 class SimpleEngine(BaseEngine, BaseCompiled):
     
-    # single characters only to avoid incrementing any one thread out of
-    # step with the others
-    REQUIRE = _CHARS
+    REQUIRE = _CHARS | _LOOP_UNROLL
     
     def __init__(self, parser_state, graph, program=None):
         super(SimpleEngine, self).__init__(parser_state, graph)

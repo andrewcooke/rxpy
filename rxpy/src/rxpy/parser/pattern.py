@@ -839,7 +839,9 @@ class CountBuilder(Builder):
         if not self._parent._sequence:
             raise RxpyException('Nothing to repeat')
         latest = self._parent._sequence.pop()
-        if self._state.flags & ParserState._LOOP_UNROLL:
+        if (self._state.flags & ParserState._LOOP_UNROLL) and (
+                (self._end is None and self._state.unwind(self._begin)) or
+                (self._end is not None and self._state.unwind(self._end))):
             for _i in range(self._begin):
                 self._parent._sequence.append(latest.clone())
             if self._range:
