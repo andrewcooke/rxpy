@@ -115,7 +115,7 @@ class ParserState(object):
             self.__flags == other.__flags and \
             self.groups == other.groups and \
             self.__comment == other.__comment and \
-            self.__unwind_credit == other.__unwind_credi
+            self.__unwind_credit == other.__unwind_credit
         
     @property
     def has_new_flags(self):

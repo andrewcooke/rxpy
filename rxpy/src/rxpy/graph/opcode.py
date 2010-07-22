@@ -395,6 +395,9 @@ class Conditional(BaseLabelledNode, BaseGroupReference, ReadsGroup,
     def visit(self, visitor, state=None):
         return visitor.group_conditional(self.next, self.number, state)
 
+    def _compile_args(self):
+        return [self.number]
+
 
 class WordBoundary(BaseEscapedNode, DirectCompiled):
     '''
@@ -495,6 +498,9 @@ class Character(BaseNode, DirectCompiled):
         kargs = super(Character, self)._kargs()
         kargs['intervals'] = self.__simple.intervals
         return kargs
+    
+    def _compile_args(self):
+        return [self]
         
     def append_interval(self, interval):
         self.__simple.append(interval, self.alphabet)

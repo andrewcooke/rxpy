@@ -110,7 +110,7 @@ class ReTest(BaseTest):
     def test_search(self):
         results = self._re.search('a*b', 'aab')
         assert results
-        assert results.group(0) == 'aab'
+        assert results.group(0) == 'aab', results.group(0)
         
     def test_findall_empty(self):
         results = self._re.findall('x+', 'abxd')

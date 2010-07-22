@@ -30,12 +30,11 @@
 
 from unittest import TestCase
 
-from rxpy.engine._test.re import ReTest
-from rxpy.engine.parallel.wide.engine import WideEngine
+from rxpy.engine._test.digits import DigitsTest
+from rxpy.engine.quick.simple.engine import SimpleEngine
 
 
-class WideReTest(ReTest, TestCase):
+class WideDigitsTest(DigitsTest, TestCase):
     
     def default_engine(self):
-        return WideEngine
-
+        return SimpleEngine

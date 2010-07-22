@@ -68,12 +68,12 @@ class DigitsTest(BaseTest):
         assert not self.engine(self.parse('(.)\\1'), [1,2])
  
     def test_split(self):
-        assert self.engine(self.parse('1*2'), [2])
-        assert self.engine(self.parse('1*2'), [1,2])
-        assert self.engine(self.parse('1*2'), [1,1,2])
-        assert not self.engine(self.parse('1*2'), [1,1])
+#        assert self.engine(self.parse('1*2'), [2])
+#        assert self.engine(self.parse('1*2'), [1,2])
+#        assert self.engine(self.parse('1*2'), [1,1,2])
+#        assert not self.engine(self.parse('1*2'), [1,1])
         groups = self.engine(self.parse('1*'), [1,1,1])
-        assert len(groups.data(0)[0]) == 3, groups[0][0]
+        assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = self.engine(self.parse('1*'), [1,1,2])
         assert len(groups.data(0)[0]) == 2, groups[0][0]
         

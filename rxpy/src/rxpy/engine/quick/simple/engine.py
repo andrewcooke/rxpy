@@ -1,3 +1,4 @@
+from rxpy.parser.support import GroupState
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -36,7 +37,7 @@ plus, for searches, the earliest start index).
 
 from rxpy.engine.base import BaseEngine
 from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
-from rxpy.engine.support import Match, Fail, lookahead_logic
+from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
@@ -53,18 +54,16 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         
     def push(self):
         self.__stack.append((self._offset, self._text, self._search,
-                             self._current, self._previous,
-                             self._states, self._extra, self._next,
-                             self._group_defined, self._checkpoints,
-                             self._known_states))
+                             self._current, self._previous, self._states, 
+                             self._group_start, self._group_defined, 
+                             self._checkpoints, self._lookbacks))
         
         
     def pop(self):
         (self._offset, self._text, self._search,
-         self._current, self._previous,
-         self._states, self._extra, self._next,
-         self._group_defined, self._checkpoints,
-         self._known_states) = self.__stack.pop()
+         self._current, self._previous, self._states, 
+         self._group_start, self._group_defined, 
+         self._checkpoints, self._lookbacks) = self.__stack.pop()
         
     def _set_offset(self, offset):
         self._offset = offset
@@ -89,68 +88,74 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         # handle switch to complex engine here when unsupported op raised
         return self._run_from(0)
         
-    def _run_from(self, start):
-        self._extra = []
-        self._next = []
+    def _run_from(self, start_state):
         self._group_defined = False
         self._checkpoints = {}
-
-        if self._search:
-            self._states = [(start, self._offset)]
-        else:
-            self._states = [start]
-        self._known_states = set([start])
-        known_next = set()
+        self._lookbacks = (self._offset, {})
+        
+        self._states = [(start_state, self._offset, False)]
         
         try:
-            while self._states:
+            while self._states and self._offset <= len(self._text):
+                
+                known_next = set()
+                next_states = []
+                
                 while self._states:
                     
                     # unpack state
-                    if self._search:
-                        (state, group_start) = self._states.pop()
-                    else:
-                        state = self._states.pop()
-                        
-                    # advance a character (compiled actions recall on stack
-                    # until a character is consumed)
-                    try:
-                        next = self._program[state]()
-                        if next not in known_next:
-                            if self._search:
-                                self._next.append((next, group_start))
-                            else:
-                                self._next.append(next)
+                    (state, self._group_start, matched) = self._states.pop()
+                    
+                    if not matched:
+                        # advance a character (compiled actions recall on stack
+                        # until a character is consumed)
+                        try:
+                            next = self._program[state]()
+                            if next not in known_next:
+                                next_states.append((next, self._group_start, False))
+                                known_next.add(next)
+                        except Fail:
+                            pass
+                        except Match:
+                            if not next_states:
+                                raise
+                            next_states.append((next, self._group_start, True))
                             known_next.add(next)
-                    except Fail:
-                        pass
+                    else:
+                        if not next_states:
+                            raise Match
+                        next_states.append((next, self._group_start, True))
                     
                 # move to next character
-                self._offset += 1
-                self._previous = self._current
-                try:
-                    self._current = self._text[self._offset]
-                except IndexError:
-                    self._current = None
-                self._states, self._next = self._next, []
-                known_next, self._known_states = set(), known_next
+                self._set_offset(self._offset + 1)
+                self._states = next_states
                
                 # add current position as search if necessary
-                if self._search and 0 not in self._known_states \
-                        and self._offset <= len(self._text):
-                    self._states.append((start, self._offset))
-                    self._known_states.add(start)
+                if self._search and start_state not in known_next:
+                    self._states.append((start_state, self._offset, False))
                     
                 self._states.reverse()
+            
+            while self._states:
+                (state, self._group_start, matched) = self._states.pop()
+                if matched:
+                    raise Match
                 
             # exhausted states with no match
-            return False
+            return Groups()
         
         except Match:
-            return True   
+            
+            if self._group_defined:
+                raise UnsupportedOperation('groups')
+            
+            groups = Groups(GroupState(), self._text)
+            groups.start_group(0, self._group_start)
+            groups.end_group(0, self._offset)
+            return groups
     
     def string(self, text):
-        if self._current == text:
+        if self._current == text[0]:
             return True
         else:
             raise Fail
@@ -241,37 +246,46 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         raise UnsupportedOperation('conditional')
 
     def split(self, next):
-        for i in range(len(next)-1,-1,-1):
-            (index, _node) = next[i]
-            if id not in self._known_states:
-                if self._search:
-                    self._states.append((index, self._offset))
-                else:
-                    self._states.append(index)
+        for (index, _node) in reversed(next):
+            self._states.append((index, self._group_start, False))
         # start from new states
         raise Fail
 
     def lookahead(self, next, equal, forwards):
         (index, node) = next[1]
-        (reads, _mutates, size) = lookahead_logic(node, forwards, None)
-        if reads:
-            raise UnsupportedOperation('lookahead')
-        self.push()
-        try:
-            self._search = False
-            if not forwards:
-                self._text = self._text[0:self._offset]
-                if size is None:
-                    self._set_offset(0)
-                    self._search = True
-                else:
-                    self._set_offset(self._offset - size)
-            if bool(self._run_from(index)) == equal:
-                return 0
-            else:
-                raise Fail
-        finally:
-            self.pop()
+        
+        # discard old values
+        if self._lookbacks[0] != self._offset:
+            self._lookbacks = (self._offset, {})
+        lookbacks = self._lookbacks[1]
+        
+        if index not in lookbacks:
+            
+            # requires complex engine
+            (reads, _mutates, size) = lookahead_logic(node, forwards, None)
+            if reads:
+                raise UnsupportedOperation('lookahead')
+            
+            # invoke simple engine and cache
+            self.push()
+            try:
+                self._search = False
+                if not forwards:
+                    self._text = self._text[0:self._offset]
+                    if size is None:
+                        self._set_offset(0)
+                        self._search = True
+                    else:
+                        self._set_offset(self._offset - size)
+                result = bool(self._run_from(index)) == equal
+            finally:
+                self.pop()
+            lookbacks[index] = result
+            
+        if lookbacks[index]:
+            return 0
+        else:
+            raise Fail
 
     def repeat(self, begin, end, lazy):
         raise UnsupportedOperation('repeat')
