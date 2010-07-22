@@ -40,6 +40,7 @@ from rxpy.engine.parallel.beam.re_pb import _re as R_PB
 from rxpy.engine.parallel.beam.re_pbh import _re as R_PBH
 from rxpy.engine.parallel.wide.re_pw import _re as R_PW
 from rxpy.engine.parallel.wide.re_pwh import _re as R_PWH
+from rxpy.engine.quick.re_q import _re as R_Q
 
 
 def execute(engines, benchmarks, trace=False, repeat=7):
@@ -90,14 +91,14 @@ def text_histogram(engines, benchmarks):
         if lg > ln:
             line += [' '] * (lg-ln-1) + [']']
         else:
-            if line:
-                line[-1] = ']'
+            if line and lg > 0:
+                line[lg-1] = ']'
         if line:
             if line[0] == ']':
                 line[0] = '|'
             else:
                 line[0] = '['
-        return ''.join(line + [' '] * (l-lg))
+        return ''.join(line + [' '] * (l-max(lg,ln)))
         
     for (benchmark, data) in execute(engines, benchmarks):
         print
@@ -202,15 +203,15 @@ if __name__ == '__main__':
                        '(.*) (.*) (.*)', 10, 'abc abc abc'),
         ])
     print
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
         MatchBenchmark('Search .*?a*b against a^10b', 
                        '.*?a*b', 1, 10*'a' + 'b', search=True),
         ])
-    text_histogram([R_PYTHON, R_B, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
+    text_histogram([R_PYTHON, R_B, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
         MatchBenchmark('Search .*?a*b against a^100b', 
                        '.*?a*b', 1, 100*'a' + 'b', search=True),
         ])
-    text_histogram([R_PYTHON, R_B, R_PWH, R_PSH, R_PB, R_PBH], [
+    text_histogram([R_PYTHON, R_B, R_PWH, R_PSH, R_PB, R_PBH, R_Q], [
         MatchBenchmark('Search .*?a*b against a^1000b', 
                        '.*?a*b', 1, 1000*'a' + 'b', search=True),
         ])
@@ -222,13 +223,13 @@ if __name__ == '__main__':
         exponential5(6),
         ])
     print
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
         exponential4(4),
         ])
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PBH], [
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PBH, R_Q], [
         exponential4(6),
         ])
-    text_histogram([R_PYTHON, R_PWH, R_PSH, R_PBH], [
+    text_histogram([R_PYTHON, R_PWH, R_PSH, R_PBH, R_Q], [
         exponential4(8),
         exponential(8),
         ])
