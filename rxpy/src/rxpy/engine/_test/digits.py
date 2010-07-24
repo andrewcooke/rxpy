@@ -68,10 +68,10 @@ class DigitsTest(BaseTest):
         assert not self.engine(self.parse('(.)\\1'), [1,2])
  
     def test_split(self):
-#        assert self.engine(self.parse('1*2'), [2])
-#        assert self.engine(self.parse('1*2'), [1,2])
-#        assert self.engine(self.parse('1*2'), [1,1,2])
-#        assert not self.engine(self.parse('1*2'), [1,1])
+        assert self.engine(self.parse('1*2'), [2])
+        assert self.engine(self.parse('1*2'), [1,2])
+        assert self.engine(self.parse('1*2'), [1,1,2])
+        assert not self.engine(self.parse('1*2'), [1,1])
         groups = self.engine(self.parse('1*'), [1,1,1])
         assert len(groups.data(0)[0]) == 3, groups.data(0)[0]
         groups = self.engine(self.parse('1*'), [1,1,2])
@@ -228,8 +228,8 @@ class DigitsTest(BaseTest):
         assert self.engine(self.parse('1|2'), [1])
         assert self.engine(self.parse('1|2'), [2])
         assert not self.engine(self.parse('1|2'), 'c')
-        assert self.engine(self.parse('(1|13)$'), [1,3])
-
+        assert self.engine(self.parse('(?:1|13)$'), [1,3])
+        
     def test_search(self):
         assert self.engine(self.parse('1'), [1,2], search=True)
         

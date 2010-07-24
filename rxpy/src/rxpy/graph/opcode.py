@@ -38,10 +38,11 @@ See `BaseNode` for a general description of nodes.
 from rxpy.graph.base import BaseNode, BaseLineNode, BaseEscapedNode, \
     BaseGroupReference, BaseLabelledNode
 from rxpy.graph.support import ReadsGroup, CharSet 
-from rxpy.graph.compiled import DirectCompiled, BranchCompiled, DirectIdCompiled
+from rxpy.graph.compiled import DirectCompiled, BranchCompiled, \
+    DirectIdCompiled, DirectNextCompiled
 
     
-class String(BaseNode, DirectCompiled):
+class String(BaseNode, DirectNextCompiled):
     '''
     Match a series of literal characters.
     
@@ -66,6 +67,10 @@ class String(BaseNode, DirectCompiled):
     
     def visit(self, visitor, state=None):
         return visitor.string(self.next, self.text, state)
+    
+    def _untranslated_args(self):
+        # this actually returns next, not self. as "id" node
+        return [self.text, len(self.text)]
 
 
 class StartGroup(BaseGroupReference, DirectCompiled):
@@ -258,7 +263,7 @@ class EndOfLine(BaseLineNode, DirectCompiled):
         return visitor.end_of_line(self.next, self.multiline, state)
 
 
-class GroupReference(BaseGroupReference, ReadsGroup, BranchCompiled):
+class GroupReference(BaseGroupReference, ReadsGroup, DirectNextCompiled):
     '''
     Match the text previously matched by the given group.
     

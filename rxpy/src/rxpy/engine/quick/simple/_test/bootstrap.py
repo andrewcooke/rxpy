@@ -43,6 +43,8 @@ class SimpleEngineTest(BaseTest, TestCase):
         assert self.engine(self.parse('a'), 'a')
         assert not self.engine(self.parse('a'), 'b')
         assert self.engine(self.parse('a'), 'ba', search=True)
+        assert self.engine(self.parse('abc'), 'abc')
+        assert not self.engine(self.parse('abcd'), 'abc')
         
     def test_dot(self):
         assert self.engine(self.parse('.'), 'a')
@@ -60,9 +62,9 @@ class SimpleEngineTest(BaseTest, TestCase):
         assert self.engine(self.parse('(?m)^b'), 'a\nb', search=True)
 
     def test_split(self):
-        assert self.engine(self.parse('(a|b)'), 'a')
-        assert self.engine(self.parse('(a|b)'), 'b')
-        assert not self.engine(self.parse('(a|b)'), 'c')
+        assert self.engine(self.parse('(?:a|b)'), 'a')
+        assert self.engine(self.parse('(?:a|b)'), 'b')
+        assert not self.engine(self.parse('(?:a|b)'), 'c')
 
     def test_lookahead(self):
         assert self.engine(self.parse('a(?=b)'), 'ab')
@@ -75,6 +77,6 @@ class SimpleEngineTest(BaseTest, TestCase):
         assert self.engine(self.parse('b(?<!cb)'), 'ab', search=True)
         
     def test_checkpoint(self):
-        assert self.engine(self.parse('(?_e)(|a)*'), 'ab')
-        assert self.engine(self.parse('(?_e)(|a)*'), 'b')
+        assert self.engine(self.parse('(?_e)(?:|a)*'), 'ab')
+        assert self.engine(self.parse('(?_e)(?:|a)*'), 'b')
         

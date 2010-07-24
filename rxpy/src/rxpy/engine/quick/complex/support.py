@@ -1,4 +1,3 @@
-from rxpy.engine.support import Fail, Groups
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -29,6 +28,9 @@ from rxpy.engine.support import Fail, Groups
 # MPL or the LGPL License.                                              
 
 
+from rxpy.engine.support import Fail, Groups
+
+
 class State(object):
     '''
     This is heavily optimized to (1) cache a valid hash and (2) avoid creating
@@ -49,7 +51,9 @@ class State(object):
         self.__last_number = last_number
         # this is updated in parallel with the above
         self.__hash = hash
-        self.matched = None
+        # number of characters to skip or -1 if matched
+        # never cloned on non-zero
+        self.__skip = 0
         
     def clone(self, index=None, prefix=None):
         hash = self.__hash
@@ -161,3 +165,16 @@ class State(object):
     def groups(self, group_state):
         return Groups(group_state, self.__text, self.__groups, None, 
                       self.__last_number)
+        
+    def group(self, number):
+        return self.__groups.get(number, (None, None, None))[0]
+    
+    @property
+    def skip(self):
+        return self.__skip
+    
+    @skip.setter
+    def skip(self, skip):
+        self.__hash ^= self.__skip ^ skip
+        self.__skip = skip
+        

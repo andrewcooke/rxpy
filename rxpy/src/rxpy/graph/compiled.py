@@ -140,6 +140,9 @@ class DirectCompiled(BaseCompiledNode):
     def compile(self, target):
         method = getattr(target, self._compile_name())
         args = self._compile_args()
+        return self._make_compiler(method, args)
+    
+    def _make_compiler(self, method, args):
         def compiler(node_to_index, table):
             try:
                 next = node_to_index[self.next[0]]
@@ -152,17 +155,54 @@ class DirectCompiled(BaseCompiledNode):
                     return table[next]()
             return compiled
         return compiler
-    
-    
-class DirectIdCompiled(DirectCompiled):
+
+
+class TranslatedCompiled(DirectCompiled):
     '''
-    First arg is `self`.
+    Transform first arg to index
+    '''
+    
+    @unimplemented
+    def _compile_args(self):
+        pass
+    
+    def _untranslated_args(self):
+        return super(TranslatedCompiled, self)._compile_args()
+    
+    def _make_compiler(self, method, args):
+        def compiler(node_to_index, table):
+            try:
+                next = node_to_index[self.next[0]]
+            except IndexError:
+                next = None
+            args[0] = node_to_index[args[0]]
+            def compiled():
+                if method(*args):
+                    return next
+                else:
+                    return table[next]()
+            return compiled
+        return compiler
+    
+    
+class DirectIdCompiled(TranslatedCompiled):
+    '''
+    First arg is `self`, transformed to index
     '''
     
     def _compile_args(self):
-        return [self] + super(DirectIdCompiled, self)._compile_args()
+        return [self] + self._untranslated_args()
     
-
+    
+class DirectNextCompiled(TranslatedCompiled):
+    '''
+    First arg is `next[0]`, transformed to index
+    '''
+    
+    def _compile_args(self):
+        return [self.next[0]] + self._untranslated_args()
+    
+    
 class BranchCompiled(BaseCompiledNode):
     '''
     Expects `method` to return the required index, which is evaluated until

@@ -39,3 +39,20 @@ class SimpleReTest(ReTest, TestCase):
     def default_engine(self):
         return SimpleEngine
 
+    def test_zero(self):
+        pass
+    
+    def test_numbered(self):
+        pass
+    
+    def test_split_from_docs(self):
+        pass
+    
+    def test_match(self):
+        pass
+    
+    def test_findall(self):
+        pass
+    
+    
+            

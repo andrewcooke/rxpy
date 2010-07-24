@@ -102,8 +102,8 @@ class EngineTest(BaseTest):
         assert self.engine(self.parse('.(?<!a)'), 'b')
     
     def test_lookback_bug_1(self):
-#        result = self.engine(self.parse('.*(?<!abc)(d.f)'), 'abcdefdof')
-#        assert result.group(1) == 'dof', result.group(1)
+        result = self.engine(self.parse('.*(?<!abc)(d.f)'), 'abcdefdof')
+        assert result.group(1) == 'dof', result.group(1)
         result = self.engine(self.parse('(?<!abc)(d.f)'), 'abcdefdof', search=True)
         assert result.group(1) == 'dof', result.group(1)
         
@@ -243,7 +243,7 @@ class EngineTest(BaseTest):
         assert self.engine(self.parse('a|b'), 'a')
         assert self.engine(self.parse('a|b'), 'b')
         assert not self.engine(self.parse('a|b'), 'c')
-        assert self.engine(self.parse('(a|ac)$'), 'ac')
+        assert self.engine(self.parse('(?:a|ac)$'), 'ac')
 
     def test_search(self):
         assert self.engine(self.parse('a'), 'ab', search=True)
@@ -340,11 +340,11 @@ class EngineTest(BaseTest):
         self.parse('a(?:b|(c|e){1,2}?|d)+?')
         
     def test_extended_groups(self):
-#        try:
-#            self.parse('(?P<4>.)(?P<4>).')
-#            assert False, 'expected error'
-#        except RxpyException:
-#            pass
+        try:
+            self.parse('(?P<4>.)(?P<4>).')
+            assert False, 'expected error'
+        except RxpyException:
+            pass
         result = self.engine(self.parse('(?_g)(?P<4>.)(?P<4>.)'), 'ab')
         assert result
         assert result.group(4) == 'b'

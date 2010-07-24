@@ -35,14 +35,14 @@ plus the earliest start index and a matched flag).
 
 
 from rxpy.engine.base import BaseEngine
-from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
+from rxpy.lib import UnsupportedOperation, _LOOP_UNROLL
 from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
 class SimpleEngine(BaseEngine, BaseCompiled):
     
-    REQUIRE = _CHARS | _LOOP_UNROLL
+    REQUIRE = _LOOP_UNROLL
     
     def __init__(self, parser_state, graph, program=None):
         super(SimpleEngine, self).__init__(parser_state, graph)
@@ -87,8 +87,9 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         self._group_defined = False
         self._checkpoints = {}
         self._lookaheads = (self._offset, {})
+        search = self._search # read only, deref optimisation
         
-        self._states = [(start_state, self._offset, False)]
+        self._states = [(start_state, self._offset, 0)]
         
         try:
             while self._states and self._offset <= len(self._text):
@@ -99,17 +100,33 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                 while self._states:
                     
                     # unpack state
-                    (state, self._group_start, matched) = self._states.pop()
+                    (state, self._group_start, skip) = self._states.pop()
                     try:
-                        if matched:
+                        
+                        if not skip:
+                            # advance a character (compiled actions recall on stack
+                            # until a character is consumed)
+                            next = self._program[state]()
+                            if next not in known_next:
+                                next_states.append((next, self._group_start, 0))
+                                known_next.add(next)
+                                
+                        elif skip == -1:
                             raise Match
-                    
-                        # advance a character (compiled actions recall on stack
-                        # until a character is consumed)
-                        next = self._program[state]()
-                        if next not in known_next:
-                            next_states.append((next, self._group_start, False))
-                            known_next.add(next)
+
+                        else:
+                            skip -= 1
+                            
+                            # if we have other states, or will add them via search
+                            if search or next_states or self._states:
+                                next_states.append((state, self._group_start, skip))
+                                # block this same "future state"
+                                known_next.add((state, skip))
+                                
+                            # otherwise, we can jump directly
+                            else:
+                                self._offset += skip
+                                next_states.append((state, self._group_start, 0))
                             
                     except Fail:
                         pass
@@ -117,7 +134,7 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                     except Match:
                         if not next_states:
                             raise
-                        next_states.append((next, self._group_start, True))
+                        next_states.append((next, self._group_start, -1))
                         known_next.add(next)
                         self._states = []
                     
@@ -126,8 +143,8 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                 self._states = next_states
                
                 # add current position as search if necessary
-                if self._search and start_state not in known_next:
-                    self._states.append((start_state, self._offset, False))
+                if search and start_state not in known_next:
+                    self._states.append((start_state, self._offset, 0))
                     
                 self._states.reverse()
             
@@ -149,12 +166,17 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             groups.end_group(0, self._offset)
             return groups
     
-    def string(self, text):
-        if self._current == text[0]:
-            return True
+    def string(self, next, text, length):
+        if length == 1:
+            if self._current == text[0]:
+                return True
+            else:
+                raise Fail
         else:
+            if self._text[self._offset:self._offset+length]  == text:
+                self._states.append((next, self._group_start, length))
             raise Fail
-    
+        
     def character(self, charset):
         if self._current in charset:
             return True

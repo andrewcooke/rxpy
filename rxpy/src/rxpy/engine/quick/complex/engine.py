@@ -39,6 +39,8 @@ from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
 from rxpy.engine.quick.complex.support import State
 from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
+from rxpy.graph.container import Sequence
+from rxpy.graph.opcode import String
 
 
 class ComplexEngine(BaseEngine, BaseCompiled):
@@ -81,8 +83,8 @@ class ComplexEngine(BaseEngine, BaseCompiled):
         
     def _run_from(self, start_state):
         self._lookaheads = (self._offset, {})
-        
         self._states = [start_state.clone()]
+        search = self._search
         
         try:
             while self._states and self._offset <= len(self._text):
@@ -95,8 +97,9 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                     # unpack state
                     self._state = self._states.pop()
                     state = self._state
+                    skip = state.skip
                     
-                    if state.matched is None:
+                    if not skip:
                         # advance a character (compiled actions recall on stack
                         # until a character is consumed)
                         try:
@@ -107,22 +110,39 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                         except Fail:
                             pass
                         except Match:
-                            state.matched = self._offset
+                            state.skip = -1
                             if not next_states:
                                 raise
                             next_states.append(state)
                             known_next.add(state)
-                    else:
+                            
+                    elif skip == -1:
                         if not next_states:
                             raise Match
                         next_states.append(state)
+                        
+                    else:
+                        skip -= 1
+                        
+                        # if we have other states, or will add them via search
+                        if search or next_states or self._states:
+                            state.skip = skip
+                            next_states.append(state)
+                            known_next.add(state)
+                            
+                        # otherwise, we can jump directly
+                        else:
+                            self._offset += skip
+                            state.skip = 0
+                            next_states.append(state)
+                        
                     
                 # move to next character
                 self._set_offset(self._offset + 1)
                 self._states = next_states
                
                 # add current position as search if necessary
-                if self._search and start_state not in known_next:
+                if search and start_state not in known_next:
                     new_state = start_state.clone().start_group(0, self._offset)
                     self._states.append(new_state)
                     
@@ -130,22 +150,27 @@ class ComplexEngine(BaseEngine, BaseCompiled):
             
             while self._states:
                 self._state = self._states.pop()
-                if self._state.matched is not None:
+                if self._state.skip == -1:
                     raise Match
                 
             # exhausted states with no match
             return Groups()
         
         except Match:
-            self._state.end_group(0, self._state.matched)
             return self._state.groups(self._parser_state.groups)
     
-    def string(self, text):
-        if self._current == text[0]:
-            return True
+    def string(self, next, text, length):
+        if length == 1:
+            if self._current == text[0]:
+                return True
+            else:
+                raise Fail
         else:
+            if self._text[self._offset:self._offset+length] == text:
+                self._state.skip = length
+                self._states.append(self._state.advance(next))
             raise Fail
-    
+        
     def character(self, charset):
         if self._current in charset:
             return True
@@ -161,6 +186,7 @@ class ComplexEngine(BaseEngine, BaseCompiled):
         return False
     
     def match(self):
+        self._state.end_group(0, self._offset)
         raise Match
 
     def no_match(self):
@@ -220,10 +246,17 @@ class ComplexEngine(BaseEngine, BaseCompiled):
     def checkpoint(self, id):
         self._state.check(self._offset, id)
         
-    # branch
-
     def group_reference(self, next, number):
-        raise UnsupportedOperation('group_reference')
+        try:
+            text = self._state.group(number)
+            if text is None:
+                raise Fail
+            else:
+                return self.string(next, text, len(text))
+        except KeyError:
+            raise Fail
+
+    # branch
 
     def conditional(self, next, number):
         raise UnsupportedOperation('conditional')
