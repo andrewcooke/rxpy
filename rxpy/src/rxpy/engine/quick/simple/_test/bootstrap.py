@@ -34,7 +34,7 @@ from rxpy.engine._test.base import BaseTest
 from rxpy.engine.quick.simple.engine import SimpleEngine
 
 
-class BeamEngineTest(BaseTest, TestCase):
+class SimpleEngineTest(BaseTest, TestCase):
 
     def default_engine(self):
         return SimpleEngine

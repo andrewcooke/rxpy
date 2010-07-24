@@ -36,16 +36,17 @@ plus the earliest start index and a matched flag).
 
 from rxpy.engine.base import BaseEngine
 from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
+from rxpy.engine.quick.complex.support import State
 from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
-class SimpleEngine(BaseEngine, BaseCompiled):
+class ComplexEngine(BaseEngine, BaseCompiled):
     
     REQUIRE = _CHARS | _LOOP_UNROLL
     
     def __init__(self, parser_state, graph, program=None):
-        super(SimpleEngine, self).__init__(parser_state, graph)
+        super(ComplexEngine, self).__init__(parser_state, graph)
         if program is None:
             program = compile(graph, self)
         self._program = program
@@ -54,14 +55,12 @@ class SimpleEngine(BaseEngine, BaseCompiled):
     def push(self):
         self.__stack.append((self._offset, self._text, self._search,
                              self._current, self._previous, self._states, 
-                             self._group_start, self._group_defined, 
-                             self._checkpoints, self._lookaheads))
+                             self._state, self._lookaheads))
         
     def pop(self):
         (self._offset, self._text, self._search,
          self._current, self._previous, self._states, 
-         self._group_start, self._group_defined, 
-         self._checkpoints, self._lookaheads) = self.__stack.pop()
+         self._state, self._lookaheads) = self.__stack.pop()
         
     def _set_offset(self, offset):
         self._offset = offset
@@ -75,20 +74,15 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             self._previous = None
         
     def run(self, text, pos=0, search=False):
-        # TODO - add explicit search if expression starts with constant
         self._text = text
         self._set_offset(pos)
         self._search = search
-        
-        # handle switch to complex engine here when unsupported op raised
-        return self._run_from(0)
+        return self._run_from(State(0, text).start_group(0, self._offset))
         
     def _run_from(self, start_state):
-        self._group_defined = False
-        self._checkpoints = {}
         self._lookaheads = (self._offset, {})
         
-        self._states = [(start_state, self._offset, False)]
+        self._states = [start_state.clone()]
         
         try:
             while self._states and self._offset <= len(self._text):
@@ -99,27 +93,29 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                 while self._states:
                     
                     # unpack state
-                    (state, self._group_start, matched) = self._states.pop()
-                    try:
-                        if matched:
-                            raise Match
+                    self._state = self._states.pop()
+                    state = self._state
                     
+                    if state.matched is None:
                         # advance a character (compiled actions recall on stack
                         # until a character is consumed)
-                        next = self._program[state]()
-                        if next not in known_next:
-                            next_states.append((next, self._group_start, False))
-                            known_next.add(next)
-                            
-                    except Fail:
-                        pass
-                    
-                    except Match:
+                        try:
+                            state.advance(self._program[state.index]())
+                            if state not in known_next:
+                                next_states.append(state)
+                                known_next.add(state)
+                        except Fail:
+                            pass
+                        except Match:
+                            state.matched = self._offset
+                            if not next_states:
+                                raise
+                            next_states.append(state)
+                            known_next.add(state)
+                    else:
                         if not next_states:
-                            raise
-                        next_states.append((next, self._group_start, True))
-                        known_next.add(next)
-                        self._states = []
+                            raise Match
+                        next_states.append(state)
                     
                 # move to next character
                 self._set_offset(self._offset + 1)
@@ -127,27 +123,22 @@ class SimpleEngine(BaseEngine, BaseCompiled):
                
                 # add current position as search if necessary
                 if self._search and start_state not in known_next:
-                    self._states.append((start_state, self._offset, False))
+                    new_state = start_state.clone().start_group(0, self._offset)
+                    self._states.append(new_state)
                     
                 self._states.reverse()
             
             while self._states:
-                (state, self._group_start, matched) = self._states.pop()
-                if matched:
+                self._state = self._states.pop()
+                if self._state.matched is not None:
                     raise Match
                 
             # exhausted states with no match
             return Groups()
         
         except Match:
-            
-            if self._group_defined:
-                raise UnsupportedOperation('groups')
-            
-            groups = Groups(self._parser_state.groups, self._text)
-            groups.start_group(0, self._group_start)
-            groups.end_group(0, self._offset)
-            return groups
+            self._state.end_group(0, self._state.matched)
+            return self._state.groups(self._parser_state.groups)
     
     def string(self, text):
         if self._current == text[0]:
@@ -162,10 +153,11 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             raise Fail
     
     def start_group(self, number):
+        self._state.start_group(number, self._offset)
         return False
     
     def end_group(self, number):
-        self._group_defined = True
+        self._state.end_group(number, self._offset)
         return False
     
     def match(self):
@@ -226,11 +218,7 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             raise Fail
         
     def checkpoint(self, id):
-        if id not in self._checkpoints or self._offset != self._checkpoints[id]:
-            self._checkpoints[id] = self._offset
-            return False
-        else:
-            raise Fail
+        self._state.check(self._offset, id)
         
     # branch
 
@@ -242,11 +230,13 @@ class SimpleEngine(BaseEngine, BaseCompiled):
 
     def split(self, next):
         for (index, _node) in reversed(next):
-            self._states.append((index, self._group_start, False))
+            self._states.append(self._state.clone(index))
         # start from new states
         raise Fail
 
     def lookahead(self, next, equal, forwards):
+        # todo - could also cache things thread groups by state
+        
         (index, node) = next[1]
         
         # discard old values
@@ -254,33 +244,52 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             self._lookaheads = (self._offset, {})
         lookaheads = self._lookaheads[1]
         
-        if index not in lookaheads:
-            
-            # requires complex engine
-            (reads, _mutates, size) = lookahead_logic(node, forwards, None)
-            if reads:
-                raise UnsupportedOperation('lookahead')
-            
-            # invoke simple engine and cache
-            self.push()
-            try:
-                self._search = False
-                if not forwards:
-                    self._text = self._text[0:self._offset]
-                    if size is None:
-                        self._set_offset(0)
-                        self._search = True
-                    else:
-                        self._set_offset(self._offset - size)
-                result = bool(self._run_from(index)) == equal
-            finally:
-                self.pop()
-            lookaheads[index] = result
-            
-        if lookaheads[index]:
-            return 0
+        if index in lookaheads:
+            # only non-mutating non-reading values are cached 
+            mutates = False
+            success = lookaheads[index]
         else:
-            raise Fail
+            # we need to match the lookahead
+            search = False
+            groups = self._state.groups(self._parser_state.groups)
+            (reads, mutates, size) = lookahead_logic(node, forwards, groups)
+            if forwards:
+                prefix = self._text
+                offset = self._offset
+            else:
+                prefix = self._text[0:self._offset]
+                if size is None:
+                    offset = 0
+                    search = True
+                else:
+                    offset = self._offset - size
+                    
+            new_state = self._state.clone(index, prefix=prefix)
+            
+            if offset < 0:
+                match = Groups()
+            else:
+                self.push()
+                try:
+                    self._text = prefix
+                    self._set_offset(offset)
+                    self._search = search
+                    match = self._run_from(new_state)
+                    new_state = self._state
+                finally:
+                    self.pop()
+                
+            success = bool(match) == equal
+            if not (mutates or reads):
+                lookaheads[index] = success
+
+        # if lookahead succeeded, continue
+        if success:
+            if mutates and match:
+                self._states.append(new_state.advance(next[0][0], text=self._text))
+            else:
+                self._states.append(self._state.advance(next[0][0]))
+        raise Fail
 
     def repeat(self, begin, end, lazy):
         raise UnsupportedOperation('repeat')

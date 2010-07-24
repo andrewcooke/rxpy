@@ -193,12 +193,16 @@ if __name__ == '__main__':
                        'a(.)c', 100, 'abc'),
         MatchBenchmark('Match (a)b(?<=(?(1)b|x))(c) against abc',
                        '(a)b(?<=(?(1)b|x))(c)', 100, 'abc'),
+        ])
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
         MatchBenchmark('Match a*b against a^100b', 
                        'a*b', 2, 100*'a' + 'b'),
         MatchBenchmark('Match .*b against a^100b', 
                        '.*b', 2, 100*'a' + 'b'),
         MatchBenchmark('Search .*b against a^100b', 
                        '.*b', 1, 100*'a' + 'b', search=True),
+        ])
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
         MatchBenchmark('Match (.*) (.*) (.*)  against abc abc abc', 
                        '(.*) (.*) (.*)', 10, 'abc abc abc'),
         ])

@@ -30,6 +30,7 @@
 
 from rxpy.engine.parallel.support import States as BaseStates
 
+
 class States(BaseStates):
     
     def __init__(self, initial, hash_state, beam_start=1, beam_scale=2):

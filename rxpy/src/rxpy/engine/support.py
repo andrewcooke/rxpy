@@ -205,6 +205,10 @@ class Groups(object):
     @property
     def indices(self):
         return self.__state.indices.keys()
+    
+    @property
+    def groups(self):
+        return self.__groups
 
 
 def lookahead_logic(branch, forwards, groups):
