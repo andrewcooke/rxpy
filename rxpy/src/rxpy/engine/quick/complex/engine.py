@@ -38,15 +38,12 @@ the simple engine, when that fails on an unsupported operation.
 
 
 from rxpy.engine.base import BaseEngine
-from rxpy.lib import _LOOP_UNROLL
 from rxpy.engine.quick.complex.support import State
 from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
 
 
 class ComplexEngine(BaseEngine, BaseCompiled):
-    
-    REQUIRE = _LOOP_UNROLL
     
     def __init__(self, parser_state, graph, program=None):
         super(ComplexEngine, self).__init__(parser_state, graph)
@@ -77,15 +74,16 @@ class ComplexEngine(BaseEngine, BaseCompiled):
             self._previous = None
         
     def run(self, text, pos=0, search=False):
+        return self._run_from(State(0, text), text, pos, search)
+        
+    def _run_from(self, start_state, text, pos, search):
+        start_state.start_group(0, pos)
         self._text = text
         self._set_offset(pos)
         self._search = search
-        return self._run_from(State(0, text).start_group(0, self._offset))
         
-    def _run_from(self, start_state):
         self._lookaheads = (self._offset, {})
         self._states = [start_state.clone()]
-        search = self._search
         
         try:
             while self._states and self._offset <= len(self._text):
@@ -272,7 +270,7 @@ class ComplexEngine(BaseEngine, BaseCompiled):
         raise Fail
 
     def lookahead(self, next, equal, forwards):
-        # todo - could also cache things thread groups by state
+        # todo - could also cache things that read groups by state
         
         (index, node) = next[1]
         
@@ -308,10 +306,7 @@ class ComplexEngine(BaseEngine, BaseCompiled):
             else:
                 self.push()
                 try:
-                    self._text = prefix
-                    self._set_offset(offset)
-                    self._search = search
-                    match = self._run_from(new_state)
+                    match = self._run_from(new_state, prefix, offset, search)
                     new_state = self._state
                 finally:
                     self.pop()
@@ -337,17 +332,16 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                 # increment and loop
                 state.new_loop(index)
                 return 1
-            elif 0 < end:
+            elif end is None or 0 < end:
                 # can both increment and exit
                 if lazy:
                     # increment on stack
                     self._states.append(state.clone(next[1][0]).new_loop(index))
-                    # exit now
-                    state.drop_loop(index)
+                    # exit (never started, so just continue) now
                     return 0
                 else:
-                    # exit on stack
-                    self._states.append(state.clone(next[0][0]).drop_loop(index))
+                    # exit (never started, so just continue) on stack
+                    self._states.append(state.clone(next[0][0]))
                     # new loop now
                     state.new_loop(index)
                     return 1
@@ -360,7 +354,7 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                 # increment and loop
                 state.increment_loop(index)
                 return 1
-            elif count < end:
+            elif end is None or count < end:
                 # can both increment and exit
                 if lazy:
                     # increment on stack

@@ -27,32 +27,27 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-import re
 
-class Re(object):
+from unittest import TestCase
 
-    (I, M, S, U, X,
-     IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE) = \
-        (re.I, re.M, re.S, re.U, re.X, 
-         re.IGNORECASE, re.MULTILINE, re.DOTALL, re.UNICODE, re.VERBOSE)
+from rxpy.engine._test.test_re import ReTests
+from rxpy.engine.quick.hybrid.engine import HybridEngine
+
+
+class HybridTest(ReTests, TestCase):
     
-    def __init__(self):
-        self.compile = re.compile
-#        self.RegexObject = re.RegexObject
-#        self.MatchIterator = re.MatchIterator
-        self.match = re.match    
-        self.search = re.search
-        self.findall = re.findall
-        self.finditer = re.finditer    
-        self.sub = re.sub    
-        self.subn = re.subn    
-        self.split = re.split    
-        self.error = re.error
-        self.escape = re.escape    
-        self.Scanner = re.Scanner
-        
-    def __str__(self):
-        return 'Python re'
-        
+    def default_engine(self):
+        return HybridEngine
 
-_re = Re()
+    def test_bug_418626(self):
+        # bugs 418626 at al. -- Testing Greg Chapman's addition of op code
+        # SRE_OP_MIN_REPEAT_ONE for eliminating recursion on simple uses of
+        # pattern '*?' on a long string.
+        self.assertEqual(self._re.match('.*?c', 10000*'ab'+'cd').end(0), 20001)
+        self.assertEqual(self._re.match('.*?cd', 5000*'ab'+'c'+5000*'ab'+'cde').end(0),
+                         20003)
+        self.assertEqual(self._re.match('.*?cd', 20000*'abc'+'de').end(0), 60001)
+        # non-simple '*?' still used to hit the recursion limit, before the
+        # non-recursive scheme was implemented.
+#        self.assertEqual(self._re.search('(a|b)*?c', 10000*'ab'+'cd').end(0), 20001)
+        pass

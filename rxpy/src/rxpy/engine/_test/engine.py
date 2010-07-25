@@ -360,4 +360,10 @@ class EngineTest(BaseTest):
         assert result.group(0) == 'aaaa', result.group(0)
         result = self.engine(self.parse('a{3,4}?'), 'aaaa')
         assert result.group(0) == 'aaa', result.group(0)
-        
+
+    def test_prime(self):
+        assert self.engine(self.parse('^1?$|^(11+?)\1+$'), 1*'1')
+        assert not self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 2*'1')
+        assert self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 4*'1')
+        assert self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 100*'1')
+        assert not self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 101*'1')

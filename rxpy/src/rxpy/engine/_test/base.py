@@ -65,3 +65,6 @@ class BaseTest(object):
             assert engine.maxwidth == maxwidth, engine.maxwidth
         return result
 
+    def assert_groups(self, pattern, text, groups):
+        results = self.engine(self.parse(pattern), text)
+        assert results.groups == groups, results.groups 

@@ -32,9 +32,9 @@ A replacement for Python's `re` package that uses the quick engine.
 '''
 
 from rxpy.compat.module import Re
-from rxpy.engine.quick.simple.engine import SimpleEngine
+from rxpy.engine.quick.hybrid.engine import HybridEngine
 
-_re = Re(SimpleEngine, 'Quick (simple)')
+_re = Re(HybridEngine, 'Quick')
 
 compile = _re.compile
 RegexObject = _re.RegexObject

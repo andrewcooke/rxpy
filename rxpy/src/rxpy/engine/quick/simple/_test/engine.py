@@ -72,3 +72,6 @@ class SimpleEngineTest(EngineTest, TestCase):
     def test_repeat(self):
         pass
     
+    def test_prime(self):
+        pass
+    

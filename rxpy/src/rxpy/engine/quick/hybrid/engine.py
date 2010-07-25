@@ -25,34 +25,42 @@
 # provisions above and replace them with the notice and other provisions
 # required by the LGPL License.  If you do not delete the provisions    
 # above, a recipient may use your version of this file under either the 
-# MPL or the LGPL License.                                              
+# MPL or the LGPL License.
 
-import re
 
-class Re(object):
 
-    (I, M, S, U, X,
-     IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE) = \
-        (re.I, re.M, re.S, re.U, re.X, 
-         re.IGNORECASE, re.MULTILINE, re.DOTALL, re.UNICODE, re.VERBOSE)
+from rxpy.engine.quick.simple.engine import SimpleEngine
+from rxpy.lib import UnsupportedOperation
+from rxpy.engine.quick.complex.engine import ComplexEngine
+
+
+class HybridEngine(SimpleEngine):
     
-    def __init__(self):
-        self.compile = re.compile
-#        self.RegexObject = re.RegexObject
-#        self.MatchIterator = re.MatchIterator
-        self.match = re.match    
-        self.search = re.search
-        self.findall = re.findall
-        self.finditer = re.finditer    
-        self.sub = re.sub    
-        self.subn = re.subn    
-        self.split = re.split    
-        self.error = re.error
-        self.escape = re.escape    
-        self.Scanner = re.Scanner
-        
-    def __str__(self):
-        return 'Python re'
-        
+    def __init__(self, parser_state, graph, program=None):
+        super(HybridEngine, self).__init__(parser_state, graph, program=program)
+        self.__cached_fallback = None
+    
+    def run(self, text, pos=0, search=False):
+        self._group_defined = False
 
-_re = Re()
+        try:
+            results = self._run_from(0, text, pos, search)
+            
+            if self._group_defined:
+                # reprocess using only the exact region matched
+                return self.__fallback.run(text, results.start(0))
+            else:
+                return results
+            
+        except UnsupportedOperation:
+            # todo - restart from exact position (will need to set index in
+            # compiled function stack by catching exception)
+            return self.__fallback.run(text, pos=pos, search=search)
+        
+    @property
+    def __fallback(self):
+        if self.__cached_fallback is None:
+            self.__cached_fallback = ComplexEngine(self._parser_state, self._graph)
+        return self.__cached_fallback
+
+        

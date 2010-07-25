@@ -287,7 +287,7 @@ class GroupReference(BaseGroupReference, ReadsGroup, DirectNextCompiled):
             known = set()
         if self not in known:
             known.add(self)
-            if groups.data(self.number) is not None:
+            if groups and groups.data(self.number) is not None:
                 return len(groups.group(self.number))
 
 
@@ -392,10 +392,11 @@ class Conditional(BaseLabelledNode, BaseGroupReference, ReadsGroup,
             known = set()
         if self not in known:
             known.add(self)
-            if groups.data(self.number) is not None:
-                return self.next[1].length(groups, known)
-            else:
-                return self.next[0].length(groups, known)
+            if groups:
+                if groups.data(self.number) is not None:
+                    return self.next[1].length(groups, known)
+                else:
+                    return self.next[0].length(groups, known)
     
     def visit(self, visitor, state=None):
         return visitor.group_conditional(self.next, self.number, state)

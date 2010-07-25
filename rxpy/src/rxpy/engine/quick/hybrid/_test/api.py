@@ -27,32 +27,15 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
-import re
 
-class Re(object):
+from unittest import TestCase
 
-    (I, M, S, U, X,
-     IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE) = \
-        (re.I, re.M, re.S, re.U, re.X, 
-         re.IGNORECASE, re.MULTILINE, re.DOTALL, re.UNICODE, re.VERBOSE)
+from rxpy.engine._test.api import ReTest
+from rxpy.engine.quick.hybrid.engine import HybridEngine
+
+
+class HybridReTest(ReTest, TestCase):
     
-    def __init__(self):
-        self.compile = re.compile
-#        self.RegexObject = re.RegexObject
-#        self.MatchIterator = re.MatchIterator
-        self.match = re.match    
-        self.search = re.search
-        self.findall = re.findall
-        self.finditer = re.finditer    
-        self.sub = re.sub    
-        self.subn = re.subn    
-        self.split = re.split    
-        self.error = re.error
-        self.escape = re.escape    
-        self.Scanner = re.Scanner
-        
-    def __str__(self):
-        return 'Python re'
-        
+    def default_engine(self):
+        return HybridEngine
 
-_re = Re()

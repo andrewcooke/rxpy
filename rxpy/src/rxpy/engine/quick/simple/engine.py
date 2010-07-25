@@ -52,16 +52,18 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         self.__stack = []
         
     def push(self):
+        # group_defined purposefully excluded
         self.__stack.append((self._offset, self._text, self._search,
                              self._current, self._previous, self._states, 
-                             self._group_start, self._group_defined, 
-                             self._checkpoints, self._lookaheads))
+                             self._group_start,  self._checkpoints, 
+                             self._lookaheads))
         
     def pop(self):
+        # group_defined purposefully excluded
         (self._offset, self._text, self._search,
          self._current, self._previous, self._states, 
-         self._group_start, self._group_defined, 
-         self._checkpoints, self._lookaheads) = self.__stack.pop()
+         self._group_start, self._checkpoints, 
+         self._lookaheads) = self.__stack.pop()
         
     def _set_offset(self, offset):
         self._offset = offset
@@ -75,16 +77,21 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             self._previous = None
         
     def run(self, text, pos=0, search=False):
+        self._group_defined = False
+        
         # TODO - add explicit search if expression starts with constant
+        
+        result = self._run_from(0, text, pos, search)
+        
+        if self._group_defined:
+            raise UnsupportedOperation('groups')
+        else:
+            return result
+        
+    def _run_from(self, start_state, text, pos, search):
         self._text = text
         self._set_offset(pos)
         self._search = search
-        
-        # handle switch to complex engine here when unsupported op raised
-        return self._run_from(0)
-        
-    def _run_from(self, start_state):
-        self._group_defined = False
         self._checkpoints = {}
         self._lookaheads = (self._offset, {})
         search = self._search # read only, deref optimisation
@@ -157,10 +164,6 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             return Groups()
         
         except Match:
-            
-            if self._group_defined:
-                raise UnsupportedOperation('groups')
-            
             groups = Groups(self._parser_state.groups, self._text)
             groups.start_group(0, self._group_start)
             groups.end_group(0, self._offset)
@@ -286,15 +289,19 @@ class SimpleEngine(BaseEngine, BaseCompiled):
             # invoke simple engine and cache
             self.push()
             try:
-                self._search = False
-                if not forwards:
-                    self._text = self._text[0:self._offset]
+                if forwards:
+                    text = self._text
+                    pos = self._offset
+                    search = False
+                else:
+                    text = self._text[0:self._offset]
                     if size is None:
-                        self._set_offset(0)
-                        self._search = True
+                        pos = 0
+                        search = True
                     else:
-                        self._set_offset(self._offset - size)
-                result = bool(self._run_from(index)) == equal
+                        pos = self._offset - size
+                        search = False
+                result = bool(self._run_from(index, text, pos, search)) == equal
             finally:
                 self.pop()
             lookaheads[index] = result
