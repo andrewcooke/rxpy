@@ -323,9 +323,8 @@ class ComplexEngine(BaseEngine, BaseCompiled):
         # if lookahead succeeded, continue
         if success:
             if mutates and match:
-                self._states.append(new_state.advance(next[0][0], text=self._text))
-            else:
-                self._states.append(self._state.advance(next[0][0]))
+                self._state.merge_groups(new_state)
+            self._states.append(self._state.advance(next[0][0]))
         raise Fail
 
     def repeat(self, next, begin, end, lazy):

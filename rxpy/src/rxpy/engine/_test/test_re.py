@@ -573,6 +573,8 @@ class ReTests(BaseTest):
 
     def test_bug_725149(self):
         # mark_stack_base restoring before restoring marks
+        self.assertEqual(self._re.match('(a)(?:(?=(b))c)?', 'abb').groups(),
+                         ('a', None))
         self.assertEqual(self._re.match('(a)(?:(?=(b)*)c)*', 'abb').groups(),
                          ('a', None))
         self.assertEqual(self._re.match('(?_e)(a)((?!(b)*))*', 'abb').groups(),

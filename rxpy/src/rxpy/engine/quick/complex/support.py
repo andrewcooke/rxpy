@@ -114,6 +114,24 @@ class State(object):
         if number != 0:
             self.__last_number = number
             
+    def merge_groups(self, other):
+        # copy (for write)
+        groups = dict(self.__groups)
+        self.__groups = groups
+        for number in other.__groups:
+            if number:
+                new = other.__groups[number]
+                old = groups.get(number, None)
+                if new != old:
+                    if old:
+                        (_text, start, end) = old
+                        self.__hash ^= start << 16
+                        self.__hash ^= end << 24
+                    (_text, start, end) = new
+                    self.__hash ^= start << 16
+                    self.__hash ^= end << 24
+                    groups[number] = new
+            
     def get_loop(self, index):
         loops = self.__loops
         if loops and loops[-1][0] == index:
