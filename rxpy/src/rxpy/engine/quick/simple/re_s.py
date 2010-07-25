@@ -27,48 +27,27 @@
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
 
+'''
+A replacement for Python's `re` package that uses the quick engine.
+'''
 
-from unittest import TestCase
-
-from rxpy.engine._test.engine import EngineTest
+from rxpy.compat.module import Re
 from rxpy.engine.quick.simple.engine import SimpleEngine
 
+_re = Re(SimpleEngine, 'Parallel simple')
 
-class SimpleEngineTest(EngineTest, TestCase):
-    
-    def default_engine(self):
-        return SimpleEngine
+compile = _re.compile
+RegexObject = _re.RegexObject
+MatchIterator = _re.MatchIterator
+match = _re.match    
+search = _re.search
+findall = _re.findall
+finditer = _re.finditer    
+sub = _re.sub    
+subn = _re.subn    
+split = _re.split    
+error = _re.error
+escape = _re.escape    
+Scanner = _re.Scanner    
 
-    def test_unicode_escapes(self):
-        pass
-    
-    def test_nested_group(self):
-        pass
-    
-    def test_groups(self):
-        pass
-    
-    def test_group_reference(self):
-        pass
-    
-    def test_group(self):
-        pass
-
-    def test_conditional(self):
-        pass
-
-    def test_lookback_bug_1(self):
-        pass
-    
-    def test_groups_in_lookback(self):
-        pass
-    
-    def test_extended_groups(self):
-        pass
-    
-    def test_ascii_escapes(self):
-        pass
-    
-    def test_repeat(self):
-        pass
-    
+(I, M, S, U, X, A, _L, _C, _E, _U, _G, IGNORECASE, MULTILINE, DOTALL, UNICODE, VERBOSE, ASCII, _LOOP_UNROLL, _CHARS, _EMPTY, _UNSAFE, _GROUPS) = _re.FLAGS

@@ -28,24 +28,25 @@
 # MPL or the LGPL License.
 
 '''
-An engine with a simple compiled transition table that does not support 
-groups or stateful loops (so state is simply the current offset in the table
-plus the earliest start index and a matched flag).
+This is an "optimized" (but largely unmeasured) engine that provides all
+functionality while staying as close to Thompson's approach as possible
+(DFA incrementally constructed, like re2).
+
+It can be used standalone, but is intended to be used as a fallback from
+the simple engine, when that fails on an unsupported operation. 
 '''
 
 
 from rxpy.engine.base import BaseEngine
-from rxpy.lib import _CHARS, UnsupportedOperation, _LOOP_UNROLL
+from rxpy.lib import _LOOP_UNROLL
 from rxpy.engine.quick.complex.support import State
 from rxpy.engine.support import Match, Fail, lookahead_logic, Groups
 from rxpy.graph.compiled import BaseCompiled, compile
-from rxpy.graph.container import Sequence
-from rxpy.graph.opcode import String
 
 
 class ComplexEngine(BaseEngine, BaseCompiled):
     
-    REQUIRE = _CHARS | _LOOP_UNROLL
+    REQUIRE = _LOOP_UNROLL
     
     def __init__(self, parser_state, graph, program=None):
         super(ComplexEngine, self).__init__(parser_state, graph)
@@ -94,13 +95,12 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                 
                 while self._states:
                     
-                    # unpack state
                     self._state = self._states.pop()
                     state = self._state
                     skip = state.skip
                     
                     if not skip:
-                        # advance a character (compiled actions recall on stack
+                        # advance a character (compiled actions re-call on stack
                         # until a character is consumed)
                         try:
                             state.advance(self._program[state.index]())
@@ -135,7 +135,6 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                             self._offset += skip
                             state.skip = 0
                             next_states.append(state)
-                        
                     
                 # move to next character
                 self._set_offset(self._offset + 1)
@@ -259,7 +258,12 @@ class ComplexEngine(BaseEngine, BaseCompiled):
     # branch
 
     def conditional(self, next, number):
-        raise UnsupportedOperation('conditional')
+        try:
+            if self._state.group(number) is not None:
+                return 1
+        except KeyError:
+            pass
+        return 0
 
     def split(self, next):
         for (index, _node) in reversed(next):
@@ -324,5 +328,55 @@ class ComplexEngine(BaseEngine, BaseCompiled):
                 self._states.append(self._state.advance(next[0][0]))
         raise Fail
 
-    def repeat(self, begin, end, lazy):
-        raise UnsupportedOperation('repeat')
+    def repeat(self, next, begin, end, lazy):
+        # index on first loop item
+        index = next[1][0]
+        state = self._state
+        count = state.get_loop(index)
+        if count is None:
+            if 0 < begin:
+                # increment and loop
+                state.new_loop(index)
+                return 1
+            elif 0 < end:
+                # can both increment and exit
+                if lazy:
+                    # increment on stack
+                    self._states.append(state.clone(next[1][0]).new_loop(index))
+                    # exit now
+                    state.drop_loop(index)
+                    return 0
+                else:
+                    # exit on stack
+                    self._states.append(state.clone(next[0][0]).drop_loop(index))
+                    # new loop now
+                    state.new_loop(index)
+                    return 1
+            else:
+                # strange {0,0} loop so just exit
+                return 0
+        else:
+            count += 1
+            if count < begin:
+                # increment and loop
+                state.increment_loop(index)
+                return 1
+            elif count < end:
+                # can both increment and exit
+                if lazy:
+                    # increment on stack
+                    self._states.append(state.clone(next[1][0]).increment_loop(index))
+                    # exit now
+                    state.drop_loop(index)
+                    return 0
+                else:
+                    # exit on stack
+                    self._states.append(state.clone(next[0][0]).drop_loop(index))
+                    # new loop now
+                    state.increment_loop(index)
+                    return 1
+            else:
+                # equal to end so exit
+                state.drop_loop(index)
+                return 0
+    

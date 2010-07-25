@@ -78,3 +78,10 @@ class ComplexEngineTest(BaseTest, TestCase):
         assert self.engine(self.parse('(?_e)(|a)*'), 'ab')
         assert self.engine(self.parse('(?_e)(|a)*'), 'b')
         
+    def test_prime(self):
+        assert self.engine(self.parse('^1?$|^(11+?)\1+$'), 1*'1')
+        assert not self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 2*'1')
+        assert self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 4*'1')
+        assert self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 100*'1')
+        assert not self.engine(self.parse(r'^1?$|^(11+?)\1+$'), 101*'1')
+        

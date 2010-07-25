@@ -30,45 +30,24 @@
 
 from unittest import TestCase
 
-from rxpy.engine._test.engine import EngineTest
-from rxpy.engine.quick.simple.engine import SimpleEngine
+from rxpy.engine._test.test_re import ReTests
+from rxpy.engine.quick.complex.engine import ComplexEngine
 
 
-class SimpleEngineTest(EngineTest, TestCase):
+class ComplexTest(ReTests, TestCase):
     
     def default_engine(self):
-        return SimpleEngine
+        return ComplexEngine
 
-    def test_unicode_escapes(self):
+    def test_bug_418626(self):
+        # bugs 418626 at al. -- Testing Greg Chapman's addition of op code
+        # SRE_OP_MIN_REPEAT_ONE for eliminating recursion on simple uses of
+        # pattern '*?' on a long string.
+        self.assertEqual(self._re.match('.*?c', 10000*'ab'+'cd').end(0), 20001)
+        self.assertEqual(self._re.match('.*?cd', 5000*'ab'+'c'+5000*'ab'+'cde').end(0),
+                         20003)
+        self.assertEqual(self._re.match('.*?cd', 20000*'abc'+'de').end(0), 60001)
+        # non-simple '*?' still used to hit the recursion limit, before the
+        # non-recursive scheme was implemented.
+#        self.assertEqual(self._re.search('(a|b)*?c', 10000*'ab'+'cd').end(0), 20001)
         pass
-    
-    def test_nested_group(self):
-        pass
-    
-    def test_groups(self):
-        pass
-    
-    def test_group_reference(self):
-        pass
-    
-    def test_group(self):
-        pass
-
-    def test_conditional(self):
-        pass
-
-    def test_lookback_bug_1(self):
-        pass
-    
-    def test_groups_in_lookback(self):
-        pass
-    
-    def test_extended_groups(self):
-        pass
-    
-    def test_ascii_escapes(self):
-        pass
-    
-    def test_repeat(self):
-        pass
-    

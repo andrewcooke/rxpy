@@ -40,7 +40,9 @@ from rxpy.engine.parallel.beam.re_pb import _re as R_PB
 from rxpy.engine.parallel.beam.re_pbh import _re as R_PBH
 from rxpy.engine.parallel.wide.re_pw import _re as R_PW
 from rxpy.engine.parallel.wide.re_pwh import _re as R_PWH
-from rxpy.engine.quick.re_q import _re as R_Q
+from rxpy.engine.quick.simple.re_s import _re as R_S
+from rxpy.engine.quick.complex.re_c import _re as R_C
+#from rxpy.engine.quick.re_q import _re as R_Q
 
 
 def execute(engines, benchmarks, trace=False, repeat=7):
@@ -184,57 +186,81 @@ def explore_python():
         start = time()
         regexp.match(n * 'ab')
         print n, time() - start
+        
+def prime(n):
+    return MatchBenchmark('Primality ' + str(n), 
+                          '^1?$|^(11+?)\1+$', 1, n * '1')
+
+def prime2(n):
+    return MatchBenchmark('Primality (eager) ' + str(n), 
+                          '^1?$|^(11+)\1+$', 1, n * '1')
 
     
 
 if __name__ == '__main__':
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
-        MatchBenchmark('Match a(.)c against abc', 
-                       'a(.)c', 100, 'abc'),
-        MatchBenchmark('Match (a)b(?<=(?(1)b|x))(c) against abc',
-                       '(a)b(?<=(?(1)b|x))(c)', 100, 'abc'),
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_C], [
+#        MatchBenchmark('Match . against a', 
+#                       '.', 100, 'a'),
+#        MatchBenchmark('Match a(.)c against abc', 
+#                       'a(.)c', 100, 'abc'),
+#        MatchBenchmark('Match (a)b(?<=(?(1)b|x))(c) against abc',
+#                       '(a)b(?<=(?(1)b|x))(c)', 100, 'abc'),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_S, R_C], [
+#        MatchBenchmark('Match a*b against a^100b', 
+#                       'a*b', 2, 100*'a' + 'b'),
+#        MatchBenchmark('Match .*b against a^100b', 
+#                       '.*b', 2, 100*'a' + 'b'),
+#        MatchBenchmark('Search .*b against a^100b', 
+#                       '.*b', 1, 100*'a' + 'b', search=True),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_C], [
+#        MatchBenchmark('Match (.*) (.*) (.*)  against abc abc abc', 
+#                       '(.*) (.*) (.*)', 10, 'abc abc abc'),
+#        ])
+#    print
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_S, R_C], [
+#        MatchBenchmark('Search .*?a*b against a^10b', 
+#                       '.*?a*b', 1, 10*'a' + 'b', search=True),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_S, R_C], [
+#        MatchBenchmark('Search .*?a*b against a^100b', 
+#                       '.*?a*b', 1, 100*'a' + 'b', search=True),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PWH, R_PSH, R_PB, R_PBH, R_S, R_C], [
+#        MatchBenchmark('Search .*?a*b against a^1000b', 
+#                       '.*?a*b', 1, 1000*'a' + 'b', search=True),
+#        ])
+#    print
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_C], [
+#        exponential5(4),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_C], [
+#        exponential5(6),
+#        ])
+#    print
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_S, R_C], [
+#        exponential4(4),
+#        ])
+#    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PBH, R_S, R_C], [
+#        exponential4(6),
+#        ])
+#    text_histogram([R_PYTHON, R_PWH, R_PSH, R_PBH, R_S, R_C], [
+#        exponential4(8),
+#        exponential(8),
+#        ])
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_C], [
+        prime(32),
+        prime(33),
+        prime(1024),
+        prime(1031),
+        prime(12347),
         ])
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
-        MatchBenchmark('Match a*b against a^100b', 
-                       'a*b', 2, 100*'a' + 'b'),
-        MatchBenchmark('Match .*b against a^100b', 
-                       '.*b', 2, 100*'a' + 'b'),
-        MatchBenchmark('Search .*b against a^100b', 
-                       '.*b', 1, 100*'a' + 'b', search=True),
-        ])
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
-        MatchBenchmark('Match (.*) (.*) (.*)  against abc abc abc', 
-                       '(.*) (.*) (.*)', 10, 'abc abc abc'),
-        ])
-    print
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
-        MatchBenchmark('Search .*?a*b against a^10b', 
-                       '.*?a*b', 1, 10*'a' + 'b', search=True),
-        ])
-    text_histogram([R_PYTHON, R_B, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
-        MatchBenchmark('Search .*?a*b against a^100b', 
-                       '.*?a*b', 1, 100*'a' + 'b', search=True),
-        ])
-    text_histogram([R_PYTHON, R_B, R_PWH, R_PSH, R_PB, R_PBH, R_Q], [
-        MatchBenchmark('Search .*?a*b against a^1000b', 
-                       '.*?a*b', 1, 1000*'a' + 'b', search=True),
-        ])
-    print
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH], [
-        exponential5(4),
-        ])
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH], [
-        exponential5(6),
-        ])
-    print
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_Q], [
-        exponential4(4),
-        ])
-    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PBH, R_Q], [
-        exponential4(6),
-        ])
-    text_histogram([R_PYTHON, R_PWH, R_PSH, R_PBH, R_Q], [
-        exponential4(8),
-        exponential(8),
+    text_histogram([R_PYTHON, R_B, R_PW, R_PWH, R_PS, R_PSH, R_PB, R_PBH, R_C], [
+        prime2(32),
+        prime2(33),
+        prime2(1024),
+        prime2(1031),
+        prime2(12347),
         ])
     

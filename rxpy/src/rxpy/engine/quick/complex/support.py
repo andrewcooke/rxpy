@@ -65,7 +65,8 @@ class State(object):
             prefix = self.__text
         # don't clone contents - they are copy on write
         return State(index, prefix, groups=self.__groups, 
-                     loops=self.__loops, checks=self.__checks, hash=hash)
+                     loops=self.__loops, checks=self.__checks, 
+                     last_number=self.__last_number, hash=hash)
         
     def __eq__(self, other):
         # don't include checks - they are not needed
@@ -112,28 +113,39 @@ class State(object):
         groups[number] = new_triple
         if number != 0:
             self.__last_number = number
-    
-    def increment_loop(self, index, end):
+            
+    def get_loop(self, index):
+        loops = self.__loops
+        if loops and loops[-1][0] == index:
+            return loops[-1][1]
+        else:
+            return None
+        
+    def new_loop(self, index):
         # copy on write
         loops = list(self.__loops)
         self.__loops = loops
-        # if current loop, get and check
-        if loops and loops[-1][0] == index:
-            prev = loops.pop()
-            # drop from hash (added back later on increment)
-            self.__hash ^= prev
-            (_index, count) = prev
-            # increment
-            count += 1
-            if count > end:
-                raise Fail
-        else:
-            # starting new loop
-            count = 0
+        next = (index, 0)
+        # add to loops and hash
+        loops.append(next)
+        self.__hash ^= hash(next)
+        return self
+    
+    def increment_loop(self, index):
+        # copy on write
+        loops = list(self.__loops)
+        self.__loops = loops
+        prev = loops.pop()
+        # drop from hash (added back later on increment)
+        self.__hash ^= hash(prev)
+        (_index, count) = prev
+        # increment
+        count += 1
         next = (index, count)
         # add to loops and hash
         loops.append(next)
-        self.__hash ^= next
+        self.__hash ^= hash(next)
+        return self
     
     def drop_loop(self, index):
         # copy on write
@@ -141,7 +153,8 @@ class State(object):
         self.__loops = loops
         # drop from loops and hash
         prev = loops.pop()
-        self.__hash ^= prev
+        self.__hash ^= hash(prev)
+        return self
 
     def check(self, offset, index):
         if offset != self.__checks[0]:

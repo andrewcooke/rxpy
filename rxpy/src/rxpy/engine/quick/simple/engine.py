@@ -304,5 +304,5 @@ class SimpleEngine(BaseEngine, BaseCompiled):
         else:
             raise Fail
 
-    def repeat(self, begin, end, lazy):
+    def repeat(self, next, begin, end, lazy):
         raise UnsupportedOperation('repeat')

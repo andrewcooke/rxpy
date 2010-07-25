@@ -350,5 +350,14 @@ class EngineTest(BaseTest):
         assert result.group(4) == 'b'
         assert len(result) == 1
         
+    def test_repeat(self):
+        assert self.engine(self.parse('a{20}b{10}c'), 20*'a' + 10*'b' + 'c')
+        assert self.engine(self.parse('a{20,}b{0,10}c'), 20*'a' + 10*'b' + 'c')
+        assert not self.engine(self.parse('a{20,}b{0,9}c'), 20*'a' + 10*'b' + 'c')
+        assert not self.engine(self.parse('a{21,}b{0,10}c'), 20*'a' + 10*'b' + 'c')
+        assert self.engine(self.parse('a{19,21}b{9,11}c'), 20*'a' + 10*'b' + 'c')
+        result = self.engine(self.parse('a{3,4}'), 'aaaa')
+        assert result.group(0) == 'aaaa', result.group(0)
+        result = self.engine(self.parse('a{3,4}?'), 'aaaa')
+        assert result.group(0) == 'aaa', result.group(0)
         
-    
