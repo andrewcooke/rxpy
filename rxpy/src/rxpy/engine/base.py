@@ -1,4 +1,3 @@
-from rxpy.lib import UnimplementedMethod
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -27,6 +26,8 @@ from rxpy.lib import UnimplementedMethod
 # required by the LGPL License.  If you do not delete the provisions    
 # above, a recipient may use your version of this file under either the 
 # MPL or the LGPL License.                                              
+
+from rxpy.lib import UnimplementedMethod
 
 
 class BaseEngine(object):

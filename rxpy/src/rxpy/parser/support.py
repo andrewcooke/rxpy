@@ -1,4 +1,3 @@
-from rxpy.parser.error import SimpleGroupException
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -38,6 +37,7 @@ from string import digits, ascii_letters
 from rxpy.alphabet.ascii import Ascii
 from rxpy.alphabet.unicode import Unicode
 from rxpy.graph.post import resolve_group_names, post_process
+from rxpy.parser.error import SimpleGroupException
 from rxpy.lib import _FLAGS, RxpyException, refuse_flags
 
 

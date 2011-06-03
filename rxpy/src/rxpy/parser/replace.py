@@ -1,4 +1,3 @@
-from rxpy.graph.container import Sequence
 
 # The contents of this file are subject to the Mozilla Public License
 # (MPL) Version 1.1 (the "License"); you may not use this file except
@@ -38,6 +37,7 @@ and escaped characters.
 from string import digits
 
 from rxpy.lib import RxpyException
+from rxpy.graph.container import Sequence
 from rxpy.graph.opcode import GroupReference, Match, String
 from rxpy.parser.support import parse, Builder, ALPHANUMERIC
 from rxpy.parser.pattern import IntermediateEscapeBuilder
